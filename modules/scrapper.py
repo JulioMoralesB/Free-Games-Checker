@@ -22,7 +22,7 @@ def fetch_free_games():
         if price_info.get("discountPrice", 1) == 0:
             title = game["title"]
             logger.info(f"Found free game!: {title}")
-            link = f"https://store.epicgames.com/en-US/p/{game['productSlug']}"
+            link = f"https://store.epicgames.com/es-MX/p/{game['productSlug']}"
             end_date = ""
             for offer in game["promotions"]["promotionalOffers"][0]["promotionalOffers"]:
                 if offer["discountSetting"]["discountPercentage"] == 0:
