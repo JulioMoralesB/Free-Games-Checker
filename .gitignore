@@ -1,0 +1,9 @@
+env/
+.env
+__pycache__
+*.pyc
+modules/__pycache__
+modules/*.pyc
+whitelist.json
+*.log
+free_games.json

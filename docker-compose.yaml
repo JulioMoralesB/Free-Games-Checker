@@ -1,0 +1,13 @@
+services:
+  free-games-checker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - python
+      - main.py
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
+    image: apollox10/free-games-checker:latest
+    restart: unless-stopped
+    container_name: "free-games-checker"
