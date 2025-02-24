@@ -15,6 +15,7 @@ services:
           memory: 3792M
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
+      - HEALTHCHECK_URL=http://host.docker.internal:3001/api/push/VKkunqDKq9
     image: apollox10/free-games-checker:latest
     restart: unless-stopped
     volumes:
@@ -30,6 +31,8 @@ services:
     networks:
       - default
     privileged: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 networks:
   default:
     name: freegamescheckerdeployer_default

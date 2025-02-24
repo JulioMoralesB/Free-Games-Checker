@@ -3,6 +3,7 @@ from datetime import datetime
 from modules.notifier import send_discord_message
 from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games
+from modules.healthcheck import healthcheck
 
 import schedule
 import time
@@ -44,8 +45,10 @@ def check_games():
 
 def main():
     check_games()
+    
     logging.info("Starting scheduler...")
     schedule.every().day.at("12:00").do(check_games)
+    schedule.every().minute.do(healthcheck)
 
     while True:
             schedule.run_pending()

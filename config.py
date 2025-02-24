@@ -15,3 +15,6 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # Path to store free games data
 DATA_FILE_PATH = "/mnt/data/free_games.json"
+
+# URL to Healthcheck Monitor
+HEALTHCHECK_URL = os.getenv("HEALTHCHECK_URL")
