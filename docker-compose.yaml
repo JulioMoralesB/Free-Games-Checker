@@ -21,10 +21,10 @@ services:
     volumes:
       - type: bind
         source: /DATA/Documents/Discord Projects/Free Games Checker/data
-        target: /mnt/data
+        target: mnt/data
       - type: bind
         source: /DATA/Documents/Discord Projects/Free Games Checker/logs
-        target: /mnt/logs
+        target: mnt/logs
     ports: []
     devices: []
     cap_add: []

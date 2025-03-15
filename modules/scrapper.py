@@ -22,11 +22,44 @@ def fetch_free_games():
         if price_info.get("discountPrice", 1) == 0:
             title = game["title"]
             logger.info(f"Found free game!: {title}")
-            link = f"https://store.epicgames.com/es-MX/p/{game['urlSlug']}"
+            gameId = ""
+            try:
+                offerPageSlug = game["offerMappings"][0]["pageSlug"]
+                if offerPageSlug:
+                    logger.info(f"Found Offer Page Slug: {offerPageSlug}")
+                    gameId = offerPageSlug
+            except IndexError:
+                logger.info("No Offer Page Slug found.")
+                try:
+                    pageSlug = game["catalogNs"]["mappings"][0]["pageSlug"]
+                    if pageSlug:
+                        logger.info(f"Found CatalogNs Page Slug: {pageSlug}")
+                        gameId = pageSlug
+                except IndexError:
+                    logger.info("No CatalogNs Page Slug found.")
+            if gameId:
+                logger.info(f"Using gameId: {gameId}")
+                link = f"https://store.epicgames.com/es-MX/p/{gameId}"
+            else:
+                logger.info("No game url found, using default link.")
+                link = "https://store.epicgames.com/es-MX/free-games"    
+                
             end_date = ""
             for offer in game["promotions"]["promotionalOffers"][0]["promotionalOffers"]:
                 if offer["discountSetting"]["discountPercentage"] == 0:
                     end_date = offer["endDate"]
-            games.append({"title": title, "link": link, "endDate": end_date})
+                    break
+            logger.info(f"End Date: {end_date}")
+
+            description = game["description"]
+            logger.info(f"Description: {description}")
+
+            for image in game["keyImages"]:
+                if image["type"] == "Thumbnail":
+                    thumbnail = image["url"]
+                    break
+            logger.info(f"Thumbnail: {thumbnail}")
+
+            games.append({"title": title, "link": link, "endDate": end_date, "description": description, "thumbnail": thumbnail})
     logger.info(f"Returning games: {games}")
     return games

@@ -6,13 +6,15 @@ import locale
 
 locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 
+import logging
+logger = logging.getLogger(__name__)
+
 def send_discord_message(new_games):
     """Send a Discord webhook message."""
     if not DISCORD_WEBHOOK_URL:
         print("Discord webhook URL not set!")
         return
-    
-    content = "**Nuevos Juegos Gratis en Epic Games Store! 🎮**\n"
+    embeds = []
     for game in new_games:
         
         end_date = datetime.strptime(game["endDate"], "%Y-%m-%dT%H:%M:%S.%fZ")
@@ -31,9 +33,29 @@ def send_discord_message(new_games):
 
         # Format the final string
         formated_end_date = f"{localized_end_date.strftime('%d de %B de %Y a las %I:%M')} {am_pm_text} UTC-6 (Hora de México)"
-
-
-        content += f"🔹 [{game['title']}]({game['link']}) - La oferta termina el {formated_end_date} \n"
-    
-    data = {"content": content}
+        embeds.append(
+            {
+                "author": {
+                    "name": "Epic Games Store",
+                    "url": "https://store.epicgames.com/es-MX/free-games",
+                },
+                "title": game["title"],
+                "url": game["link"],
+                "description": game["description"],
+                "color": 0x2ECC71,
+                "image": {
+                    "url": game["thumbnail"],
+                },
+                "footer": {
+                    "text": f"Finaliza el {formated_end_date}",
+                }
+            }
+        )
+        
+    data = {
+        "content": "**Nuevos Juegos Gratis en Epic Games Store! 🎮**\n",
+        "embeds": embeds
+    }
+    logger.info(f"Sending Discord message: {data}")
     requests.post(DISCORD_WEBHOOK_URL, json=data)
+    
