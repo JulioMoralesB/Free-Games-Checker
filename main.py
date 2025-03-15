@@ -12,7 +12,7 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 
 # Configure logging to write to a file and rotate weekly
-log_handler = TimedRotatingFileHandler("mnt/logs/checker.log", when="W1", interval=1, backupCount=4)
+log_handler = TimedRotatingFileHandler("/mnt/logs/checker.log", when="W1", interval=1, backupCount=4)
 log_handler.setLevel(logging.INFO)
 log_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
