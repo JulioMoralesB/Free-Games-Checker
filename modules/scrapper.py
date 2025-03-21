@@ -45,6 +45,7 @@ def fetch_free_games():
                 link = "https://store.epicgames.com/es-MX/free-games"    
                 
             end_date = ""
+            logger.info(f"Promotions: {game['promotions']}")
             for offer in game["promotions"]["promotionalOffers"][0]["promotionalOffers"]:
                 if offer["discountSetting"]["discountPercentage"] == 0:
                     end_date = offer["endDate"]
