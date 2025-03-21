@@ -23,6 +23,9 @@ def fetch_free_games():
             title = game["title"]
             logger.info(f"Found free game!: {title}")
             gameId = ""
+            if "Mystery Game" in title:
+                logger.info("Mystery Game found, skipping.")
+                continue
             try:
                 offerPageSlug = game["offerMappings"][0]["pageSlug"]
                 if offerPageSlug:
