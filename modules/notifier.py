@@ -35,7 +35,7 @@ def send_discord_message(new_games):
         
         data = {
             "content": "**Nuevo Juego Gratis en Epic Games Store! 🎮**\n",
-            "embeds": {
+            "embeds": [{
                 "author": {
                     "name": "Epic Games Store",
                     "url": "https://store.epicgames.com/es-MX/free-games"
@@ -50,7 +50,7 @@ def send_discord_message(new_games):
                 "footer": {
                     "text": f"Finaliza el {formated_end_date}"
                 }
-            }
+            }]
         }
         logger.info(f"Sending Discord message: {data}")
         requests.post(DISCORD_WEBHOOK_URL, json=data)
