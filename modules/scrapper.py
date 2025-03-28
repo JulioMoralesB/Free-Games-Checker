@@ -57,12 +57,19 @@ def fetch_free_games():
 
             description = game["description"]
             logger.info(f"Description: {description}")
-
+            logger.info("Trying to find thumbnail.")
             for image in game["keyImages"]:
                 if image["type"] == "Thumbnail":
                     thumbnail = image["url"]
+                    logger.info(f"Found Thumbnail: {thumbnail}")
                     break
-            logger.info(f"Thumbnail: {thumbnail}")
+            if not thumbnail:
+                logger.info("No Thumbnail found, trying a different image.")
+                thumbnail = game["keyImages"][0]["url"]
+            if not thumbnail:
+                logger.info("No image found, using default.")
+                thumbnail = "https://static-assets-prod.epicgames.com/epic-store/static/webpack/25c285e020572b4f76b770d6cca272ec.png"
+            logger.info(f"Thumbnail to be used: {thumbnail}")
 
             games.append({"title": title, "link": link, "endDate": end_date, "description": description, "thumbnail": thumbnail})
     logger.info(f"Returning games: {games}")
