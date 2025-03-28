@@ -37,17 +37,17 @@ def send_discord_message(new_games):
             {
                 "author": {
                     "name": "Epic Games Store",
-                    "url": "https://store.epicgames.com/es-MX/free-games",
+                    "url": "https://store.epicgames.com/es-MX/free-games"
                 },
                 "title": game["title"],
                 "url": game["link"],
-                "description": game["description"],
+                "description": game["description"].replace("'", "\\'"),
                 "color": 0x2ECC71,
                 "image": {
-                    "url": game["thumbnail"],
+                    "url": game["thumbnail"]
                 },
                 "footer": {
-                    "text": f"Finaliza el {formated_end_date}",
+                    "text": f"Finaliza el {formated_end_date}"
                 }
             }
         )
