@@ -58,6 +58,7 @@ def fetch_free_games():
             description = game["description"]
             logger.info(f"Description: {description}")
             logger.info("Trying to find thumbnail.")
+            thumbnail = "" 
             for image in game["keyImages"]:
                 if image["type"] == "Thumbnail":
                     thumbnail = image["url"]
