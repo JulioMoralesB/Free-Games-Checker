@@ -14,6 +14,7 @@ def send_discord_message(new_games):
     if not DISCORD_WEBHOOK_URL:
         print("Discord webhook URL not set!")
         return
+    embeds = []
     for game in new_games:
         
         end_date = datetime.strptime(game["endDate"], "%Y-%m-%dT%H:%M:%S.%fZ")
@@ -32,17 +33,15 @@ def send_discord_message(new_games):
 
         # Format the final string
         formated_end_date = f"{localized_end_date.strftime('%d de %B de %Y a las %I:%M')} {am_pm_text} UTC-6 (Hora de México)"
-        
-        data = {
-            "content": "**Nuevo Juego Gratis en Epic Games Store! 🎮**\n",
-            "embeds": [{
+        embeds.append(
+            {
                 "author": {
                     "name": "Epic Games Store",
                     "url": "https://store.epicgames.com/es-MX/free-games"
                 },
                 "title": game["title"],
                 "url": game["link"],
-                "description": game["description"],
+                "description": game["description"].replace("'", ""),
                 "color": 0x2ECC71,
                 "image": {
                     "url": game["thumbnail"]
@@ -50,7 +49,12 @@ def send_discord_message(new_games):
                 "footer": {
                     "text": f"Finaliza el {formated_end_date}"
                 }
-            }]
+            }
+        )
+        
+        data = {
+            "content": "**Nuevo Juego Gratis en Epic Games Store! 🎮**\n",
+            "embeds": embeds
         }
         logger.info(f"Sending Discord message: {data}")
         requests.post(DISCORD_WEBHOOK_URL, json=data)

@@ -20,19 +20,28 @@ def fetch_free_games():
     for game in data["data"]["Catalog"]["searchStore"]["elements"]:
         price_info = game.get("price", {}).get("totalPrice", {})
         if price_info.get("discountPrice", 1) == 0:
+            ## Get the game title
             title = game["title"]
             logger.info(f"Found free game!: {title}")
+            
+            ## Get the game link
             gameId = ""
+            ## If the game is a mystery game, skip it
             if "Mystery Game" in title:
                 logger.info("Mystery Game found, skipping.")
                 continue
+            
+            ## Try to get the offer page slug
             try:
                 offerPageSlug = game["offerMappings"][0]["pageSlug"]
                 if offerPageSlug:
                     logger.info(f"Found Offer Page Slug: {offerPageSlug}")
                     gameId = offerPageSlug
+            
             except IndexError:
                 logger.info("No Offer Page Slug found.")
+            ## If it fails, try to get the catalogNs page slug
+            if not gameId:
                 try:
                     pageSlug = game["catalogNs"]["mappings"][0]["pageSlug"]
                     if pageSlug:
@@ -40,9 +49,21 @@ def fetch_free_games():
                         gameId = pageSlug
                 except IndexError:
                     logger.info("No CatalogNs Page Slug found.")
+            ## If it fails, try to get the product slug
+            if not gameId:
+                try:
+                    productSlug = game["productSlug"]
+                    if productSlug:
+                        logger.info(f"Found Product Slug: {productSlug}")
+                        gameId = productSlug
+                except KeyError:
+                    logger.info("No Product Slug found.")
+            
+            ## If gameId is found, use it to create the link
             if gameId:
                 logger.info(f"Using gameId: {gameId}")
                 link = f"https://store.epicgames.com/es-MX/p/{gameId}"
+            ## If not, use the default link
             else:
                 logger.info("No game url found, using default link.")
                 link = "https://store.epicgames.com/es-MX/free-games"    
