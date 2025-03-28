@@ -41,7 +41,7 @@ def send_discord_message(new_games):
                 },
                 "title": game["title"],
                 "url": game["link"],
-                "description": game["description"].replace("'", "\'"),
+                "description": game["description"].replace("'", ""),
                 "color": 0x2ECC71,
                 "image": {
                     "url": game["thumbnail"]
