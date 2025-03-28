@@ -52,10 +52,10 @@ def send_discord_message(new_games):
             }
         )
         
-        data = {
-            "content": "**Nuevo Juego Gratis en Epic Games Store! 🎮**\n",
-            "embeds": embeds
-        }
-        logger.info(f"Sending Discord message: {data}")
-        requests.post(DISCORD_WEBHOOK_URL, json=data)
+    data = {
+        "content": "**Nuevo Juego Gratis en Epic Games Store! 🎮**\n",
+        "embeds": embeds
+    }
+    logger.info(f"Sending Discord message: {data}")
+    requests.post(DISCORD_WEBHOOK_URL, json=data)
     
