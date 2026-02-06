@@ -7,3 +7,4 @@ modules/*.pyc
 whitelist.json
 *.log
 free_games.json
+/data

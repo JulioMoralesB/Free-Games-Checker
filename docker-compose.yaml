@@ -2,7 +2,7 @@ name: freegamescheckerdeployer
 services:
   free-games-checker:
     build:
-      context: /var/lib/jenkins/workspace/Free Games Checker Deployer
+      context: ${BUILD_PATH}
       dockerfile: Dockerfile
     cpu_shares: 50
     command:
@@ -20,10 +20,10 @@ services:
     restart: unless-stopped
     volumes:
       - type: bind
-        source: /DATA/Documents/Discord Projects/Free Games Checker/data
+        source: ${DATA_PATH}
         target: /mnt/data
       - type: bind
-        source: /DATA/Documents/Discord Projects/Free Games Checker/logs
+        source: ${LOGS_PATH}
         target: /mnt/logs
     ports: []
     devices: []
