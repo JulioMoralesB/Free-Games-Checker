@@ -1,23 +1,13 @@
 name: freegamesnotifierdeployer
 services:
   free-games-notifier:
-    build:
-      context: ${BUILD_PATH}
-      dockerfile: Dockerfile
-    cpu_shares: 50
-    command:
-      - python
-      - main.py
+    build: .
     container_name: free-games-notifier
-    deploy:
-      resources:
-        limits:
-          memory: 3792M
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
       - HEALTHCHECK_URL=${HEALTHCHECK_URL}
       - EPIC_GAMES_API_URL=${EPIC_GAMES_API_URL}
-    image: apollox10/free-games-notifier:latest
+    image: free-games-notifier
     restart: unless-stopped
     volumes:
       - type: bind
@@ -26,25 +16,5 @@ services:
       - type: bind
         source: ${LOGS_PATH}
         target: /mnt/logs
-    ports: []
-    devices: []
-    cap_add: []
     networks:
       - default
-    privileged: false
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-networks:
-  default:
-    name: freegamesnotifierdeployer_default
-x-casaos:
-  author: self
-  category: self
-  hostname: ""
-  icon: ""
-  index: /
-  is_uncontrolled: false
-  port_map: ""
-  scheme: http
-  title:
-    custom: Free Games Notifier
