@@ -25,7 +25,6 @@ logging.basicConfig(level=logging.INFO, handlers=[log_handler, console_handler])
 def check_games():
     """Main execution function."""
     logging.info("Checking for new free games...")
-    print(f"[{datetime.now()}] Checking for new free games...")
 
     current_games = fetch_free_games()
     logging.info(f"Games obtained from scrapper.py: {current_games}")
