@@ -15,7 +15,8 @@ services:
           memory: 3792M
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
-      - HEALTHCHECK_URL=http://host.docker.internal:3001/api/push/VKkunqDKq9
+      - HEALTHCHECK_URL=${HEALTHCHECK_URL}
+      - EPIC_GAMES_API_URL=${EPIC_GAMES_API_URL}
     image: apollox10/free-games-checker:latest
     restart: unless-stopped
     volumes:

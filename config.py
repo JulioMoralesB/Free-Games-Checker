@@ -8,7 +8,7 @@ load_dotenv()
 os.makedirs("data", exist_ok=True)
 
 # Epic Games API URL
-EPIC_GAMES_API_URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions"
+EPIC_GAMES_API_URL = os.getenv("EPIC_GAMES_API_URL", "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions")
 
 # Discord Webhook URL (loaded from .env)
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
