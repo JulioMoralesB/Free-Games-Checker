@@ -8,13 +8,13 @@ load_dotenv()
 os.makedirs("data", exist_ok=True)
 
 # Epic Games API URL
-EPIC_GAMES_API_URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions"
+EPIC_GAMES_API_URL = os.getenv("EPIC_GAMES_API_URL", "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions")
 
 # Discord Webhook URL (loaded from .env)
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # Path to store free games data
-DATA_FILE_PATH = "/mnt/data/free_games.json"
+DATA_FILE_PATH = "/mnt/data/free_games.json" # This path can be overridden by mounting a volume in Docker
 
 # URL to Healthcheck Monitor
 HEALTHCHECK_URL = os.getenv("HEALTHCHECK_URL")

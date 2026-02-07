@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 free_games.json
 *.log
+/data
