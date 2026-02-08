@@ -7,15 +7,15 @@ logger = logging.getLogger(__name__)
 
 # Sends a hearthbeat to a monitor service like UptimeKuma to ensure that the service is running and healthy
 def healthcheck():
-    logger.info(f"Sending request to healthcheck monitor. URL: {HEALTHCHECK_URL}")
+    logger.debug(f"Sending request to healthcheck monitor. URL: {HEALTHCHECK_URL}")
     response = requests.get(HEALTHCHECK_URL)
-    logger.info(f"Received response from monitor. Status Code: {response.status_code}")
+    logger.debug(f"Received response from monitor. Status Code: {response.status_code}")
     response_json = response.json()
     ok_value = response_json.get("ok")
 
-    logger.info(f"Ok value: {ok_value}")
+    logger.debug(f"Ok value: {ok_value}")
 
     if response.status_code != 200 or ok_value not in [True, 'true']:
         logger.error(f"Failed to get response from monitor. Status Code: {response.status_code}")
         return
-    logger.info("Obtained 200 status code from monitor response. Service is healthy")
+    logger.debug("Obtained 200 status code from monitor response. Service is healthy")
