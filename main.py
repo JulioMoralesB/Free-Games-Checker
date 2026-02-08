@@ -45,12 +45,12 @@ def check_games():
 
 def main():
     check_games()
-    #healthcheck()
+    healthcheck()
 
     logging.info("Starting scheduler...")
 
     schedule.every().day.at("12:00").do(check_games)
-    #schedule.every().minute.do(healthcheck)
+    schedule.every().minute.do(healthcheck)
 
     while True:
         schedule.run_pending()
