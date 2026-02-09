@@ -1,5 +1,4 @@
 import requests
-from config import HEALTHCHECK_URL
 from config import HEALTHCHECK_URL, ENABLE_HEALTHCHECK
 
 import logging

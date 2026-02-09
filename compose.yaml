@@ -7,6 +7,11 @@ services:
       - HEALTHCHECK_URL=${HEALTHCHECK_URL}
       - ENABLE_HEALTHCHECK=${ENABLE_HEALTHCHECK}
       - EPIC_GAMES_API_URL=${EPIC_GAMES_API_URL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
     image: free-games-notifier
     restart: unless-stopped
     volumes:
@@ -19,4 +24,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - default
+      - apollo-server-network
+
+networks:
+  apollo-server-network:
+    external: true

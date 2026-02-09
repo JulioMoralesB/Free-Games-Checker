@@ -93,6 +93,6 @@ def fetch_free_games():
                 thumbnail = "https://static-assets-prod.epicgames.com/epic-store/static/webpack/25c285e020572b4f76b770d6cca272ec.png"
             logger.info(f"Thumbnail to be used: {thumbnail}")
 
-            games.append({"title": title, "link": link, "endDate": end_date, "description": description, "thumbnail": thumbnail})
+            games.append({"title": title, "link": link, "end_date": end_date, "description": description, "thumbnail": thumbnail})
     logger.info(f"Returning games: {games}")
     return games
