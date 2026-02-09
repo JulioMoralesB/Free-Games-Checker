@@ -5,6 +5,7 @@ services:
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
       - HEALTHCHECK_URL=${HEALTHCHECK_URL}
+      - ENABLE_HEALTHCHECK=${ENABLE_HEALTHCHECK}
       - EPIC_GAMES_API_URL=${EPIC_GAMES_API_URL}
     image: free-games-notifier
     restart: unless-stopped

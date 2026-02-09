@@ -1,5 +1,6 @@
 import requests
 from config import HEALTHCHECK_URL
+from config import HEALTHCHECK_URL, ENABLE_HEALTHCHECK
 
 import logging
 
@@ -7,6 +8,9 @@ logger = logging.getLogger(__name__)
 
 # Sends a hearthbeat to a monitor service like UptimeKuma to ensure that the service is running and healthy
 def healthcheck():
+    if not ENABLE_HEALTHCHECK:
+        logger.debug("Healthcheck is disabled. Skipping healthcheck.")
+        return
     logger.debug(f"Sending request to healthcheck monitor. URL: {HEALTHCHECK_URL}")
     response = requests.get(HEALTHCHECK_URL)
     logger.debug(f"Received response from monitor. Status Code: {response.status_code}")

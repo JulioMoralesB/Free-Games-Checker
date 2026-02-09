@@ -18,3 +18,6 @@ DATA_FILE_PATH = "/mnt/data/free_games.json" # This path can be overridden by mo
 
 # URL to Healthcheck Monitor
 HEALTHCHECK_URL = os.getenv("HEALTHCHECK_URL")
+
+# Enable or disable healthcheck based on environment variable
+ENABLE_HEALTHCHECK = os.getenv("ENABLE_HEALTHCHECK").lower() == "true"
