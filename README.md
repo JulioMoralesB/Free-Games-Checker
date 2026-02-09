@@ -1,10 +1,10 @@
-# Free Games Checker
+# Free Games Notifier
 
-Free Games Checker is a Discord bot that notifies users about free games available on various platforms.
+Is a scheduled script that notifies users about free games available on various platforms.
 
 ## Features
 
-- Monitors multiple gaming platforms for free game offers
+- Monitors multiple gaming platforms for free game offers (WIP, currently only works with Epic Games)
 - Sends notifications to a Discord channel
 - Customizable notification settings
 

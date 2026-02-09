@@ -1,0 +1,21 @@
+services:
+  free-games-notifier:
+    build: .
+    container_name: free-games-notifier
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
+      - HEALTHCHECK_URL=${HEALTHCHECK_URL}
+      - EPIC_GAMES_API_URL=${EPIC_GAMES_API_URL}
+    image: free-games-notifier
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ${DATA_PATH}
+        target: /mnt/data
+      - type: bind
+        source: ${LOGS_PATH}
+        target: /mnt/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default

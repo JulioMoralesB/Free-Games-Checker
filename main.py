@@ -33,7 +33,7 @@ def check_games():
         return
 
     previous_games = load_previous_games()
-    logging.info(f"Previous games loaded from storage: {previous_games}")
+    logging.debug(f"Previous games loaded from storage: {previous_games}")
     new_games = [game for game in current_games if game not in previous_games]
 
     if new_games:
@@ -45,12 +45,12 @@ def check_games():
 
 def main():
     check_games()
-    #healthcheck()
+    healthcheck()
 
-    logging.info("Starting scheduler...")
+    logging.debug("Starting scheduler...")
 
     schedule.every().day.at("12:00").do(check_games)
-    #schedule.every().minute.do(healthcheck)
+    schedule.every().minute.do(healthcheck)
 
     while True:
         schedule.run_pending()
