@@ -17,7 +17,7 @@ def send_discord_message(new_games):
     embeds = []
     for game in new_games:
         
-        end_date = datetime.strptime(game["endDate"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        end_date = datetime.strptime(game["end_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
         dt_obj = pytz.utc.localize(end_date)
         mexico_tz = pytz.timezone("America/Mexico_City")

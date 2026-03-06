@@ -4,6 +4,7 @@ from modules.notifier import send_discord_message
 from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games
 from modules.healthcheck import healthcheck
+from modules.database import FreeGamesDatabase
 
 import schedule
 import time
@@ -23,6 +24,7 @@ console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(level
 logging.basicConfig(level=logging.INFO, handlers=[log_handler, console_handler])
 
 def check_games():
+    
     """Main execution function."""
     logging.info("Checking for new free games...")
 
@@ -44,6 +46,8 @@ def check_games():
         logging.warning("No new free games detected.")
 
 def main():
+    db = FreeGamesDatabase()
+    db.init_db()
     check_games()
     healthcheck()
 

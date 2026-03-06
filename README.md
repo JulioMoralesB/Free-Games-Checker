@@ -9,23 +9,23 @@ Is a scheduled script that notifies users about free games available on various 
 - Customizable notification settings
 
 ## Installation
-
+- - - - - - - - - - WIP - - - - - - - - - - 
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/yourusername/Free-Games-Checker.git
+    git clone https://github.com/JulioMoralesB/free-games-notifier.git
     ```
 
 2. Navigate to the project directory:
 
     ```bash
-    cd Free-Games-Checker
+    cd free-games-notifier
     ```
 
 3. Install the required dependencies:
 
     ```bash
-    npm install
+    npm install ???? It does not use NPM, it uses python
     ```
 
 ## Configuration
@@ -33,7 +33,7 @@ Is a scheduled script that notifies users about free games available on various 
 1. Create a `.env` file in the root directory and add your Discord bot token:
 
     ```env
-    DISCORD_TOKEN=your_discord_bot_token
+    DISCORD_TOKEN=your_discord_bot_token -> Need to update environment variables
     ```
 
 2. Customize other settings in the `config.json` file.
@@ -43,7 +43,7 @@ Is a scheduled script that notifies users about free games available on various 
 Start the bot:
 
 ```bash
-npm start
+npm start -> no NPM
 ```
 
 ## Contributing
