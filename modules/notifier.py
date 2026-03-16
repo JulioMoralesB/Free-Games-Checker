@@ -24,9 +24,9 @@ def send_discord_message(new_games):
         localized_end_date = dt_obj.astimezone(mexico_tz)
 
         # Format date manually, check if AM or PM, since %p may not work in some systems
-        hour = localized_end_date.strftime("%H")
+        hour = int(localized_end_date.strftime("%H"))
 
-        if hour >= "12":
+        if hour >= 12:
             am_pm_text = "PM"
         else:
             am_pm_text = "AM"
