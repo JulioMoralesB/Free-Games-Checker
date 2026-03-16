@@ -1,59 +1,254 @@
 # Free Games Notifier
 
-Is a scheduled script that notifies users about free games available on various platforms.
+A Python-based scheduler that monitors the Epic Games Store for free game promotions and sends Discord notifications. Runs as a Docker container with health check support and optional PostgreSQL integration.
 
 ## Features
 
-- Monitors multiple gaming platforms for free game offers (WIP, currently only works with Epic Games)
-- Sends notifications to a Discord channel
-- Customizable notification settings
+- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at 12:00 UTC for new free games
+- 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details
+- 📊 **Persistent Storage**: Maintains game history (JSON file or PostgreSQL database)
+- 🏥 **Health Checks**: Optional UptimeKuma/Healthchecks.io integration for monitoring
+- 🐳 **Docker Ready**: Includes Docker and docker-compose configurations
+- 🌍 **Timezone Support**: Automatically converts times to your timezone (currently Mexico City)
 
-## Installation
-- - - - - - - - - - WIP - - - - - - - - - - 
-1. Clone the repository:
+## Prerequisites
 
-    ```bash
-    git clone https://github.com/JulioMoralesB/free-games-notifier.git
-    ```
+### Local Development
+- Python 3.9+
+- pip (Python package manager)
+- Virtual environment support (venv)
 
-2. Navigate to the project directory:
+### Docker Deployment
+- Docker 20.10+
+- Docker Compose 1.29+
+- (Optional) PostgreSQL 13+ for database-backed storage
 
-    ```bash
-    cd free-games-notifier
-    ```
+## Local Setup
 
-3. Install the required dependencies:
-
-    ```bash
-    npm install ???? It does not use NPM, it uses python
-    ```
-
-## Configuration
-
-1. Create a `.env` file in the root directory and add your Discord bot token:
-
-    ```env
-    DISCORD_TOKEN=your_discord_bot_token -> Need to update environment variables
-    ```
-
-2. Customize other settings in the `config.json` file.
-
-## Usage
-
-Start the bot:
+### 1. Clone the Repository
 
 ```bash
-npm start -> no NPM
+git clone https://github.com/JulioMoralesB/free-games-notifier.git
+cd free-games-notifier
+```
+
+### 2. Create a Virtual Environment
+
+```bash
+python3 -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configure Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+# Required: Discord webhook for notifications
+DISCORD_WEBHOOK_URL=https://discordapp.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_TOKEN
+
+# Optional: Epic Games API (defaults to official store API)
+EPIC_GAMES_API_URL=https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions
+
+# Optional: Health Check Monitoring
+HEALTHCHECK_URL=https://healthchecks.io/ping/YOUR_UUID
+ENABLE_HEALTHCHECK=false
+
+# Optional: PostgreSQL Database (file-based JSON by default)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=free_games
+DB_USER=postgres
+DB_PASSWORD=your_password
+```
+
+### 5. Run the Scheduler
+
+```bash
+python main.py
+```
+
+The service will:
+- Check for new free games daily at 12:00 UTC
+- Send health check pings every minute (if enabled)
+- Log activity to `data/logs/notifier.log`
+
+## Docker Deployment
+
+### Quick Start with Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+This will start:
+- **free-games-notifier** service (runs scheduler)
+- **PostgreSQL** database (optional, configure in compose.yaml)
+
+### Using Only Docker
+
+```bash
+docker build -t free-games-notifier .
+docker run -d \
+  --name free-games-notifier \
+  -e DISCORD_WEBHOOK_URL="YOUR_WEBHOOK_URL" \
+  -e ENABLE_HEALTHCHECK=false \
+  -v /mnt/data:/mnt/data \
+  -v /mnt/logs:/mnt/logs \
+  free-games-notifier
+```
+
+## Environment Variables Reference
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DISCORD_WEBHOOK_URL` | ✅ Yes | - | Discord webhook URL for sending notifications |
+| `EPIC_GAMES_API_URL` | ❌ No | Official API | Epic Games Store API endpoint |
+| `HEALTHCHECK_URL` | ❌ No | - | Healthchecks.io or UptimeKuma ping URL |
+| `ENABLE_HEALTHCHECK` | ❌ No | `false` | Enable health check pings (true/false) |
+| `DB_HOST` | ❌ No | - | PostgreSQL host (leave empty to use file storage) |
+| `DB_PORT` | ❌ No | 5432 | PostgreSQL port |
+| `DB_NAME` | ❌ No | - | PostgreSQL database name |
+| `DB_USER` | ❌ No | - | PostgreSQL username |
+| `DB_PASSWORD` | ❌ No | - | PostgreSQL password |
+
+## How to Get a Discord Webhook URL
+
+1. Go to your Discord server → Server Settings → Channels & Roles
+2. Select the channel where notifications should appear
+3. Click "Edit Channel" → Integrations → Webhooks
+4. Click "Create Webhook"
+5. Copy the webhook URL and add to `.env`
+
+## Project Structure
+
+```
+.
+├── main.py                 # Main scheduler entry point
+├── config.py              # Configuration and environment variables
+├── requirements.txt       # Python dependencies
+├── Dockerfile            # Docker image definition
+├── docker-compose.yaml   # Docker Compose orchestration
+├── compose.yaml          # Alternative compose config
+├── modules/
+│   ├── scrapper.py      # Epic Games API fetch logic
+│   ├── notifier.py      # Discord webhook sender
+│   ├── storage.py       # JSON file persistence
+│   ├── database.py      # PostgreSQL database operations
+│   └── healthcheck.py   # Health check monitoring
+├── data/
+│   ├── free_games.json  # Local game history (file-based storage)
+│   └── logs/            # Application logs
+└── README.md            # This file
+```
+
+## Logging
+
+Logs are written to `data/logs/notifier.log` and rotated weekly. The log format includes:
+- Timestamp
+- Module name
+- Log level (INFO, WARNING, ERROR, DEBUG)
+- Message
+
+View logs:
+```bash
+tail -f data/logs/notifier.log
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. "Discord webhook URL not set!"
+- **Problem**: Notifications fail silently
+- **Solution**: Verify `DISCORD_WEBHOOK_URL` is set in `.env` and the webhook is valid
+- **Check**: Run `grep DISCORD_WEBHOOK_URL .env` to confirm it's loaded
+
+#### 2. AttributeError on missing environment variables
+- **Problem**: Service crashes during startup
+- **Solution**: Ensure all required variables are defined (at minimum: `DISCORD_WEBHOOK_URL`)
+- **Check**: Run `printenv | grep DISCORD` to verify
+
+#### 3. Database connection errors
+- **Problem**: "psycopg2.OperationalError: could not connect to server"
+- **Solution**: Verify PostgreSQL credentials in `.env` or disable database (`DB_HOST` commented out)
+- **Check**: Test connection: `psql -h DB_HOST -U DB_USER -d DB_NAME`
+
+#### 4. No logs appearing
+- **Problem**: `data/logs/` directory doesn't exist
+- **Solution**: Create logs directory: `mkdir -p data/logs`
+- **Docker**: Mount volume: `-v $(pwd)/data/logs:/mnt/logs`
+
+#### 5. Games not detected
+- **Problem**: Service runs but no notifications sent
+- **Solution**: 
+  - Check if Epic Games API is responding (may be rate limited)
+  - Verify Discord webhook is still valid (webhooks expire)
+  - Check logs for parsing errors: `grep ERROR data/logs/notifier.log`
+
+#### 6. Health check pings failing
+- **Problem**: Healthchecks.io shows "Down"
+- **Solution**: 
+  - Verify `HEALTHCHECK_URL` is correct
+  - Check if `ENABLE_HEALTHCHECK=true` is set
+  - Ensure container has internet access
+
+## Docker Troubleshooting
+
+```bash
+# View running container logs
+docker logs free-games-notifier
+
+# Execute command in container
+docker exec free-games- cat /mnt/data/free_games.json
+
+# Restart service
+docker restart free-games-notifier
+
+# Stop and remove
+docker-compose down
 ```
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Contributions are welcome! Please:
+
+1. Open an issue to discuss major changes
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -m 'Add feature description'`
+4. Push to branch: `git push origin feature/your-feature`
+5. Open a pull request
+
+## Testing
+
+Currently, the project lacks unit tests. See [GitHub Projects](https://github.com/JulioMoralesB/Free-Games-Notifier/projects) for testing tasks.
+
+To run manually:
+```bash
+python -c "from modules.scrapper import fetch_free_games; print(fetch_free_games())"
+```
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Contact
+## Support
 
-For any questions or suggestions, please open an issue on GitHub.
+- 📖 [Documentation](README.md)
+- 🐛 [Report Issues](https://github.com/JulioMoralesB/Free-Games-Notifier/issues)
+- 💬 [Discussions](https://github.com/JulioMoralesB/Free-Games-Notifier/discussions)
+
+## Roadmap
+
+- [ ] Unit test coverage (Task #4)
+- [ ] PostgreSQL as primary storage (Task #5)
+- [ ] Configurable timezone and region (Task #6)
+- [ ] Retry logic with backoff (Task #7)
+- [ ] Support for additional game stores (Steam, GOG, etc.)
+- [ ] Web dashboard for game history
