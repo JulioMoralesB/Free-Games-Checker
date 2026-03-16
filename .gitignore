@@ -8,3 +8,4 @@ whitelist.json
 *.log
 free_games.json
 /data
+.DS_Store

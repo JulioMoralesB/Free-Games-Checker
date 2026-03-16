@@ -52,7 +52,7 @@ class FreeGamesDatabase:
 
                     cursor.execute("""
                         INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                         ON CONFLICT (game_id) DO NOTHING
                     """, (
                         game['game_id'],
