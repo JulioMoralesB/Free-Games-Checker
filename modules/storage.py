@@ -62,7 +62,7 @@ def save_games(games):
         games: List of game dictionaries to save
         
     Raises:
-        IOError: If file write fails after retry
+        IOError: If writing the games data to file fails
     """
     if not games:
         logger.warning("Attempted to save empty games list")
