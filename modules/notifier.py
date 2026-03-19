@@ -5,7 +5,10 @@ import pytz
 import locale
 from urllib.parse import urlparse
 
-locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+try:
+    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+except locale.Error:
+    pass  # Fallback to system locale if es_ES.UTF-8 is not available
 
 import logging
 logger = logging.getLogger(__name__)
