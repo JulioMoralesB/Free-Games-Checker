@@ -20,6 +20,24 @@ def load_previous_games():
     try:
         with open(DATA_FILE_PATH, "r") as file:
             data = json.load(file)
+
+            # Validate that the loaded data is a list of game dictionaries
+            if not isinstance(data, list):
+                logger.error(
+                    f"Unexpected JSON structure in data file: expected list, got {type(data).__name__} | "
+                    f"File path: {DATA_FILE_PATH}"
+                )
+                logger.warning("Returning empty list due to invalid JSON structure to prevent incorrect processing.")
+                return []
+
+            if not all(isinstance(game, dict) for game in data):
+                logger.error(
+                    f"Unexpected item types in games list from data file. "
+                    f"Expected list of dicts. File path: {DATA_FILE_PATH}"
+                )
+                logger.warning("Returning empty list due to invalid game entries to prevent incorrect processing.")
+                return []
+
             logger.debug(f"Successfully loaded {len(data)} previous games from {DATA_FILE_PATH}")
             return data
     except FileNotFoundError as e:
