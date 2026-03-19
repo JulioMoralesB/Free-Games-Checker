@@ -44,7 +44,7 @@ def send_discord_message(new_games):
                     am_pm_text = "AM"
 
                 # Format the final string
-                formated_end_date = f"{localized_end_date.strftime('%d de %B de %Y a las %I:%M')} {am_pm_text} UTC-6 (Hora de México)"
+                formatted_end_date = f"{localized_end_date.strftime('%d de %B de %Y a las %I:%M')} {am_pm_text} UTC-6 (Hora de México)"
                 embeds.append(
                     {
                         "author": {
@@ -59,7 +59,7 @@ def send_discord_message(new_games):
                             "url": game["thumbnail"]
                         },
                         "footer": {
-                            "text": f"Finaliza el {formated_end_date}"
+                            "text": f"Finaliza el {formatted_end_date}"
                         }
                     }
                 )
