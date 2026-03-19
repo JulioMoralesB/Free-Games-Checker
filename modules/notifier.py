@@ -3,11 +3,37 @@ import requests
 from datetime import datetime
 import pytz
 import locale
+from urllib.parse import urlparse
 
 locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 
 import logging
 logger = logging.getLogger(__name__)
+
+def _get_safe_webhook_identifier(webhook_url: str) -> str:
+    """
+    Return a redacted identifier for a webhook URL that is safe to log.
+    For Discord webhooks, this will be `<host>/api/webhooks/<id>` (no token).
+    For other URLs, this falls back to the hostname or a generic placeholder.
+    """
+    if not webhook_url:
+        return "unknown-webhook"
+    try:
+        parsed = urlparse(webhook_url)
+        host = parsed.netloc or "unknown-host"
+        path = parsed.path or ""
+
+        # Expected Discord webhook pattern: /api/webhooks/<id>/<token>
+        segments = path.strip("/").split("/")
+        if len(segments) >= 3 and segments[0] == "api" and segments[1] == "webhooks":
+            webhook_id = segments[2]
+            return f"{host}/api/webhooks/{webhook_id}"
+
+        # Fallback: only host if path does not match expected pattern
+        return host
+    except Exception:
+        # In case of any parsing error, avoid logging the raw URL
+        return "invalid-webhook-url"
 
 def send_discord_message(new_games):
     """
@@ -72,6 +98,8 @@ def send_discord_message(new_games):
             "embeds": embeds
         }
         logger.info(f"Sending Discord message with {len(embeds)} game(s)")
+
+        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
         
         # Send the request and validate response
         response = requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10)
@@ -82,7 +110,7 @@ def send_discord_message(new_games):
         else:
             error_context = {
                 "status_code": response.status_code,
-                "webhook_url_pattern": DISCORD_WEBHOOK_URL[:20] + "..." if len(DISCORD_WEBHOOK_URL) > 20 else DISCORD_WEBHOOK_URL,
+                "webhook_url_pattern": safe_webhook_id,
                 "response_text": response.text[:200],  # Limit response text for logging
                 "num_games": len(new_games)
             }
@@ -90,13 +118,22 @@ def send_discord_message(new_games):
             response.raise_for_status()  # Raise exception for bad status codes
             
     except requests.exceptions.Timeout as e:
-        logger.error(f"Discord request timed out after 10 seconds | Webhook URL pattern: {DISCORD_WEBHOOK_URL[:20]}... | Games: {len(new_games)}")
+        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
+        logger.error(
+            f"Discord request timed out after 10 seconds | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
+        )
         raise
     except requests.exceptions.ConnectionError as e:
-        logger.error(f"Discord connection error: {str(e)} | Webhook URL pattern: {DISCORD_WEBHOOK_URL[:20]}... | Games: {len(new_games)}")
+        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
+        logger.error(
+            f"Discord connection error: {str(e)} | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
+        )
         raise
     except requests.exceptions.RequestException as e:
-        logger.error(f"Discord request failed: {str(e)} | Webhook URL pattern: {DISCORD_WEBHOOK_URL[:20]}... | Games: {len(new_games)}")
+        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
+        logger.error(
+            f"Discord request failed: {str(e)} | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
+        )
         raise
     except Exception as e:
         logger.error(f"Unexpected error sending Discord message: {str(e)} | Games: {len(new_games)}")
