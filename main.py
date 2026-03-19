@@ -78,10 +78,10 @@ def check_games():
             logging.info(f"Games saved successfully after Discord notification")
         except IOError as e:
             logging.error(f"Failed to save games to storage: {str(e)}")
-            logging.warning("Games were saved to Discord but failed to update local cache. This may cause duplicate notifications next run.")
+            logging.warning("Discord notification was sent but failed to update local cache. This may cause duplicate notifications next run.")
         except Exception as e:
             logging.error(f"Unexpected error saving games: {str(e)}")
-            logging.warning("Games were saved to Discord but failed to update local cache.")
+            logging.warning("Discord notification was sent but failed to update local cache.")
     else:
         logging.warning("No new free games detected.")
 
