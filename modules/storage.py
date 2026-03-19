@@ -62,7 +62,8 @@ def save_games(games):
         games: List of game dictionaries to save
         
     Raises:
-        IOError: If writing the games data to file fails
+        IOError: If file write fails due to I/O issues
+        TypeError: If games data cannot be serialized to JSON
     """
     if not games:
         logger.warning("Attempted to save empty games list")
@@ -89,7 +90,7 @@ def save_games(games):
         raise
     except TypeError as e:
         logger.error(f"JSON serialization error: {str(e)} | Games data type: {type(games)}")
-        raise IOError(f"Cannot serialize games data to JSON") from e
+        raise
     except Exception as e:
         logger.error(f"Unexpected error saving games: {str(e)} | File path: {DATA_FILE_PATH}")
         raise IOError(f"Unexpected error saving games") from e
