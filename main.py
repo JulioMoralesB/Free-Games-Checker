@@ -57,8 +57,8 @@ def check_games():
             send_discord_message(new_games)
             logging.info("Discord notification sent successfully")
         except ValueError as e:
-            logging.error(f"Discord configuration error: {str(e)}")
-            logging.warning("Discord notification failed, but continuing scheduler. Please check webhook configuration.")
+            logging.error(f"Discord error (ValueError) while sending message: {str(e)}")
+            logging.warning("Discord notification failed due to a ValueError, but continuing scheduler. Investigate the underlying cause (configuration or data-related).")
             # Don't save games if Discord notification fails
             return
         except requests.exceptions.RequestException as e:
