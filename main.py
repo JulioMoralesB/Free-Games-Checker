@@ -8,6 +8,7 @@ from modules.database import FreeGamesDatabase
 
 import schedule
 import time
+import requests
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -25,23 +26,62 @@ logging.basicConfig(level=logging.INFO, handlers=[log_handler, console_handler])
 
 def check_games():
     
-    """Main execution function."""
+    """Main execution function that checks for new free games and sends Discord notification."""
     logging.info("Checking for new free games...")
 
-    current_games = fetch_free_games()
-    logging.info(f"Games obtained from scrapper.py: {current_games}")
+    try:
+        current_games = fetch_free_games()
+        logging.info(f"Games obtained from scrapper.py: {len(current_games)} game(s)")
+    except Exception as e:
+        logging.error(f"Failed to fetch games from scraper: {str(e)}")
+        return
+
     if current_games == []:
         logging.error("No free games found or failed to fetch.")
         return
 
-    previous_games = load_previous_games()
-    logging.debug(f"Previous games loaded from storage: {previous_games}")
+    try:
+        previous_games = load_previous_games()
+        logging.debug(f"Previous games loaded from storage: {len(previous_games)} game(s)")
+    except Exception as e:
+        logging.error(f"Failed to load previous games: {str(e)}")
+        return
+
     new_games = [game for game in current_games if game not in previous_games]
 
     if new_games:
-        logging.info(f"Found {len(new_games)} new free games! Sending notification...")
-        send_discord_message(new_games)
-        save_games(current_games)
+        logging.info(f"Found {len(new_games)} new free games! Sending Discord notification...")
+        
+        # Wrap Discord send with try-except to prevent scheduler crash
+        try:
+            send_discord_message(new_games)
+            logging.info("Discord notification sent successfully")
+        except ValueError as e:
+            logging.error(f"Discord configuration error: {str(e)}")
+            logging.warning("Discord notification failed, but continuing scheduler. Please check webhook configuration.")
+            # Don't save games if Discord notification fails
+            return
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Discord request failed (network/HTTP error): {str(e)} | Games to notify: {len(new_games)}")
+            logging.warning("Discord notification failed due to network issue, but continuing scheduler.")
+            # Don't save games if Discord notification fails
+            return
+        except Exception as e:
+            logging.error(f"Unexpected error sending Discord message: {str(e)} | Games to notify: {len(new_games)}")
+            logging.warning("Discord notification failed unexpectedly, but continuing scheduler.")
+            # Don't save games if Discord notification fails
+            return
+
+        # Save games to storage after successful Discord notification
+        try:
+            save_games(current_games)
+            logging.info(f"Games saved successfully after Discord notification")
+        except IOError as e:
+            logging.error(f"Failed to save games to storage: {str(e)}")
+            logging.warning("Games were saved to Discord but failed to update local cache. This may cause duplicate notifications next run.")
+        except Exception as e:
+            logging.error(f"Unexpected error saving games: {str(e)}")
+            logging.warning("Games were saved to Discord but failed to update local cache.")
     else:
         logging.warning("No new free games detected.")
 
