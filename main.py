@@ -5,6 +5,7 @@ from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
+from config import DB_HOST
 
 import schedule
 import time
@@ -86,8 +87,9 @@ def check_games():
         logging.warning("No new free games detected.")
 
 def main():
-    db = FreeGamesDatabase()
-    db.init_db()
+    if DB_HOST:
+        db = FreeGamesDatabase()
+        db.init_db()
     check_games()
     healthcheck()
 

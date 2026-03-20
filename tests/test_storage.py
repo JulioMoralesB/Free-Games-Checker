@@ -1,7 +1,7 @@
 import json
 import os
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from modules import storage
 
@@ -125,3 +125,68 @@ class TestSaveGames:
             storage.save_games(sample_games)
             loaded = storage.load_previous_games()
         assert loaded == sample_games
+
+
+# ---------------------------------------------------------------------------
+# Tests for PostgreSQL-backed storage
+# ---------------------------------------------------------------------------
+
+class TestDatabaseBackedLoadPreviousGames:
+    def test_delegates_to_db_when_db_host_is_set(self, sample_games):
+        mock_db = MagicMock()
+        mock_db.get_games.return_value = sample_games
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            result = storage.load_previous_games()
+        assert result == sample_games
+        mock_db.get_games.assert_called_once()
+
+    def test_returns_empty_list_when_db_raises(self):
+        mock_db = MagicMock()
+        mock_db.get_games.side_effect = Exception("connection refused")
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            result = storage.load_previous_games()
+        assert result == []
+
+    def test_uses_file_backend_when_db_host_not_set(self, tmp_path, sample_games):
+        path = str(tmp_path / "games.json")
+        with open(path, "w") as f:
+            json.dump(sample_games, f)
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.DATA_FILE_PATH", path):
+            result = storage.load_previous_games()
+        assert result == sample_games
+
+
+class TestDatabaseBackedSaveGames:
+    def test_delegates_to_db_when_db_host_is_set(self, sample_games):
+        mock_db = MagicMock()
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            storage.save_games(sample_games)
+        mock_db.save_games.assert_called_once_with(sample_games)
+
+    def test_raises_io_error_when_db_save_fails(self, sample_games):
+        mock_db = MagicMock()
+        mock_db.save_games.side_effect = Exception("db write error")
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            with pytest.raises(IOError):
+                storage.save_games(sample_games)
+
+    def test_does_not_call_db_save_for_empty_list(self):
+        mock_db = MagicMock()
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            storage.save_games([])
+        mock_db.save_games.assert_not_called()
+
+    def test_uses_file_backend_when_db_host_not_set(self, tmp_path, sample_games):
+        path = str(tmp_path / "games.json")
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.DATA_FILE_PATH", path):
+            storage.save_games(sample_games)
+        with open(path, "r") as f:
+            saved = json.load(f)
+        assert saved == sample_games

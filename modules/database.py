@@ -1,5 +1,4 @@
 import psycopg2
-from psycopg2 import sql
 
 from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 
@@ -23,7 +22,7 @@ class FreeGamesDatabase:
                 with conn.cursor() as cursor:
                     
                     # Set schema for this connection
-                    cursor.execute("SET search_path to free_games")
+                    cursor.execute("SET search_path TO free_games")
 
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS games (
@@ -33,13 +32,73 @@ class FreeGamesDatabase:
                             link TEXT NOT NULL,
                             description TEXT,
                             thumbnail TEXT,
-                            promotion_end_date TIMESTAMP
+                            promotion_end_date TEXT
                         )
                     """)
                     conn.commit()
                     logger.info("Database initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
+            raise
+
+    def get_games(self):
+        """Retrieve all stored games from the database as a list of dicts."""
+        try:
+            with psycopg2.connect(**self.conn_params) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SET search_path TO free_games")
+                    cursor.execute(
+                        "SELECT title, link, description, thumbnail, promotion_end_date FROM games"
+                    )
+                    rows = cursor.fetchall()
+                    games = [
+                        {
+                            "title": title,
+                            "link": link,
+                            "description": description or "",
+                            "thumbnail": thumbnail or "",
+                            "end_date": end_date or "",
+                        }
+                        for title, link, description, thumbnail, end_date in rows
+                    ]
+                    logger.debug(f"Retrieved {len(games)} games from database.")
+                    return games
+        except Exception as e:
+            logger.error(f"Failed to retrieve games from database: {e}")
+            raise
+
+    def save_games(self, games):
+        """Save games to the database, ignoring duplicates based on game_id (link)."""
+        if not games:
+            logger.warning("Attempted to save empty games list to database")
+            return
+        try:
+            with psycopg2.connect(**self.conn_params) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SET search_path TO free_games")
+                    for game in games:
+                        # Use the full link as a stable unique identifier
+                        game_id = game.get("link", "")
+                        cursor.execute(
+                            """
+                            INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (game_id) DO NOTHING
+                            """,
+                            (
+                                game_id,
+                                game.get("title", ""),
+                                game.get("link", ""),
+                                game.get("description", ""),
+                                game.get("thumbnail", ""),
+                                game.get("end_date") or None,
+                            ),
+                        )
+                    conn.commit()
+                    logger.info(f"Saved {len(games)} games to database.")
+        except Exception as e:
+            logger.error(f"Failed to save games to database: {e}")
+            raise
     
     def insert_game(self, game):
         """Insert a game record into the database."""
