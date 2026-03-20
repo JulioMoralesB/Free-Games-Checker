@@ -10,8 +10,13 @@ logger = logging.getLogger(__name__)
 
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-except locale.Error:
-    logger.warning("Locale es_ES.UTF-8 is not available, falling back to system locale. Date formatting may differ.")
+except locale.Error as exc:
+    logger.warning(
+        "Locale es_ES.UTF-8 is not available, falling back to system locale. "
+        "Date formatting may differ. Underlying error: %s",
+        exc,
+        exc_info=True,
+    )
 
 def _get_safe_webhook_identifier(webhook_url: str) -> str:
     """
