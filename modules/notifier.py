@@ -5,13 +5,13 @@ import pytz
 import locale
 from urllib.parse import urlparse
 
+import logging
+logger = logging.getLogger(__name__)
+
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 except locale.Error:
-    pass  # Fallback to system locale if es_ES.UTF-8 is not available
-
-import logging
-logger = logging.getLogger(__name__)
+    logger.warning("Locale es_ES.UTF-8 is not available, falling back to system locale. Date formatting may differ.")
 
 def _get_safe_webhook_identifier(webhook_url: str) -> str:
     """
