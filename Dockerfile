@@ -10,7 +10,7 @@ ARG LOCALE=es_ES.UTF-8
 RUN apt-get update && apt-get install -y --no-install-recommends locales && \
     LOCALE_ESCAPED="$(printf '%s\n' "$LOCALE" | sed 's/[.[\*^$\/]/\\&/g')" && \
     sed -i "/^# *${LOCALE_ESCAPED}[[:space:]]/s/^# *//" /etc/locale.gen && \
-    grep -Fq "$LOCALE" /etc/locale.gen && \
+    grep -Eq "^[[:space:]]*${LOCALE_ESCAPED}[[:space:]]" /etc/locale.gen && \
     locale-gen && rm -rf /var/lib/apt/lists/*
 
 # Create directories for logs and data
