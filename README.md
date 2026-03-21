@@ -6,7 +6,7 @@ A Python-based scheduler that monitors the Epic Games Store for free game promot
 
 - ✅ **Daily Monitoring**: Automatically checks Epic Games Store at 12:00 UTC for new free games
 - 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details
-- 📊 **Persistent Storage**: Maintains game history (JSON file or PostgreSQL database)
+- 📊 **Persistent Storage**: Maintains game history — PostgreSQL when `DB_HOST` is set, JSON file otherwise
 - 🏥 **Health Checks**: Optional UptimeKuma/Healthchecks.io integration for monitoring
 - 🐳 **Docker Ready**: Includes Docker and docker-compose configurations
 - 🌍 **Timezone Support**: Automatically converts times to your timezone (currently Mexico City)
@@ -79,6 +79,27 @@ The service will:
 - Send health check pings every minute (if enabled)
 - Log activity to `data/logs/notifier.log`
 
+## Storage Backends
+
+The notifier automatically selects a storage backend based on the `DB_HOST` environment variable:
+
+| `DB_HOST` set? | Backend used | Data location |
+|---|---|---|
+| ✅ Yes | PostgreSQL (`free_games` schema) | Remote database |
+| ❌ No (default) | JSON file | `data/free_games.json` |
+
+### PostgreSQL backend
+
+When `DB_HOST` is configured the application will:
+
+1. Create the `free_games` schema and the `games` table on first startup (idempotent)
+2. Automatically run `ALTER TABLE` migrations on existing deployments:
+   - Widens `game_id` from `VARCHAR(255)` to `TEXT` (supports arbitrarily long Epic URLs)
+   - Converts `promotion_end_date` from `TIMESTAMP` to `TEXT`, preserving the ISO-8601 format the scraper returns
+3. Use `link` as the stable deduplication key (`ON CONFLICT DO NOTHING`)
+
+If all `DB_*` variables are left unset the service falls back to the JSON file backend with no code or configuration changes required.
+
 ## Docker Deployment
 
 ### Quick Start with Docker Compose
@@ -139,11 +160,11 @@ docker run -d \
 ├── modules/
 │   ├── scrapper.py      # Epic Games API fetch logic
 │   ├── notifier.py      # Discord webhook sender
-│   ├── storage.py       # JSON file persistence
+│   ├── storage.py       # Storage dispatcher (PostgreSQL or JSON file)
 │   ├── database.py      # PostgreSQL database operations
 │   └── healthcheck.py   # Health check monitoring
 ├── data/
-│   ├── free_games.json  # Local game history (file-based storage)
+│   ├── free_games.json  # Local game history (file-based storage only)
 │   └── logs/            # Application logs
 └── README.md            # This file
 ```
@@ -227,12 +248,14 @@ Contributions are welcome! Please:
 
 ## Testing
 
-Currently, the project lacks unit tests. See [GitHub Projects](https://github.com/JulioMoralesB/Free-Games-Notifier/projects) for testing tasks.
+Run the test suite with:
 
-To run manually:
 ```bash
-python -c "from modules.scrapper import fetch_free_games; print(fetch_free_games())"
+pip install -r requirements-dev.txt
+pytest tests/ -v
 ```
+
+The tests cover both the file-backend and PostgreSQL-backend paths in `storage.py`. File-backend tests explicitly set `DB_HOST=None` so they remain hermetic even when a database is available in the environment.
 
 ## License
 
@@ -246,8 +269,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Roadmap
 
-- [ ] Unit test coverage (Task #4)
-- [ ] PostgreSQL as primary storage (Task #5)
+- [x] Unit test coverage (Task #4)
+- [x] PostgreSQL as primary storage (Task #5)
 - [ ] Configurable timezone and region (Task #6)
 - [ ] Retry logic with backoff (Task #7)
 - [ ] Support for additional game stores (Steam, GOG, etc.)
