@@ -79,12 +79,13 @@ def send_discord_message(new_games):
                 else:
                     am_pm_text = "AM"
 
-                # Compute UTC offset dynamically from the localized date (e.g. "UTC-6", "UTC+1")
-                tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0100"
-                if tz_offset_str:
+                # Compute UTC offset dynamically from the localized date (e.g. "UTC+05:30")
+                tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0530"
+                if tz_offset_str and len(tz_offset_str) == 5:
                     sign = "+" if tz_offset_str[0] == "+" else "-"
-                    offset_hours = int(tz_offset_str[1:3])
-                    utc_label = f"UTC{sign}{offset_hours}"
+                    hours = tz_offset_str[1:3]
+                    minutes = tz_offset_str[3:5]
+                    utc_label = f"UTC{sign}{hours}:{minutes}"
                 else:
                     utc_label = "UTC"
 
