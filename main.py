@@ -43,7 +43,7 @@ def check_games():
 
     try:
         previous_games = load_previous_games()
-        logging.debug(f"Previous games loaded from storage: {len(previous_games)} game(s)")
+        logging.info(f"Previous games loaded from storage: {previous_games} game(s)")
     except Exception as e:
         logging.error(f"Failed to load previous games: {str(e)}")
         return
@@ -88,8 +88,11 @@ def check_games():
 
 def main():
     if DB_HOST:
+        logging.info("Database configuration detected. Initializing database...")
         db = FreeGamesDatabase()
         db.init_db()
+    else:
+        logging.info("No database configuration detected. Using JSON file storage.")
     check_games()
     healthcheck()
 
