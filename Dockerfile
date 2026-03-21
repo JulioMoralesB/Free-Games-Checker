@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y locales tzdata && \
     locale-gen && \
     rm -rf /var/lib/apt/lists/*
 
-# Default timezone and locale – override at runtime via environment variables:
+# Default timezone and locale — these are default values that can be overridden at runtime:
 #   docker run -e TZ=Europe/London -e LANG=en_GB.UTF-8 ...
-ENV TZ=UTC
-ENV LANG=C.UTF-8
-ENV LANGUAGE=C.UTF-8
-ENV LC_ALL=C.UTF-8
+# The compose.yaml propagates TIMEZONE, LOCALE and EPIC_GAMES_REGION from the host .env file.
+ENV TZ=America/Mexico_City
+ENV LANG=es_ES.UTF-8
+ENV LANGUAGE=es_ES:es
+ENV LC_ALL=es_ES.UTF-8
 
 # Create directories for logs and data
 RUN mkdir -p /mnt/logs /mnt/data

@@ -30,13 +30,13 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 # Timezone for date display in notifications (e.g. "America/New_York", "Europe/London")
-TIMEZONE = os.getenv("TIMEZONE", "UTC")
+TIMEZONE = os.getenv("TIMEZONE", "America/Mexico_City")
 
 # Locale for date formatting (e.g. "en_US.UTF-8", "es_ES.UTF-8"). Leave empty to use the system locale.
-LOCALE = os.getenv("LOCALE", "")
+LOCALE = os.getenv("LOCALE", "es_ES.UTF-8")
 
 # Epic Games region used in store links (e.g. "en-US", "es-MX", "de-DE")
-EPIC_GAMES_REGION = os.getenv("EPIC_GAMES_REGION", "en-US")
+EPIC_GAMES_REGION = os.getenv("EPIC_GAMES_REGION", "es-MX")
 
 # Daily schedule time in HH:MM format (UTC) at which free games are checked
 # NOTE: This is always interpreted as UTC, regardless of the TIMEZONE setting.

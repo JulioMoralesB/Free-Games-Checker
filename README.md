@@ -68,9 +68,9 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 
 # Optional: Timezone / locale / region
-TIMEZONE=America/New_York
-LOCALE=en_US.UTF-8
-EPIC_GAMES_REGION=en-US
+TIMEZONE=America/Mexico_City
+LOCALE=es_ES.UTF-8
+EPIC_GAMES_REGION=es-MX
 
 # Optional: Scheduler
 SCHEDULE_TIME=12:00
@@ -84,7 +84,7 @@ python main.py
 ```
 
 The service will:
-- Check for new free games daily at the configured `SCHEDULE_TIME` (default: 12:00 UTC)
+- Check for new free games daily at the configured `SCHEDULE_TIME` (default: 12:00 in the configured `TIMEZONE`)
 - Send health check pings every `HEALTHCHECK_INTERVAL` minutes (if enabled)
 - Log activity to `data/logs/notifier.log`
 
@@ -152,10 +152,10 @@ docker run -d \
 | `DB_NAME` | ❌ No | - | PostgreSQL database name |
 | `DB_USER` | ❌ No | - | PostgreSQL username |
 | `DB_PASSWORD` | ❌ No | - | PostgreSQL password |
-| `TIMEZONE` | ❌ No | `UTC` | IANA timezone name for date display (e.g. `America/New_York`, `Europe/London`) |
-| `LOCALE` | ❌ No | system default | Locale for date formatting (e.g. `en_US.UTF-8`, `es_ES.UTF-8`). Must be available in the system. |
-| `EPIC_GAMES_REGION` | ❌ No | `en-US` | Region code used in Epic Games Store links (e.g. `es-MX`, `de-DE`) |
-| `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM` format (always UTC) |
+| `TIMEZONE` | ❌ No | `America/Mexico_City` | IANA timezone name for date display and schedule interpretation (e.g. `America/New_York`, `Europe/London`) |
+| `LOCALE` | ❌ No | `es_ES.UTF-8` | Locale for date formatting (e.g. `en_US.UTF-8`, `de_DE.UTF-8`). Must be available in the system. |
+| `EPIC_GAMES_REGION` | ❌ No | `es-MX` | Region code used in Epic Games Store links (e.g. `en-US`, `de-DE`) |
+| `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM` format, interpreted in the configured `TIMEZONE` |
 | `HEALTHCHECK_INTERVAL` | ❌ No | `1` | Health check ping interval in minutes |
 | `DATE_FORMAT` | ❌ No | `%d de %B de %Y a las %I:%M` | strftime format for the promotion end date in Discord notifications |
 
