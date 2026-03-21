@@ -5,7 +5,8 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Install tzdata and generate all UTF-8 locales so any LOCALE value works at runtime
-RUN apt-get update && apt-get install -y locales tzdata && \
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && apt-get install -y locales tzdata && \
     sed -i 's/^# \(.*\.UTF-8\)/\1/' /etc/locale.gen && \
     locale-gen && \
     rm -rf /var/lib/apt/lists/*

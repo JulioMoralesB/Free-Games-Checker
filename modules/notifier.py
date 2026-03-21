@@ -68,7 +68,15 @@ def send_discord_message(new_games):
                 end_date = datetime.strptime(game["end_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
                 dt_obj = pytz.utc.localize(end_date)
-                configured_tz = pytz.timezone(TIMEZONE)
+                try:
+                    configured_tz = pytz.timezone(TIMEZONE)
+                except pytz.exceptions.UnknownTimeZoneError:
+                    logger.warning(
+                        "Unknown timezone %r — falling back to UTC. "
+                        "Set a valid IANA timezone in the TIMEZONE environment variable.",
+                        TIMEZONE,
+                    )
+                    configured_tz = pytz.utc
                 localized_end_date = dt_obj.astimezone(configured_tz)
 
                 # Format date manually, check if AM or PM, since %p may not work in some systems
