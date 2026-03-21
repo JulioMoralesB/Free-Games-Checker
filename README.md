@@ -4,7 +4,7 @@ A Python-based scheduler that monitors the Epic Games Store for free game promot
 
 ## Features
 
-- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at a configurable time (default: 12:00 UTC) for new free games
+- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at a configurable time (default: 12:00 in the configured timezone, default `America/Mexico_City`) for new free games
 - 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details
 - 📊 **Persistent Storage**: Maintains game history — PostgreSQL when `DB_HOST` is set, JSON file otherwise
 - 🏥 **Health Checks**: Optional UptimeKuma/Healthchecks.io integration for monitoring
