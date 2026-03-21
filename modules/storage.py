@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_db_configured():
-    """Return True when PostgreSQL connection parameters are available."""
+    """Return True when DB_HOST is configured (PostgreSQL backend enabled)."""
     return bool(DB_HOST)
 
 
