@@ -21,7 +21,8 @@ class FreeGamesDatabase:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
                     
-                    # Set schema for this connection
+                    # Ensure schema exists and set schema for this connection
+                    cursor.execute("CREATE SCHEMA IF NOT EXISTS free_games")
                     cursor.execute("SET search_path TO free_games")
 
                     cursor.execute("""
