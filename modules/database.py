@@ -20,14 +20,17 @@ class FreeGamesDatabase:
         try:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
-                    
+
+                    # Ensure the schema exists before setting it as search path
+                    cursor.execute("CREATE SCHEMA IF NOT EXISTS free_games")
+
                     # Set schema for this connection
                     cursor.execute("SET search_path TO free_games")
 
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS games (
                             id SERIAL PRIMARY KEY,
-                            game_id VARCHAR(255) UNIQUE NOT NULL,
+                            game_id TEXT UNIQUE NOT NULL,
                             title TEXT NOT NULL,
                             link TEXT NOT NULL,
                             description TEXT,
@@ -35,6 +38,44 @@ class FreeGamesDatabase:
                             promotion_end_date TEXT
                         )
                     """)
+
+                    # Migration: widen game_id from VARCHAR(255) to TEXT on existing deployments
+                    cursor.execute("""
+                        DO $$
+                        BEGIN
+                            IF EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = 'free_games'
+                                  AND table_name   = 'games'
+                                  AND column_name  = 'game_id'
+                                  AND data_type    = 'character varying'
+                            ) THEN
+                                ALTER TABLE games ALTER COLUMN game_id TYPE TEXT;
+                            END IF;
+                        END $$
+                    """)
+
+                    # Migration: convert promotion_end_date from TIMESTAMP to TEXT on existing deployments
+                    cursor.execute("""
+                        DO $$
+                        BEGIN
+                            IF EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = 'free_games'
+                                  AND table_name   = 'games'
+                                  AND column_name  = 'promotion_end_date'
+                                  AND data_type    = 'timestamp without time zone'
+                            ) THEN
+                                ALTER TABLE games
+                                ALTER COLUMN promotion_end_date TYPE TEXT
+                                USING TO_CHAR(
+                                    promotion_end_date AT TIME ZONE 'UTC',
+                                    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+                                );
+                            END IF;
+                        END $$
+                    """)
+
                     conn.commit()
                     logger.info("Database initialized successfully.")
         except Exception as e:
@@ -79,6 +120,11 @@ class FreeGamesDatabase:
                     for game in games:
                         # Use the full link as a stable unique identifier
                         game_id = game.get("link", "")
+                        if not game_id:
+                            logger.warning(
+                                f"Skipping game with missing link: {game.get('title', 'unknown')}"
+                            )
+                            continue
                         cursor.execute(
                             """
                             INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date)
