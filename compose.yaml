@@ -2,8 +2,6 @@ services:
   free-games-notifier:
     build:
       context: .
-      args:
-        LOCALE: ${LOCALE:-es_ES.UTF-8}
     container_name: free-games-notifier
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
