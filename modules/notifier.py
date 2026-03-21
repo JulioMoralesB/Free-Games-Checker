@@ -79,14 +79,6 @@ def send_discord_message(new_games):
                     configured_tz = pytz.utc
                 localized_end_date = dt_obj.astimezone(configured_tz)
 
-                # Format date manually, check if AM or PM, since %p may not work in some systems
-                hour = int(localized_end_date.strftime("%H"))
-
-                if hour >= 12:
-                    am_pm_text = "PM"
-                else:
-                    am_pm_text = "AM"
-
                 # Compute UTC offset dynamically from the localized date (e.g. "UTC+05:30")
                 tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0530"
                 if tz_offset_str and len(tz_offset_str) == 5:
@@ -98,7 +90,7 @@ def send_discord_message(new_games):
                     utc_label = "UTC"
 
                 # Format the final string, including the timezone name for context
-                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {am_pm_text} {utc_label} ({TIMEZONE})"
+                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {utc_label} ({TIMEZONE})"
                 embeds.append(
                     {
                         "author": {
