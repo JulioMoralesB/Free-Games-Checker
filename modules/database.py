@@ -25,6 +25,7 @@ class FreeGamesDatabase:
                     cursor.execute("CREATE SCHEMA IF NOT EXISTS free_games")
 
                     # Set schema for this connection
+                    cursor.execute("SET search_path TO free_games")
 
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS games (
