@@ -7,7 +7,10 @@ WORKDIR /app
 # Build argument for locale
 ARG LOCALE=es_ES.UTF-8
 
-RUN apt-get update && apt-get install -y locales && sed -i "/${LOCALE}/s/^# //g" /etc/locale.gen && \
+RUN apt-get update && apt-get install -y locales && \
+    LOCALE_ESCAPED="$(printf '%s\n' "$LOCALE" | sed 's/[.[\*^$\/]/\\&/g')" && \
+    sed -i "/^# *${LOCALE_ESCAPED}[[:space:]]/s/^# *//" /etc/locale.gen && \
+    grep -Fq "$LOCALE" /etc/locale.gen && \
     locale-gen
 
 # Default timezone and locale — these are default values that can be overridden at runtime:
