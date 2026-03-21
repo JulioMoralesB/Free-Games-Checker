@@ -114,6 +114,55 @@ class TestSendDiscordMessage:
         payload = kwargs["json"]
         assert payload["embeds"][0]["author"]["name"] == "Epic Games Store"
 
+    def test_embed_author_url_uses_epic_games_region(self, sample_games):
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.EPIC_GAMES_REGION", "de-DE"), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        payload = kwargs["json"]
+        assert payload["embeds"][0]["author"]["url"] == "https://store.epicgames.com/de-DE/free-games"
+
+    def test_unknown_timezone_falls_back_to_utc(self, sample_games):
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.TIMEZONE", "Invalid/Timezone"), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            # Should not raise; falls back to UTC silently
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        payload = kwargs["json"]
+        # Footer should still contain "UTC" when the timezone falls back
+        assert "UTC" in payload["embeds"][0]["footer"]["text"]
+
+    def test_embed_footer_contains_configured_timezone(self, sample_games):
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.TIMEZONE", "Europe/London"), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        payload = kwargs["json"]
+        assert "(Europe/London)" in payload["embeds"][0]["footer"]["text"]
+
+    def test_embed_footer_respects_date_format(self, sample_games):
+        custom_format = "%Y/%m/%d"
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.DATE_FORMAT", custom_format), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        payload = kwargs["json"]
+        footer_text = payload["embeds"][0]["footer"]["text"]
+        # end_date is "2024-01-31T15:00:00.000Z"; with custom format the date portion is "2024/01/31"
+        assert "2024/01/31" in footer_text
+
     def test_raises_on_http_error_status(self, sample_games):
         mock_resp = self._make_response(400)
         mock_resp.raise_for_status.side_effect = requests_lib.exceptions.HTTPError(

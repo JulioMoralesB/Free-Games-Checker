@@ -5,7 +5,7 @@ from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
-from config import DB_HOST
+from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE
 
 import schedule
 import time
@@ -98,8 +98,8 @@ def main():
 
     logging.debug("Starting scheduler...")
 
-    schedule.every().day.at("12:00").do(check_games)
-    schedule.every().minute.do(healthcheck)
+    schedule.every().day.at(SCHEDULE_TIME, tz=TIMEZONE).do(check_games)
+    schedule.every(HEALTHCHECK_INTERVAL).minutes.do(healthcheck)
 
     while True:
         schedule.run_pending()

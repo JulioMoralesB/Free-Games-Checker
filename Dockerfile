@@ -4,15 +4,20 @@ FROM python:3.9-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install tzdata package for timezone data
-RUN apt-get update && apt-get install -y locales && sed -i '/es_ES.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen
+# Install tzdata and generate all UTF-8 locales so any LOCALE value works at runtime
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && apt-get install -y locales tzdata && \
+    sed -i 's/^# \(.*\.UTF-8\)/\1/' /etc/locale.gen && \
+    locale-gen && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set the timezone environment variable to Mexico City
+# Default timezone and locale — these are default values that can be overridden at runtime:
+#   docker run -e TZ=Europe/London -e LANG=en_GB.UTF-8 ...
+# The compose.yaml propagates TIMEZONE, LOCALE and EPIC_GAMES_REGION from the host .env file.
 ENV TZ=America/Mexico_City
-ENV LANG es_ES.UTF-8
-ENV LANGUAGE es_ES:es
-ENV LC_ALL es_ES.UTF-8
+ENV LANG=es_ES.UTF-8
+ENV LANGUAGE=es_ES:es
+ENV LC_ALL=es_ES.UTF-8
 
 # Create directories for logs and data
 RUN mkdir -p /mnt/logs /mnt/data
