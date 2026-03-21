@@ -1,4 +1,4 @@
-from config import DISCORD_WEBHOOK_URL
+from config import DISCORD_WEBHOOK_URL, TIMEZONE, LOCALE, DATE_FORMAT
 import requests
 from datetime import datetime
 import pytz
@@ -8,15 +8,17 @@ from urllib.parse import urlparse
 import logging
 logger = logging.getLogger(__name__)
 
-try:
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-except locale.Error as exc:
-    logger.warning(
-        "Locale es_ES.UTF-8 is not available, falling back to system locale. "
-        "Date formatting may differ. Underlying error: %s",
-        exc,
-        exc_info=True,
-    )
+if LOCALE:
+    try:
+        locale.setlocale(locale.LC_TIME, LOCALE)
+    except locale.Error as exc:
+        logger.warning(
+            "Locale %s is not available, falling back to system locale. "
+            "Date formatting may differ. Underlying error: %s",
+            LOCALE,
+            exc,
+            exc_info=True,
+        )
 
 def _get_safe_webhook_identifier(webhook_url: str) -> str:
     """
@@ -66,8 +68,8 @@ def send_discord_message(new_games):
                 end_date = datetime.strptime(game["end_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
                 dt_obj = pytz.utc.localize(end_date)
-                mexico_tz = pytz.timezone("America/Mexico_City")
-                localized_end_date = dt_obj.astimezone(mexico_tz)
+                configured_tz = pytz.timezone(TIMEZONE)
+                localized_end_date = dt_obj.astimezone(configured_tz)
 
                 # Format date manually, check if AM or PM, since %p may not work in some systems
                 hour = int(localized_end_date.strftime("%H"))
@@ -77,8 +79,17 @@ def send_discord_message(new_games):
                 else:
                     am_pm_text = "AM"
 
+                # Compute UTC offset dynamically from the localized date (e.g. "UTC-6", "UTC+1")
+                tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0100"
+                if tz_offset_str:
+                    sign = "+" if tz_offset_str[0] == "+" else "-"
+                    offset_hours = int(tz_offset_str[1:3])
+                    utc_label = f"UTC{sign}{offset_hours}"
+                else:
+                    utc_label = "UTC"
+
                 # Format the final string
-                formatted_end_date = f"{localized_end_date.strftime('%d de %B de %Y a las %I:%M')} {am_pm_text} UTC-6 (Hora de México)"
+                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {am_pm_text} {utc_label}"
                 embeds.append(
                     {
                         "author": {

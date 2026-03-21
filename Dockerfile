@@ -4,15 +4,18 @@ FROM python:3.9-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install tzdata package for timezone data
-RUN apt-get update && apt-get install -y locales && sed -i '/es_ES.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen
+# Install tzdata and generate all UTF-8 locales so any LOCALE value works at runtime
+RUN apt-get update && apt-get install -y locales tzdata && \
+    sed -i 's/^# \(.*\.UTF-8\)/\1/' /etc/locale.gen && \
+    locale-gen && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set the timezone environment variable to Mexico City
-ENV TZ=America/Mexico_City
-ENV LANG es_ES.UTF-8
-ENV LANGUAGE es_ES:es
-ENV LC_ALL es_ES.UTF-8
+# Default timezone and locale – override at runtime via environment variables:
+#   docker run -e TZ=Europe/London -e LANG=en_GB.UTF-8 ...
+ENV TZ=UTC
+ENV LANG=C.UTF-8
+ENV LANGUAGE=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # Create directories for logs and data
 RUN mkdir -p /mnt/logs /mnt/data
