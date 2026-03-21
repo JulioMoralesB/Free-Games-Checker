@@ -12,6 +12,11 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - TIMEZONE=${TIMEZONE}
+      - LOCALE=${LOCALE}
+      - EPIC_GAMES_REGION=${EPIC_GAMES_REGION}
+      - SCHEDULE_TIME=${SCHEDULE_TIME}
+      - HEALTHCHECK_INTERVAL=${HEALTHCHECK_INTERVAL}
     image: free-games-notifier
     restart: unless-stopped
     volumes:
