@@ -1,4 +1,4 @@
-from config import DISCORD_WEBHOOK_URL, TIMEZONE, LOCALE, DATE_FORMAT
+from config import DISCORD_WEBHOOK_URL, TIMEZONE, LOCALE, DATE_FORMAT, EPIC_GAMES_REGION
 import requests
 from datetime import datetime
 import pytz
@@ -88,13 +88,13 @@ def send_discord_message(new_games):
                 else:
                     utc_label = "UTC"
 
-                # Format the final string
-                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {am_pm_text} {utc_label}"
+                # Format the final string, including the timezone name for context
+                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {am_pm_text} {utc_label} ({TIMEZONE})"
                 embeds.append(
                     {
                         "author": {
                             "name": "Epic Games Store",
-                            "url": "https://store.epicgames.com/es-MX/free-games"
+                            "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
                         },
                         "title": game["title"],
                         "url": game["link"],
