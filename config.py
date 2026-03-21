@@ -54,4 +54,4 @@ except ValueError:
 
 # strftime format string used when displaying the promotion end date in Discord notifications.
 # The default is Spanish-style; change to match your locale, e.g. "%B %d, %Y at %I:%M" for en-US.
-DATE_FORMAT = os.getenv("DATE_FORMAT", "%d de %B de %Y a las %I:%M")
+DATE_FORMAT = os.getenv("DATE_FORMAT", "%d de %B de %Y a las %I:%M %p")
