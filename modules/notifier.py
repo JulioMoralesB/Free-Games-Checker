@@ -4,6 +4,7 @@ from datetime import datetime
 import pytz
 import locale
 from urllib.parse import urlparse
+from modules.retry import with_retry
 
 import logging
 logger = logging.getLogger(__name__)
@@ -120,10 +121,21 @@ def send_discord_message(new_games):
         logger.info(f"Sending Discord message with {len(embeds)} game(s)")
 
         safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
-        
-        # Send the request and validate response
-        response = requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10)
-        
+
+        _DISCORD_RETRYABLE = (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+        )
+
+        # Send the request with retry logic for transient network errors
+        response = with_retry(
+            func=lambda: requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10),
+            max_attempts=2,
+            base_delay=1,
+            retryable_exceptions=_DISCORD_RETRYABLE,
+            description=f"Discord webhook send ({safe_webhook_id})",
+        )
+
         # Validate HTTP response status (200-299 range)
         if 200 <= response.status_code <= 299:
             logger.info(f"Discord message sent successfully (Status: {response.status_code})")
