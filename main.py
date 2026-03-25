@@ -19,7 +19,16 @@ import pytz
 class TimezoneFormatter(logging.Formatter):
     def __init__(self, fmt, tz):
         super().__init__(fmt)
-        self.tz = pytz.timezone(tz)
+        try:
+            self.tz = pytz.timezone(tz)
+        except pytz.exceptions.UnknownTimeZoneError:
+            logging.warning(
+                "Timezone %s is not available, falling back to UTC. "
+                "Log timestamps will be in UTC. "
+                "Check the TIMEZONE environment variable.",
+                tz,
+            )
+            self.tz = pytz.utc
 
     def converter(self, timestamp):
         return datetime.fromtimestamp(timestamp, tz=pytz.utc).astimezone(self.tz).timetuple()
