@@ -15,8 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the entrypoint before the full source copy so its layer is cached
 # independently of application code changes
-COPY entrypoint.sh .
-RUN chmod +x /app/entrypoint.sh
+COPY --chmod=755 entrypoint.sh .
 
 # Copy the rest of the application code
 COPY . .
