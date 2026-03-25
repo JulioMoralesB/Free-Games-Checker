@@ -28,3 +28,30 @@ DB_PORT = int(os.getenv("DB_PORT", 5432))
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+# Timezone for date display in notifications (e.g. "America/New_York", "Europe/London")
+TIMEZONE = os.getenv("TIMEZONE", "America/Mexico_City")
+
+# Locale for date formatting (e.g. "en_US.UTF-8", "es_ES.UTF-8"). Leave empty to use the system locale.
+LOCALE = os.getenv("LOCALE", "es_ES.UTF-8")
+
+# Epic Games region used in store links (e.g. "en-US", "es-MX", "de-DE")
+EPIC_GAMES_REGION = os.getenv("EPIC_GAMES_REGION", "es-MX")
+
+# Daily schedule time in HH:MM format at which free games are checked.
+# NOTE: This time is interpreted in the configured TIMEZONE (see TIMEZONE above), not fixed to UTC.
+SCHEDULE_TIME = os.getenv("SCHEDULE_TIME", "12:00")
+
+# Health check ping interval in minutes
+_raw_healthcheck_interval = os.getenv("HEALTHCHECK_INTERVAL")
+try:
+    if _raw_healthcheck_interval in (None, ""):
+        HEALTHCHECK_INTERVAL = 1
+    else:
+        HEALTHCHECK_INTERVAL = max(1, int(_raw_healthcheck_interval))
+except ValueError:
+    HEALTHCHECK_INTERVAL = 1
+
+# strftime format string used when displaying the promotion end date in Discord notifications.
+# The default is Spanish-style; change to match your locale, e.g. "%B %d, %Y at %I:%M" for en-US.
+DATE_FORMAT = os.getenv("DATE_FORMAT", "%d de %B de %Y a las %I:%M %p")

@@ -4,12 +4,12 @@ A Python-based scheduler that monitors the Epic Games Store for free game promot
 
 ## Features
 
-- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at 12:00 UTC for new free games
+- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at a configurable time (default: 12:00 in the configured timezone, default `America/Mexico_City`) for new free games
 - 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details
 - 📊 **Persistent Storage**: Maintains game history — PostgreSQL when `DB_HOST` is set, JSON file otherwise
 - 🏥 **Health Checks**: Optional UptimeKuma/Healthchecks.io integration for monitoring
 - 🐳 **Docker Ready**: Includes Docker and docker-compose configurations
-- 🌍 **Timezone Support**: Automatically converts times to your timezone (currently Mexico City)
+- 🌍 **Fully Configurable**: Timezone, locale, region, schedule time, and health check interval are all configurable via environment variables
 
 ## Prerequisites
 
@@ -66,6 +66,15 @@ DB_PORT=5432
 DB_NAME=free_games
 DB_USER=postgres
 DB_PASSWORD=your_password
+
+# Optional: Timezone / locale / region
+TIMEZONE=America/Mexico_City
+LOCALE=es_ES.UTF-8
+EPIC_GAMES_REGION=es-MX
+
+# Optional: Scheduler
+SCHEDULE_TIME=12:00
+HEALTHCHECK_INTERVAL=1
 ```
 
 ### 5. Run the Scheduler
@@ -75,8 +84,8 @@ python main.py
 ```
 
 The service will:
-- Check for new free games daily at 12:00 UTC
-- Send health check pings every minute (if enabled)
+- Check for new free games daily at the configured `SCHEDULE_TIME` (default: 12:00 in the configured `TIMEZONE`)
+- Send health check pings every `HEALTHCHECK_INTERVAL` minutes (if enabled)
 - Log activity to `data/logs/notifier.log`
 
 ## Storage Backends
@@ -120,6 +129,11 @@ docker run -d \
   --name free-games-notifier \
   -e DISCORD_WEBHOOK_URL="YOUR_WEBHOOK_URL" \
   -e ENABLE_HEALTHCHECK=false \
+  -e TIMEZONE=UTC \
+  -e LOCALE=en_US.UTF-8 \
+  -e EPIC_GAMES_REGION=en-US \
+  -e SCHEDULE_TIME=12:00 \
+  -e HEALTHCHECK_INTERVAL=1 \
   -v /mnt/data:/mnt/data \
   -v /mnt/logs:/mnt/logs \
   free-games-notifier
@@ -132,12 +146,18 @@ docker run -d \
 | `DISCORD_WEBHOOK_URL` | ✅ Yes | - | Discord webhook URL for sending notifications |
 | `EPIC_GAMES_API_URL` | ❌ No | Official API | Epic Games Store API endpoint |
 | `HEALTHCHECK_URL` | ❌ No | - | Healthchecks.io or UptimeKuma ping URL |
-| `ENABLE_HEALTHCHECK` | ❌ No | `false` | Enable health check pings (true/false) |
+| `ENABLE_HEALTHCHECK` | ❌ No | `false` | Enable health check pings (`true`/`false`) |
 | `DB_HOST` | ❌ No | - | PostgreSQL host (leave empty to use file storage) |
-| `DB_PORT` | ❌ No | 5432 | PostgreSQL port |
+| `DB_PORT` | ❌ No | `5432` | PostgreSQL port |
 | `DB_NAME` | ❌ No | - | PostgreSQL database name |
 | `DB_USER` | ❌ No | - | PostgreSQL username |
 | `DB_PASSWORD` | ❌ No | - | PostgreSQL password |
+| `TIMEZONE` | ❌ No | `America/Mexico_City` | IANA timezone name for date display and schedule interpretation (e.g. `America/New_York`, `Europe/London`) |
+| `LOCALE` | ❌ No | `es_ES.UTF-8` | Locale for date formatting (e.g. `en_US.UTF-8`, `de_DE.UTF-8`). Must be available in the system. |
+| `EPIC_GAMES_REGION` | ❌ No | `es-MX` | Region code used in Epic Games Store links (e.g. `en-US`, `de-DE`) |
+| `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM` format, interpreted in the configured `TIMEZONE` |
+| `HEALTHCHECK_INTERVAL` | ❌ No | `1` | Health check ping interval in minutes |
+| `DATE_FORMAT` | ❌ No | `%d de %B de %Y a las %I:%M` | strftime format for the promotion end date in Discord notifications |
 
 ## How to Get a Discord Webhook URL
 
@@ -271,7 +291,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 - [x] Unit test coverage (Task #4)
 - [x] PostgreSQL as primary storage (Task #5)
-- [ ] Configurable timezone and region (Task #6)
+- [x] Configurable timezone and region (Task #6)
 - [ ] Retry logic with backoff (Task #7)
 - [ ] Support for additional game stores (Steam, GOG, etc.)
 - [ ] Web dashboard for game history

@@ -5,7 +5,7 @@ from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
-from config import DB_HOST
+from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE
 
 import schedule
 import time
@@ -13,15 +13,34 @@ import requests
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import pytz
+
+# Custom formatter to display log timestamps in the configured timezone instead of UTC
+class TimezoneFormatter(logging.Formatter):
+    def __init__(self, fmt, tz):
+        super().__init__(fmt)
+        try:
+            self.tz = pytz.timezone(tz)
+        except pytz.exceptions.UnknownTimeZoneError:
+            logging.warning(
+                "Timezone %s is not available, falling back to UTC. "
+                "Log timestamps will be in UTC. "
+                "Check the TIMEZONE environment variable.",
+                tz,
+            )
+            self.tz = pytz.utc
+
+    def converter(self, timestamp):
+        return datetime.fromtimestamp(timestamp, tz=pytz.utc).astimezone(self.tz).timetuple()
 
 # Configure logging to write to a file and rotate weekly
 log_handler = TimedRotatingFileHandler("/mnt/logs/notifier.log", when="W1", interval=1, backupCount=4)
 log_handler.setLevel(logging.INFO)
-log_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+log_handler.setFormatter(TimezoneFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', tz=TIMEZONE))
 
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+console_handler.setFormatter(TimezoneFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', tz=TIMEZONE))
 
 logging.basicConfig(level=logging.INFO, handlers=[log_handler, console_handler])
 
@@ -98,8 +117,8 @@ def main():
 
     logging.debug("Starting scheduler...")
 
-    schedule.every().day.at("12:00").do(check_games)
-    schedule.every().minute.do(healthcheck)
+    schedule.every().day.at(SCHEDULE_TIME, tz=TIMEZONE).do(check_games)
+    schedule.every(HEALTHCHECK_INTERVAL).minutes.do(healthcheck)
 
     while True:
         schedule.run_pending()

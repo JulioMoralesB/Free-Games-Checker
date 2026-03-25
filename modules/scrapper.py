@@ -1,5 +1,5 @@
 import requests
-from config import EPIC_GAMES_API_URL
+from config import EPIC_GAMES_API_URL, EPIC_GAMES_REGION
 
 import logging
 logger = logging.getLogger(__name__)
@@ -62,11 +62,11 @@ def fetch_free_games():
             ## If gameId is found, use it to create the link
             if gameId:
                 logger.info(f"Using gameId: {gameId}")
-                link = f"https://store.epicgames.com/es-MX/p/{gameId}"
+                link = f"https://store.epicgames.com/{EPIC_GAMES_REGION}/p/{gameId}"
             ## If not, use the default link
             else:
                 logger.info("No game url found, using default link.")
-                link = "https://store.epicgames.com/es-MX/free-games"    
+                link = f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
                 
             end_date = ""
             logger.info(f"Promotions: {game['promotions']}")

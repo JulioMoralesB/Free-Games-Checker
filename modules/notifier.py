@@ -1,4 +1,4 @@
-from config import DISCORD_WEBHOOK_URL
+from config import DISCORD_WEBHOOK_URL, TIMEZONE, LOCALE, DATE_FORMAT, EPIC_GAMES_REGION
 import requests
 from datetime import datetime
 import pytz
@@ -8,15 +8,17 @@ from urllib.parse import urlparse
 import logging
 logger = logging.getLogger(__name__)
 
-try:
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-except locale.Error as exc:
-    logger.warning(
-        "Locale es_ES.UTF-8 is not available, falling back to system locale. "
-        "Date formatting may differ. Underlying error: %s",
-        exc,
-        exc_info=True,
-    )
+if LOCALE:
+    try:
+        locale.setlocale(locale.LC_TIME, LOCALE)
+    except locale.Error as exc:
+        logger.warning(
+            "Locale %s is not available, falling back to system locale. "
+            "Date formatting may differ. Underlying error: %s",
+            LOCALE,
+            exc,
+            exc_info=True,
+        )
 
 def _get_safe_webhook_identifier(webhook_url: str) -> str:
     """
@@ -66,24 +68,34 @@ def send_discord_message(new_games):
                 end_date = datetime.strptime(game["end_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
                 dt_obj = pytz.utc.localize(end_date)
-                mexico_tz = pytz.timezone("America/Mexico_City")
-                localized_end_date = dt_obj.astimezone(mexico_tz)
+                try:
+                    configured_tz = pytz.timezone(TIMEZONE)
+                except pytz.exceptions.UnknownTimeZoneError:
+                    logger.warning(
+                        "Unknown timezone %r — falling back to UTC. "
+                        "Set a valid IANA timezone in the TIMEZONE environment variable.",
+                        TIMEZONE,
+                    )
+                    configured_tz = pytz.utc
+                localized_end_date = dt_obj.astimezone(configured_tz)
 
-                # Format date manually, check if AM or PM, since %p may not work in some systems
-                hour = int(localized_end_date.strftime("%H"))
-
-                if hour >= 12:
-                    am_pm_text = "PM"
+                # Compute UTC offset dynamically from the localized date (e.g. "UTC+05:30")
+                tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0530"
+                if tz_offset_str and len(tz_offset_str) == 5:
+                    sign = "+" if tz_offset_str[0] == "+" else "-"
+                    hours = tz_offset_str[1:3]
+                    minutes = tz_offset_str[3:5]
+                    utc_label = f"UTC{sign}{hours}:{minutes}"
                 else:
-                    am_pm_text = "AM"
+                    utc_label = "UTC"
 
-                # Format the final string
-                formatted_end_date = f"{localized_end_date.strftime('%d de %B de %Y a las %I:%M')} {am_pm_text} UTC-6 (Hora de México)"
+                # Format the final string, including the timezone name for context
+                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {utc_label} ({TIMEZONE})"
                 embeds.append(
                     {
                         "author": {
                             "name": "Epic Games Store",
-                            "url": "https://store.epicgames.com/es-MX/free-games"
+                            "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
                         },
                         "title": game["title"],
                         "url": game["link"],
