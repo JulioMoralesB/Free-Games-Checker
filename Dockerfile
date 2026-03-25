@@ -4,23 +4,21 @@ FROM python:3.9-slim
 # Set the working directory inside the container
 WORKDIR /app
 
+# Install locales and create runtime directories in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends locales && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /mnt/logs /mnt/data
 
-# Create directories for logs and data
-RUN mkdir -p /mnt/logs /mnt/data
-
-# Copy the requirements file into the container
+# Copy and install Python dependencies (cached unless requirements.txt changes)
 COPY requirements.txt .
-
-# Install the required Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code into the container
-COPY . .
+# Copy the entrypoint before the full source copy so its layer is cached
+# independently of application code changes
+COPY --chmod=755 entrypoint.sh .
 
-# Make the entrypoint script executable
-RUN chmod +x /app/entrypoint.sh
+# Copy the rest of the application code
+COPY . .
 
 # Run the application
 ENTRYPOINT ["/app/entrypoint.sh"]
