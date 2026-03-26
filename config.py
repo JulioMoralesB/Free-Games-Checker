@@ -1,3 +1,4 @@
+import logging
 import os
 from dotenv import load_dotenv
 
@@ -59,4 +60,23 @@ DATE_FORMAT = os.getenv("DATE_FORMAT", "%d de %B de %Y a las %I:%M %p")
 # REST API configuration
 API_KEY = os.getenv("API_KEY")  # Secret key for mutating API endpoints; leave empty to disable auth
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
-API_PORT = int(os.getenv("API_PORT", 8000))
+_raw_api_port = os.getenv("API_PORT")
+try:
+    if _raw_api_port in (None, ""):
+        API_PORT = 8000
+    else:
+        _parsed_api_port = int(_raw_api_port)
+        if 1 <= _parsed_api_port <= 65535:
+            API_PORT = _parsed_api_port
+        else:
+            logging.error(
+                "API_PORT '%s' is out of valid range (1–65535); defaulting to 8000",
+                _raw_api_port,
+            )
+            API_PORT = 8000
+except ValueError:
+    logging.error(
+        "Invalid API_PORT '%s' (not a number); defaulting to 8000",
+        _raw_api_port,
+    )
+    API_PORT = 8000

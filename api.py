@@ -1,5 +1,6 @@
 """REST API for the Free Games Notifier service."""
 
+import threading
 import time
 import logging
 from typing import List, Optional
@@ -85,7 +86,7 @@ class ConfigResponse(BaseModel):
     epic_games_region: str = Field(..., description="Region code used in store links", examples=["es-MX"])
     data_file_path: str = Field(..., description="Path to the JSON storage file")
     enable_healthcheck: bool = Field(..., description="Whether the external health check ping is enabled")
-    healthcheck_url: Optional[str] = Field(None, description="URL of the external health check monitor")
+    healthcheck_configured: bool = Field(..., description="Whether an external health check monitor URL is configured")
     healthcheck_interval_minutes: int = Field(..., description="Interval in minutes between health check pings", examples=[1])
     db_host: Optional[str] = Field(None, description="PostgreSQL host (None when DB is not configured)")
     db_port: int = Field(..., description="PostgreSQL port", examples=[5432])
@@ -123,12 +124,14 @@ _metrics = {
     "discord_notification_errors": 0,
     "errors": 0,
 }
+_metrics_lock = threading.Lock()
 
 
 def increment_metric(key: str, amount: int = 1):
     """Safely increment a metric counter."""
-    if key in _metrics:
-        _metrics[key] += amount
+    with _metrics_lock:
+        if key in _metrics:
+            _metrics[key] += amount
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +169,7 @@ async def _verify_api_key(api_key: str = Security(_api_key_header)):
 
 
 @app.get("/health", response_model=HealthResponse)
-async def health():
+def health():
     """Active health check: Epic Games API reachability and database connectivity."""
     result = {"epic_games_api": "unknown", "database": "not_configured"}
 
@@ -208,7 +211,7 @@ async def health():
     response_model=GamesLatestResponse,
     responses={500: {"model": ErrorResponse, "description": "Failed to load games from storage"}},
 )
-async def games_latest():
+def games_latest():
     """Return the most recently fetched games from the configured storage backend."""
     from modules.storage import load_previous_games
 
@@ -226,7 +229,7 @@ async def games_latest():
     response_model=GamesHistoryResponse,
     responses={500: {"model": ErrorResponse, "description": "Failed to load game history"}},
 )
-async def games_history(
+def games_history(
     limit: int = Query(default=20, ge=1, le=100, description="Max number of games to return"),
     offset: int = Query(default=0, ge=0, description="Number of games to skip"),
 ):
@@ -259,7 +262,7 @@ async def games_history(
         500: {"model": ErrorResponse, "description": "Failed to send Discord notification"},
     },
 )
-async def notify_discord_resend():
+def notify_discord_resend():
     """Re-send the latest fetched games to the Discord webhook."""
     from modules.storage import load_previous_games
     from modules.notifier import send_discord_message
@@ -286,17 +289,19 @@ async def notify_discord_resend():
 
 
 @app.get("/metrics", response_model=MetricsResponse)
-async def metrics():
+def metrics():
     """Basic service metrics: uptime, games processed, notifications sent, errors."""
     uptime_seconds = time.time() - _start_time
+    with _metrics_lock:
+        snapshot = dict(_metrics)
     return {
         "uptime_seconds": round(uptime_seconds, 2),
-        **_metrics,
+        **snapshot,
     }
 
 
 @app.get("/config", response_model=ConfigResponse)
-async def config_endpoint():
+def config_endpoint():
     """Expose non-secret runtime configuration."""
     return {
         "epic_games_api_url": EPIC_GAMES_API_URL,
@@ -326,7 +331,7 @@ async def config_endpoint():
         500: {"model": ErrorResponse, "description": "Failed to fetch games from Epic Games API"},
     },
 )
-async def check_e2e():
+def check_e2e():
     """End-to-end test: fetch games, check DB presence, and send Discord notification regardless.
 
     This endpoint runs the full flow even when the games already exist in the
