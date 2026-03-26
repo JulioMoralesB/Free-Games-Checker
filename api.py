@@ -279,10 +279,10 @@ async def notify_discord_resend():
         increment_metric("discord_notifications_sent")
         return {"status": "success", "games_sent": len(games)}
     except Exception as e:
-        logger.error("Failed to resend Discord notification: %s", e)
+        logger.error("Failed to resend Discord notification: %s", e, exc_info=True)
         increment_metric("discord_notification_errors")
         increment_metric("errors")
-        raise HTTPException(status_code=500, detail=f"Failed to send Discord notification: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send Discord notification")
 
 
 @app.get("/metrics", response_model=MetricsResponse)
