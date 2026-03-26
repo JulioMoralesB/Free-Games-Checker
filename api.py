@@ -343,7 +343,7 @@ async def check_e2e():
     except Exception as e:
         logger.error("E2E check – failed to fetch games: %s", e)
         increment_metric("errors")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch games: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch games")
 
     if not current_games:
         raise HTTPException(status_code=404, detail="No free games found from Epic Games API")
