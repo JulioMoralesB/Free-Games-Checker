@@ -1,6 +1,5 @@
 """Tests for the database migration runner in main.py."""
 
-import importlib
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
