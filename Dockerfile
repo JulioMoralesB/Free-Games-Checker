@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gosu \
         locales \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --no-create-home --shell /bin/false appuser \
+    && useradd --system --no-create-home --shell /bin/false --user-group appuser \
     && mkdir -p /mnt/logs /mnt/data \
     && chown appuser:appuser /mnt/logs /mnt/data
 
