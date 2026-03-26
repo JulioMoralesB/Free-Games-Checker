@@ -1,14 +1,29 @@
 import requests
 from config import EPIC_GAMES_API_URL, EPIC_GAMES_REGION
+from modules.retry import with_retry
 
 import logging
 logger = logging.getLogger(__name__)
 
+_RETRYABLE_ERRORS = (
+    requests.exceptions.Timeout,
+    requests.exceptions.ConnectionError,
+)
+
 def fetch_free_games():
     """Fetch free games from Epic Games API."""
     logger.info(f"Fetching free games from Epic Games API. URI: {EPIC_GAMES_API_URL}")
-    response = requests.get(EPIC_GAMES_API_URL)
-    
+    try:
+        response = with_retry(
+            func=lambda: requests.get(EPIC_GAMES_API_URL, timeout=10),
+            max_attempts=4,
+            base_delay=1,
+            retryable_exceptions=_RETRYABLE_ERRORS,
+            description="Epic Games API fetch",
+        )
+    except _RETRYABLE_ERRORS as e:
+        return []
+
     if response.status_code != 200:
         logger.error(f"Failed to fetch Epic Games API. Status Code: {response.status_code}")
         return []

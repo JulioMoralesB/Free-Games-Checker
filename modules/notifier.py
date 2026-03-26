@@ -4,9 +4,15 @@ from datetime import datetime
 import pytz
 import locale
 from urllib.parse import urlparse
+from modules.retry import with_retry
 
 import logging
 logger = logging.getLogger(__name__)
+
+_DISCORD_RETRYABLE = (
+    requests.exceptions.Timeout,
+    requests.exceptions.ConnectionError,
+)
 
 if LOCALE:
     try:
@@ -120,10 +126,16 @@ def send_discord_message(new_games):
         logger.info(f"Sending Discord message with {len(embeds)} game(s)")
 
         safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
-        
-        # Send the request and validate response
-        response = requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10)
-        
+
+        # Send the request with retry logic for transient network errors
+        response = with_retry(
+            func=lambda: requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10),
+            max_attempts=2,
+            base_delay=1,
+            retryable_exceptions=_DISCORD_RETRYABLE,
+            description=f"Discord webhook send ({safe_webhook_id})",
+        )
+
         # Validate HTTP response status (200-299 range)
         if 200 <= response.status_code <= 299:
             logger.info(f"Discord message sent successfully (Status: {response.status_code})")
@@ -140,7 +152,7 @@ def send_discord_message(new_games):
     except requests.exceptions.Timeout as e:
         safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
         logger.error(
-            f"Discord request timed out after 10 seconds | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
+            f"Discord request timed out (10s per-attempt limit, all attempts exhausted) | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
         )
         raise
     except requests.exceptions.ConnectionError as e:
