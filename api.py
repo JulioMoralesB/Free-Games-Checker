@@ -303,7 +303,7 @@ async def config_endpoint():
         "epic_games_region": EPIC_GAMES_REGION,
         "data_file_path": DATA_FILE_PATH,
         "enable_healthcheck": ENABLE_HEALTHCHECK,
-        "healthcheck_url": HEALTHCHECK_URL,
+        "healthcheck_configured": bool(HEALTHCHECK_URL),
         "healthcheck_interval_minutes": HEALTHCHECK_INTERVAL,
         "db_host": DB_HOST,
         "db_port": DB_PORT,
