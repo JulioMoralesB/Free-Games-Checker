@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --system --no-create-home --shell /bin/false --user-group appuser
 
 # Bake the selected locale into the image's default runtime environment
-ENV LANG=${LOCALE} \
+ENV LOCALE=${LOCALE} \
+    LANG=${LOCALE} \
     LANGUAGE=${LOCALE} \
     LC_ALL=${LOCALE}
 
