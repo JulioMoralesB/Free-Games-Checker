@@ -18,7 +18,12 @@ services:
       - EPIC_GAMES_REGION=${EPIC_GAMES_REGION:-es-MX}
       - SCHEDULE_TIME=${SCHEDULE_TIME:-12:00}
       - HEALTHCHECK_INTERVAL=${HEALTHCHECK_INTERVAL:-1}
+      - API_KEY=${API_KEY}
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=${API_PORT:-8000}
     image: free-games-notifier
+    ports:
+      - "${API_PORT:-8000}:${API_PORT:-8000}"
     restart: unless-stopped
     volumes:
       - type: bind

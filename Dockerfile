@@ -39,6 +39,9 @@ RUN mkdir -p /mnt/logs /mnt/data /app/data \
 # Switch to non-root user for all subsequent instructions and runtime
 USER appuser
 
+# Expose the REST API port (default 8000, configurable via API_PORT env var)
+EXPOSE 8000
+
 # Health check: confirm the main Python process is running
 HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
     CMD /app/healthcheck.sh
