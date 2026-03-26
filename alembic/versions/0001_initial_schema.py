@@ -37,5 +37,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Drop the games table. We intentionally do NOT drop the `free_games` schema
+    # because Alembic's `alembic_version` table may reside there (depending on
+    # env.py / version_table_schema configuration), and dropping the schema
+    # could break Alembic's migration tracking.
     op.execute("DROP TABLE IF EXISTS free_games.games")
-    op.execute("DROP SCHEMA IF EXISTS free_games")
