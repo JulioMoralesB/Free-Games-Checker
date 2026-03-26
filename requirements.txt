@@ -1,3 +1,4 @@
+alembic==1.16.5
 beautifulsoup4==4.13.3
 certifi==2025.1.31
 charset-normalizer==3.4.1
@@ -8,6 +9,7 @@ pytz==2025.1
 requests==2.32.3
 schedule==1.2.2
 soupsieve==2.6
+SQLAlchemy==2.0.48
 typeguard==4.4.2
 typing_extensions==4.12.2
 urllib3==2.3.0
