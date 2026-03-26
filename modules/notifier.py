@@ -9,6 +9,11 @@ from modules.retry import with_retry
 import logging
 logger = logging.getLogger(__name__)
 
+_DISCORD_RETRYABLE = (
+    requests.exceptions.Timeout,
+    requests.exceptions.ConnectionError,
+)
+
 if LOCALE:
     try:
         locale.setlocale(locale.LC_TIME, LOCALE)
@@ -122,11 +127,6 @@ def send_discord_message(new_games):
 
         safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
 
-        _DISCORD_RETRYABLE = (
-            requests.exceptions.Timeout,
-            requests.exceptions.ConnectionError,
-        )
-
         # Send the request with retry logic for transient network errors
         response = with_retry(
             func=lambda: requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10),
@@ -152,7 +152,7 @@ def send_discord_message(new_games):
     except requests.exceptions.Timeout as e:
         safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
         logger.error(
-            f"Discord request timed out after 10 seconds | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
+            f"Discord request timed out (10s per-attempt limit, all attempts exhausted) | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
         )
         raise
     except requests.exceptions.ConnectionError as e:
