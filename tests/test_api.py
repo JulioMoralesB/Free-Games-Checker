@@ -1,0 +1,339 @@
+import pytest
+from unittest.mock import patch, MagicMock
+
+from fastapi.testclient import TestClient
+
+from api import app, _metrics, _start_time, increment_metric
+
+
+@pytest.fixture(autouse=True)
+def _reset_metrics():
+    """Reset metrics counters before each test."""
+    original = dict(_metrics)
+    for key in _metrics:
+        _metrics[key] = 0
+    yield
+    _metrics.update(original)
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+
+# ---------------------------------------------------------------------------
+# GET /health
+# ---------------------------------------------------------------------------
+
+class TestHealthEndpoint:
+    def test_returns_healthy_when_api_reachable(self, client):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        with patch("api.requests_lib.get", return_value=mock_resp), \
+             patch("api.DB_HOST", None):
+            resp = client.get("/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["epic_games_api"] == "healthy"
+        assert data["database"] == "not_configured"
+        assert data["status"] == "healthy"
+
+    def test_returns_unhealthy_when_api_unreachable(self, client):
+        with patch("api.requests_lib.get", side_effect=Exception("timeout")), \
+             patch("api.DB_HOST", None):
+            resp = client.get("/health")
+        data = resp.json()
+        assert data["epic_games_api"] == "unhealthy"
+        assert data["status"] == "unhealthy"
+
+    def test_returns_unhealthy_on_non_200_status(self, client):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        with patch("api.requests_lib.get", return_value=mock_resp), \
+             patch("api.DB_HOST", None):
+            resp = client.get("/health")
+        data = resp.json()
+        assert data["epic_games_api"] == "unhealthy"
+
+    def test_checks_database_when_configured(self, client):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_conn = MagicMock()
+        with patch("api.requests_lib.get", return_value=mock_resp), \
+             patch("api.DB_HOST", "localhost"), \
+             patch("api.DB_PORT", 5432), \
+             patch("api.DB_NAME", "test"), \
+             patch("api.DB_USER", "user"), \
+             patch("psycopg2.connect", return_value=mock_conn):
+            resp = client.get("/health")
+        data = resp.json()
+        assert data["database"] == "healthy"
+        mock_conn.close.assert_called_once()
+
+    def test_database_unhealthy_on_connection_error(self, client):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        with patch("api.requests_lib.get", return_value=mock_resp), \
+             patch("api.DB_HOST", "localhost"), \
+             patch("api.DB_PORT", 5432), \
+             patch("api.DB_NAME", "test"), \
+             patch("api.DB_USER", "user"), \
+             patch("psycopg2.connect", side_effect=Exception("connection refused")):
+            resp = client.get("/health")
+        data = resp.json()
+        assert data["database"] == "unhealthy"
+        assert data["status"] == "unhealthy"
+
+
+# ---------------------------------------------------------------------------
+# GET /games/latest
+# ---------------------------------------------------------------------------
+
+class TestGamesLatestEndpoint:
+    def test_returns_games(self, client, sample_games):
+        with patch("modules.storage.load_previous_games", return_value=sample_games):
+            resp = client.get("/games/latest")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] == 1
+        assert data["games"][0]["title"] == "Test Free Game"
+
+    def test_returns_empty_list_when_no_games(self, client):
+        with patch("modules.storage.load_previous_games", return_value=[]):
+            resp = client.get("/games/latest")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] == 0
+        assert data["games"] == []
+
+    def test_returns_500_on_error(self, client):
+        with patch("modules.storage.load_previous_games", side_effect=Exception("disk error")):
+            resp = client.get("/games/latest")
+        assert resp.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# GET /games/history
+# ---------------------------------------------------------------------------
+
+class TestGamesHistoryEndpoint:
+    def test_returns_paginated_results(self, client, sample_game):
+        games = [dict(sample_game, title=f"Game {i}") for i in range(5)]
+        with patch("modules.storage.load_previous_games", return_value=games):
+            resp = client.get("/games/history?limit=2&offset=1")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 5
+        assert data["limit"] == 2
+        assert data["offset"] == 1
+        assert len(data["games"]) == 2
+        assert data["games"][0]["title"] == "Game 1"
+
+    def test_default_pagination(self, client, sample_games):
+        with patch("modules.storage.load_previous_games", return_value=sample_games):
+            resp = client.get("/games/history")
+        data = resp.json()
+        assert data["limit"] == 20
+        assert data["offset"] == 0
+
+    def test_rejects_invalid_limit(self, client):
+        resp = client.get("/games/history?limit=0")
+        assert resp.status_code == 422
+
+    def test_rejects_negative_offset(self, client):
+        resp = client.get("/games/history?offset=-1")
+        assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# POST /notify/discord/resend
+# ---------------------------------------------------------------------------
+
+class TestNotifyDiscordResendEndpoint:
+    def test_resends_notification_successfully(self, client, sample_games):
+        with patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message") as mock_send:
+            resp = client.post("/notify/discord/resend")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["games_sent"] == 1
+        mock_send.assert_called_once_with(sample_games)
+
+    def test_returns_404_when_no_games(self, client):
+        with patch("modules.storage.load_previous_games", return_value=[]):
+            resp = client.post("/notify/discord/resend")
+        assert resp.status_code == 404
+
+    def test_returns_500_on_discord_error(self, client, sample_games):
+        with patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message", side_effect=Exception("webhook error")):
+            resp = client.post("/notify/discord/resend")
+        assert resp.status_code == 500
+
+    def test_rejects_invalid_api_key(self, client, sample_games):
+        with patch("api.API_KEY", "valid-key"):
+            resp = client.post("/notify/discord/resend", headers={"X-API-Key": "wrong-key"})
+        assert resp.status_code == 401
+
+    def test_accepts_valid_api_key(self, client, sample_games):
+        with patch("api.API_KEY", "valid-key"), \
+             patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message"):
+            resp = client.post("/notify/discord/resend", headers={"X-API-Key": "valid-key"})
+        assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# GET /metrics
+# ---------------------------------------------------------------------------
+
+class TestMetricsEndpoint:
+    def test_returns_metrics(self, client):
+        resp = client.get("/metrics")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "uptime_seconds" in data
+        assert "games_processed" in data
+        assert "discord_notifications_sent" in data
+        assert "errors" in data
+
+    def test_uptime_is_positive(self, client):
+        resp = client.get("/metrics")
+        data = resp.json()
+        assert data["uptime_seconds"] >= 0
+
+
+# ---------------------------------------------------------------------------
+# GET /config
+# ---------------------------------------------------------------------------
+
+class TestConfigEndpoint:
+    def test_returns_config(self, client):
+        resp = client.get("/config")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "epic_games_api_url" in data
+        assert "timezone" in data
+        assert "schedule_time" in data
+
+    def test_does_not_expose_secrets(self, client):
+        resp = client.get("/config")
+        data = resp.json()
+        data_str = str(data)
+        assert "DB_PASSWORD" not in data_str
+        assert "DISCORD_WEBHOOK_URL" not in data_str
+        assert "API_KEY" not in data_str
+        # Ensure the actual secret values are not keys
+        assert "password" not in data
+        assert "webhook" not in data
+        assert "api_key" not in data
+
+
+# ---------------------------------------------------------------------------
+# POST /check (E2E test endpoint)
+# ---------------------------------------------------------------------------
+
+class TestCheckE2EEndpoint:
+    def test_full_flow_new_games(self, client, sample_games):
+        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+             patch("modules.storage.load_previous_games", return_value=[]), \
+             patch("modules.notifier.send_discord_message"):
+            resp = client.post("/check")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["games_fetched"] == 1
+        assert data["notification_status"] == "sent"
+        assert len(data["new_games"]) == 1
+        assert len(data["already_in_storage"]) == 0
+
+    def test_full_flow_games_already_saved(self, client, sample_games):
+        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+             patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message"):
+            resp = client.post("/check")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["already_in_storage"]) == 1
+        assert len(data["new_games"]) == 0
+        assert data["notification_status"] == "sent"
+
+    def test_returns_404_when_no_free_games(self, client):
+        with patch("modules.scrapper.fetch_free_games", return_value=[]):
+            resp = client.post("/check")
+        assert resp.status_code == 404
+
+    def test_handles_discord_failure(self, client, sample_games):
+        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+             patch("modules.storage.load_previous_games", return_value=[]), \
+             patch("modules.notifier.send_discord_message", side_effect=Exception("webhook error")):
+            resp = client.post("/check")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "failed" in data["notification_status"]
+
+    def test_returns_500_on_scraper_error(self, client):
+        with patch("modules.scrapper.fetch_free_games", side_effect=Exception("API error")):
+            resp = client.post("/check")
+        assert resp.status_code == 500
+
+    def test_rejects_invalid_api_key(self, client):
+        with patch("api.API_KEY", "valid-key"):
+            resp = client.post("/check", headers={"X-API-Key": "wrong-key"})
+        assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# API Key authentication
+# ---------------------------------------------------------------------------
+
+class TestAPIKeyAuth:
+    def test_no_auth_required_when_api_key_not_set(self, client, sample_games):
+        with patch("api.API_KEY", None), \
+             patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message"):
+            resp = client.post("/notify/discord/resend")
+        assert resp.status_code == 200
+
+    def test_auth_required_when_api_key_set(self, client):
+        with patch("api.API_KEY", "secret-key"):
+            resp = client.post("/notify/discord/resend")
+        assert resp.status_code == 401
+
+    def test_valid_key_allows_access(self, client, sample_games):
+        with patch("api.API_KEY", "secret-key"), \
+             patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message"):
+            resp = client.post(
+                "/notify/discord/resend",
+                headers={"X-API-Key": "secret-key"},
+            )
+        assert resp.status_code == 200
+
+    def test_read_endpoints_do_not_require_auth(self, client):
+        with patch("api.API_KEY", "secret-key"):
+            # GET endpoints should work without API key
+            with patch("modules.storage.load_previous_games", return_value=[]):
+                assert client.get("/games/latest").status_code == 200
+            assert client.get("/metrics").status_code == 200
+            assert client.get("/config").status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# increment_metric helper
+# ---------------------------------------------------------------------------
+
+class TestIncrementMetric:
+    def test_increments_existing_key(self):
+        _metrics["errors"] = 0
+        increment_metric("errors")
+        assert _metrics["errors"] == 1
+
+    def test_ignores_unknown_key(self):
+        increment_metric("nonexistent_key")
+        # Should not raise
+
+    def test_increments_by_custom_amount(self):
+        _metrics["games_processed"] = 0
+        increment_metric("games_processed", 5)
+        assert _metrics["games_processed"] == 5
