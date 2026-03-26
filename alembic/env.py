@@ -4,6 +4,7 @@ Reads PostgreSQL connection parameters from config.py and applies
 migrations within the ``free_games`` schema.
 """
 
+import logging
 import os
 import sys
 from logging.config import fileConfig
@@ -19,8 +20,12 @@ from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD  # noqa: E402
 # Alembic Config object, providing access to values from alembic.ini
 alembic_config = context.config
 
-# Interpret the config file for Python logging if present
-if alembic_config.config_file_name is not None:
+# Interpret the config file for Python logging only when running from the
+# Alembic CLI (i.e., logging has not been set up yet by the service).
+# When invoked programmatically from main.py the root logger already has
+# handlers, so we skip fileConfig to avoid clobbering the service's logging
+# configuration and emitting verbose migration-progress lines.
+if alembic_config.config_file_name is not None and not logging.root.handlers:
     fileConfig(alembic_config.config_file_name)
 
 # We do not use SQLAlchemy ORM metadata — all migrations use raw SQL via

@@ -112,6 +112,10 @@ def check_games():
 def _run_db_migrations():
     """Apply any pending Alembic migrations up to the latest revision."""
     logging.info("Applying database migrations...")
+    # Suppress verbose per-revision Alembic log lines from service logs.
+    # env.py skips fileConfig when the service's logging is already configured,
+    # but raise the level here as well to guard against any propagation.
+    logging.getLogger("alembic").setLevel(logging.WARNING)
     cfg = AlembicConfig(os.path.join(os.path.dirname(__file__), "alembic.ini"))
     alembic_command.upgrade(cfg, "head")
     logging.info("Database migrations applied successfully.")
