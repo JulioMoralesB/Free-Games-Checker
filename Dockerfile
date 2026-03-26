@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && printf '%s UTF-8\n' "${LOCALE}" > /etc/locale.gen \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --no-create-home --shell /bin/false --user-group appuser
-
+    && groupadd --system --gid 1000 appuser \
+    && useradd --system --no-create-home --shell /bin/false --uid 1000 --gid 1000 appuser
 # Bake the selected locale into the image's default runtime environment
 ENV LOCALE=${LOCALE} \
     LANG=${LOCALE} \
