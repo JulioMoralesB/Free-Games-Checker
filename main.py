@@ -5,11 +5,12 @@ from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
-from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE
+from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE, API_PORT
 
 import os
 import schedule
 import time
+import threading
 import requests
 
 from alembic.config import Config as AlembicConfig
@@ -121,6 +122,15 @@ def _run_db_migrations():
     logging.info("Database migrations applied successfully.")
 
 
+def _start_api_server():
+    """Start the FastAPI server in a background daemon thread."""
+    import uvicorn
+    from api import app
+
+    logging.info("Starting REST API server on port %s...", API_PORT)
+    uvicorn.run(app, host="0.0.0.0", port=API_PORT, log_level="info")
+
+
 def main():
     if DB_HOST:
         logging.info("Database configuration detected. Initializing database...")
@@ -129,6 +139,11 @@ def main():
         _run_db_migrations()
     else:
         logging.info("No database configuration detected. Using JSON file storage.")
+
+    # Start REST API server in a background thread
+    api_thread = threading.Thread(target=_start_api_server, daemon=True)
+    api_thread.start()
+
     check_games()
     healthcheck()
 
