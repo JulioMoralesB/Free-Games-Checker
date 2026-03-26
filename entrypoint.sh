@@ -24,6 +24,17 @@ if [ -n "$LOCALE" ]; then
     export LC_ALL="$LOCALE"
 fi
 
+# Ensure writable permissions for appuser on common bind-mounted directories
+if command -v id >/dev/null 2>&1; then
+    APP_UID="$(id -u appuser)"
+    APP_GID="$(id -g appuser)"
+
+    for dir in /mnt/logs /mnt/data; do
+        if [ -d "$dir" ]; then
+            chown -R "${APP_UID}:${APP_GID}" "$dir"
+        fi
+    done
+fi
 # Ensure the application data directory exists and is writable by appuser
 mkdir -p /app/data
 chown appuser:appuser /app/data
