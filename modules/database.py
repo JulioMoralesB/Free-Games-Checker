@@ -16,7 +16,11 @@ class FreeGamesDatabase:
         }
 
     def init_db(self):
-        """Initialize the database by creating the necessary tables."""
+        """Initialize the database by creating the schema and tables.
+
+        Schema migrations (column type changes, etc.) are managed by Alembic.
+        Run ``alembic upgrade head`` to apply them before starting the service.
+        """
         try:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
@@ -37,43 +41,6 @@ class FreeGamesDatabase:
                             thumbnail TEXT,
                             promotion_end_date TEXT
                         )
-                    """)
-
-                    # Migration: widen game_id from VARCHAR(255) to TEXT on existing deployments
-                    cursor.execute("""
-                        DO $$
-                        BEGIN
-                            IF EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = 'free_games'
-                                  AND table_name   = 'games'
-                                  AND column_name  = 'game_id'
-                                  AND data_type    = 'character varying'
-                            ) THEN
-                                ALTER TABLE games ALTER COLUMN game_id TYPE TEXT;
-                            END IF;
-                        END $$
-                    """)
-
-                    # Migration: convert promotion_end_date from TIMESTAMP to TEXT on existing deployments
-                    cursor.execute("""
-                        DO $$
-                        BEGIN
-                            IF EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = 'free_games'
-                                  AND table_name   = 'games'
-                                  AND column_name  = 'promotion_end_date'
-                                  AND data_type    = 'timestamp without time zone'
-                            ) THEN
-                                ALTER TABLE games
-                                ALTER COLUMN promotion_end_date TYPE TEXT
-                                USING TO_CHAR(
-                                    promotion_end_date AT TIME ZONE 'UTC',
-                                    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
-                                );
-                            END IF;
-                        END $$
                     """)
 
                     conn.commit()
