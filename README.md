@@ -102,12 +102,55 @@ The notifier automatically selects a storage backend based on the `DB_HOST` envi
 When `DB_HOST` is configured the application will:
 
 1. Create the `free_games` schema and the `games` table on first startup (idempotent)
-2. Automatically run `ALTER TABLE` migrations on existing deployments:
-   - Widens `game_id` from `VARCHAR(255)` to `TEXT` (supports arbitrarily long Epic URLs)
-   - Converts `promotion_end_date` from `TIMESTAMP` to `TEXT`, preserving the ISO-8601 format the scraper returns
+2. Apply any pending Alembic migrations automatically on startup (see [Database Migrations](#database-migrations) below)
 3. Use `link` as the stable deduplication key (`ON CONFLICT DO NOTHING`)
 
 If all `DB_*` variables are left unset the service falls back to the JSON file backend with no code or configuration changes required.
+
+## Database Migrations
+
+Schema changes are managed by [Alembic](https://alembic.sqlalchemy.org/). Versioned migration scripts live in `alembic/versions/`.
+
+### Current migrations
+
+| Revision | Description |
+|----------|-------------|
+| `0001`   | Initial schema — creates the `free_games` schema and `games` table |
+| `0002`   | Widens `games.game_id` from `VARCHAR(255)` to `TEXT` |
+| `0003`   | Converts `games.promotion_end_date` from `TIMESTAMP` to `TEXT` (ISO-8601 UTC) |
+
+### Running migrations
+
+Ensure your DB environment variables are set (see [Configure Environment Variables](#4-configure-environment-variables)), then run:
+
+```bash
+# Apply all pending migrations (safe to run on first-time or existing deployments)
+alembic upgrade head
+
+# Show current revision
+alembic current
+
+# Show migration history
+alembic history --verbose
+
+# Roll back one revision
+alembic downgrade -1
+```
+
+On **Docker / docker-compose** deployments the application applies migrations automatically at startup via `alembic upgrade head`. You can also run them manually inside the container:
+
+```bash
+docker exec free-games-notifier alembic upgrade head
+```
+
+> **Note for existing deployments:** The migration scripts use conditional SQL so they are safe to run against databases created by the old `init_db()` logic — columns that are already the correct type are left unchanged.
+
+### Creating a new migration
+
+```bash
+alembic revision -m "describe your change here"
+# Edit the generated file in alembic/versions/ to add upgrade()/downgrade() logic
+```
 
 ## Docker Deployment
 
@@ -174,9 +217,17 @@ docker run -d \
 ├── main.py                 # Main scheduler entry point
 ├── config.py              # Configuration and environment variables
 ├── requirements.txt       # Python dependencies
+├── alembic.ini            # Alembic migration tool configuration
 ├── Dockerfile            # Docker image definition
 ├── docker-compose.yaml   # Docker Compose orchestration
 ├── compose.yaml          # Alternative compose config
+├── alembic/
+│   ├── env.py            # Alembic runtime environment (reads config.py)
+│   ├── script.py.mako    # Migration script template
+│   └── versions/         # Versioned migration scripts
+│       ├── 0001_initial_schema.py
+│       ├── 0002_widen_game_id.py
+│       └── 0003_promotion_end_date_to_text.py
 ├── modules/
 │   ├── scrapper.py      # Epic Games API fetch logic
 │   ├── notifier.py      # Discord webhook sender

@@ -7,9 +7,13 @@ from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
 from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE
 
+import os
 import schedule
 import time
 import requests
+
+from alembic.config import Config as AlembicConfig
+from alembic import command as alembic_command
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -105,11 +109,24 @@ def check_games():
     else:
         logging.warning("No new free games detected.")
 
+def _run_db_migrations():
+    """Apply any pending Alembic migrations up to the latest revision."""
+    logging.info("Applying database migrations...")
+    # Suppress verbose per-revision Alembic log lines from service logs.
+    # env.py skips fileConfig when the service's logging is already configured,
+    # but raise the level here as well to guard against any propagation.
+    logging.getLogger("alembic").setLevel(logging.WARNING)
+    cfg = AlembicConfig(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+    alembic_command.upgrade(cfg, "head")
+    logging.info("Database migrations applied successfully.")
+
+
 def main():
     if DB_HOST:
         logging.info("Database configuration detected. Initializing database...")
         db = FreeGamesDatabase()
         db.init_db()
+        _run_db_migrations()
     else:
         logging.info("No database configuration detected. Using JSON file storage.")
     check_games()
