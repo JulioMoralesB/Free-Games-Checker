@@ -24,4 +24,7 @@ if [ -n "$LOCALE" ]; then
     export LC_ALL="$LOCALE"
 fi
 
+# Ensure the application data directory exists and is writable by appuser
+mkdir -p /app/data
+chown appuser:appuser /app/data
 exec gosu appuser python main.py
