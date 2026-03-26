@@ -23,6 +23,12 @@ def with_retry(func, max_attempts, base_delay, retryable_exceptions, description
     Raises:
         The last caught exception when all attempts are exhausted.
     """
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be >= 1")
+    if base_delay < 0:
+        raise ValueError("base_delay must be >= 0")
+    if not retryable_exceptions:
+        raise ValueError("retryable_exceptions must be a non-empty iterable of exception types")
     last_exception = None
     for attempt in range(max_attempts):
         try:
