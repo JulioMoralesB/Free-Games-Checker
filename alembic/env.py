@@ -32,14 +32,28 @@ def get_url() -> str:
     """Build the SQLAlchemy connection URL from environment-derived config."""
     from urllib.parse import quote_plus
 
-    user = quote_plus(DB_USER or "")
-    password = quote_plus(DB_PASSWORD or "")
     host = DB_HOST or "localhost"
     port = DB_PORT or 5432
-    dbname = DB_NAME or ""
-    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}"
 
+    # Alembic migrations need an explicit target database; fail fast if missing.
+    if not DB_NAME:
+        raise RuntimeError("DB_NAME must be set to run Alembic migrations.")
+    dbname = quote_plus(DB_NAME)
 
+    auth = ""
+    if DB_USER:
+        user = quote_plus(DB_USER)
+        if DB_PASSWORD:
+            password = quote_plus(DB_PASSWORD)
+            auth = f"{user}:{password}@"
+        else:
+            # Username without password: rely on server-side auth configuration.
+            auth = f"{user}@"
+    elif DB_PASSWORD:
+        # A password without a username cannot form a valid SQLAlchemy URL.
+        raise RuntimeError("DB_PASSWORD is set but DB_USER is not; cannot build database URL.")
+
+    return f"postgresql+psycopg2://{auth}{host}:{port}/{dbname}"
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (no live DB connection required)."""
     url = get_url()
