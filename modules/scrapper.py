@@ -22,7 +22,6 @@ def fetch_free_games():
             description="Epic Games API fetch",
         )
     except _RETRYABLE_ERRORS as e:
-        logger.error(f"Failed to fetch Epic Games API after all retries: {e}")
         return []
 
     if response.status_code != 200:
