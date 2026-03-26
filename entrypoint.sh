@@ -24,4 +24,4 @@ if [ -n "$LOCALE" ]; then
     export LC_ALL="$LOCALE"
 fi
 
-exec python main.py
+exec gosu appuser python main.py
