@@ -54,6 +54,8 @@ def get_url() -> str:
         raise RuntimeError("DB_PASSWORD is set but DB_USER is not; cannot build database URL.")
 
     return f"postgresql+psycopg2://{auth}{host}:{port}/{dbname}"
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (no live DB connection required)."""
     url = get_url()
@@ -62,6 +64,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table_schema="public",
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -84,6 +87,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            version_table_schema="public",
         )
         with context.begin_transaction():
             context.run_migrations()
