@@ -187,6 +187,7 @@ async def health():
                 dbname=DB_NAME,
                 user=DB_USER,
                 password=DB_PASSWORD,
+                connect_timeout=5,
             )
             conn.close()
             result["database"] = "healthy"
