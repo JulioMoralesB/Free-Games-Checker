@@ -19,7 +19,10 @@ class FreeGamesDatabase:
         """Initialize the database by creating the schema and tables.
 
         Schema migrations (column type changes, etc.) are managed by Alembic.
-        Run ``alembic upgrade head`` to apply them before starting the service.
+        In normal deployments, migrations are applied automatically on service
+        startup (see main.py) when ``DB_HOST`` is configured. Run
+        ``alembic upgrade head`` manually only if you manage migrations
+        outside the service startup flow (e.g., CI/CD or local maintenance).
         """
         try:
             with psycopg2.connect(**self.conn_params) as conn:
