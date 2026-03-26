@@ -11,6 +11,7 @@ from config import (
     API_KEY,
     DB_HOST,
     DB_NAME,
+    DB_PASSWORD,
     DB_PORT,
     DB_USER,
     DATA_FILE_PATH,
@@ -101,7 +102,7 @@ async def health():
                 port=DB_PORT,
                 dbname=DB_NAME,
                 user=DB_USER,
-                password=__import__("config").DB_PASSWORD,
+                password=DB_PASSWORD,
             )
             conn.close()
             result["database"] = "healthy"
@@ -136,7 +137,12 @@ async def games_history(
     limit: int = Query(default=20, ge=1, le=100, description="Max number of games to return"),
     offset: int = Query(default=0, ge=0, description="Number of games to skip"),
 ):
-    """Paginated access to all past fetched games."""
+    """Paginated access to all past fetched games.
+
+    Query parameters:
+    - **limit**: Max number of games to return (1–100, default: 20)
+    - **offset**: Number of games to skip (default: 0)
+    """
     from modules.storage import load_previous_games
 
     try:

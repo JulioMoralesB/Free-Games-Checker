@@ -5,7 +5,7 @@ from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
-from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE, API_PORT
+from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE, API_HOST, API_PORT
 
 import os
 import schedule
@@ -127,8 +127,8 @@ def _start_api_server():
     import uvicorn
     from api import app
 
-    logging.info("Starting REST API server on port %s...", API_PORT)
-    uvicorn.run(app, host="0.0.0.0", port=API_PORT, log_level="info")
+    logging.info("Starting REST API server on %s:%s...", API_HOST, API_PORT)
+    uvicorn.run(app, host=API_HOST, port=API_PORT, log_level="info")
 
 
 def main():

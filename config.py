@@ -58,4 +58,5 @@ DATE_FORMAT = os.getenv("DATE_FORMAT", "%d de %B de %Y a las %I:%M %p")
 
 # REST API configuration
 API_KEY = os.getenv("API_KEY")  # Secret key for mutating API endpoints; leave empty to disable auth
+API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", 8000))
