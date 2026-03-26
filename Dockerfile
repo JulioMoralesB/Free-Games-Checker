@@ -1,21 +1,25 @@
 # Use the official Python image from the Docker Hub
 FROM python:3.12-slim
 
+# Build-time locale selection (default es_ES.UTF-8).
+# To use a different locale, pass --build-arg LOCALE=<your_locale> and rebuild.
+ARG LOCALE=es_ES.UTF-8
+
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies, pre-generate all UTF-8 locales, and create a non-root user
+# Install system dependencies, generate only the selected locale, and create a non-root user
 RUN apt-get update && apt-get install -y --no-install-recommends \
         locales \
-    && sed -i 's/^# *\(.*UTF-8\)/\1/' /etc/locale.gen \
+    && printf '%s UTF-8\n' "${LOCALE}" > /etc/locale.gen \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --no-create-home --shell /bin/false --user-group appuser
 
-# Default locale; can be overridden at runtime via the LOCALE environment variable
-ENV LANG=es_ES.UTF-8 \
-    LANGUAGE=es_ES.UTF-8 \
-    LC_ALL=es_ES.UTF-8
+# Bake the selected locale into the image's default runtime environment
+ENV LANG=${LOCALE} \
+    LANGUAGE=${LOCALE} \
+    LC_ALL=${LOCALE}
 
 # Copy and install Python dependencies
 COPY requirements.txt .
