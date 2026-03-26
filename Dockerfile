@@ -28,12 +28,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container
 COPY . .
 
-# Create writable directories for appuser and make scripts executable.
+# Create writable directories for appuser and make healthcheck executable.
 # NOTE: /mnt/logs and /mnt/data are typically bind-mounted at runtime (see compose.yaml).
 # Ensure the host source directories are owned by the UID/GID of appuser in the container.
 RUN mkdir -p /mnt/logs /mnt/data /app/data \
     && chown appuser:appuser /mnt/logs /mnt/data /app/data \
-    && chmod +x /app/entrypoint.sh /app/healthcheck.sh
+    && chmod +x /app/healthcheck.sh
 
 # Switch to non-root user for all subsequent instructions and runtime
 USER appuser
@@ -43,4 +43,4 @@ HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
     CMD /app/healthcheck.sh
 
 # Run the application
-ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["python", "main.py"]
