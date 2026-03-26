@@ -16,7 +16,7 @@ def fetch_free_games():
     try:
         response = with_retry(
             func=lambda: requests.get(EPIC_GAMES_API_URL, timeout=10),
-            max_attempts=3,
+            max_attempts=4,
             base_delay=1,
             retryable_exceptions=_RETRYABLE_ERRORS,
             description="Epic Games API fetch",

@@ -113,17 +113,17 @@ class TestFetchFreeGamesRetry:
             games = scrapper.fetch_free_games()
 
         assert games == []
-        assert mock_get.call_count == 3
+        assert mock_get.call_count == 4
 
-    def test_max_three_attempts_for_api(self):
+    def test_max_four_attempts_for_api(self):
         with patch("modules.scrapper.requests.get") as mock_get, \
              patch("modules.retry.time.sleep") as mock_sleep:
             mock_get.side_effect = requests.exceptions.ConnectionError()
             scrapper.fetch_free_games()
 
-        assert mock_get.call_count == 3
-        # Delays: 1s before attempt 2, 2s before attempt 3
-        assert mock_sleep.call_args_list == [call(1), call(2)]
+        assert mock_get.call_count == 4
+        # Delays: 1s before attempt 2, 2s before attempt 3, 4s before attempt 4
+        assert mock_sleep.call_args_list == [call(1), call(2), call(4)]
 
     def test_no_retry_on_non_200_status(self):
         with patch("modules.scrapper.requests.get") as mock_get, \
