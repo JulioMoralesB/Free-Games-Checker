@@ -1,8 +1,8 @@
 """Integration tests for the API running in Docker container.
 
 These tests verify that the config endpoint returns values matching the environment
-by running curl inside the container via `docker compose exec`. This works regardless
-of whether ports are exposed, and mirrors how services inside a cluster communicate.
+by running a Python one-liner (`python -c`) inside the container via `docker compose exec`.
+This works regardless of whether ports are exposed and mirrors how services inside a cluster communicate.
 
 Both sources are independent:
   - Expected: values from the .env file (loaded on the host by the test)
