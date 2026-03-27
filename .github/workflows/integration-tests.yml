@@ -1,0 +1,77 @@
+name: Integration Tests
+
+on:
+  push:
+    branches:
+        - main
+  pull_request:
+    branches:
+        - main
+        - QA
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Load test environment variables
+        run: cp .env.test .env
+
+      - name: Create required directories and Docker network
+        run: |
+          mkdir -p /tmp/free-games-test-data /tmp/free-games-test-logs
+          sudo chown -R 1000:1000 /tmp/free-games-test-data /tmp/free-games-test-logs
+          docker network create apollo-server-network || true
+
+      - name: Start Docker container
+        run: docker compose up -d
+
+      - name: Wait for container to be healthy
+        run: |
+          max_attempts=30
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            status=$(docker inspect --format='{{.State.Health.Status}}' free-games-notifier 2>/dev/null || echo "starting")
+            if [ "$status" = "healthy" ]; then
+              echo "✓ Container is healthy"
+              exit 0
+            fi
+            echo "⏳ Waiting for container... status=$status (attempt $attempt/$max_attempts)"
+            sleep 2
+            attempt=$((attempt + 1))
+          done
+          echo "❌ Container did not reach healthy state after $max_attempts attempts"
+          docker compose logs --tail=50
+          exit 1
+      
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+      
+      - name: Run integration tests
+        run: pytest tests/test_api_integration.py -v --tb=short
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            .pytest_cache/
+            test-results/
+        continue-on-error: true
+      
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --tail=50
+      
+      - name: Stop Docker container
+        if: always()
+        run: docker compose down
