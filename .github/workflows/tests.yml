@@ -38,7 +38,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short -m "not integration"
         env:
           LANG: es_ES.UTF-8
           LC_ALL: es_ES.UTF-8

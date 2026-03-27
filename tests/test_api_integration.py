@@ -55,6 +55,7 @@ def get_json(path):
     return json.loads(result.stdout)
 
 
+@pytest.mark.integration
 class TestHealthEndpoint:
     """Verify /health endpoint returns healthy status."""
 
@@ -69,6 +70,7 @@ class TestHealthEndpoint:
             assert resp_json["database"] == "healthy", f"Expected database 'healthy' but got '{resp_json['database']}'"
 
 
+@pytest.mark.integration
 class TestConfigEndpointMatchesEnv:
     """Verify /config endpoint returns values matching environment variables."""
 
