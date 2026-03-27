@@ -21,11 +21,11 @@ import pytest
 from dotenv import load_dotenv
 
 
+_COMPOSE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Load environment variables from .env file (same as what compose.yaml uses)
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(_COMPOSE_DIR, ".env"))
 
 CONTAINER_NAME = "free-games-notifier"
-_COMPOSE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def get_json(path):
