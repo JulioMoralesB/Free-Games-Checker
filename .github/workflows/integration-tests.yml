@@ -68,10 +68,10 @@ jobs:
             test-results/
         continue-on-error: true
       
-      - name: Stop Docker container
-        if: always()
-        run: docker compose down
-      
       - name: Show container logs on failure
         if: failure()
         run: docker compose logs --tail=50
+      
+      - name: Stop Docker container
+        if: always()
+        run: docker compose down
