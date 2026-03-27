@@ -48,8 +48,8 @@ def get_json(path):
         cwd=_COMPOSE_DIR,
     )
     if result.returncode != 0:
-        pytest.skip(
-            f"Could not reach API inside container (is it running?): "
+        pytest.fail(
+            f"Could not reach API inside container: "
             f"{result.stderr.strip() or 'python returned non-zero exit code'}"
         )
     return json.loads(result.stdout)

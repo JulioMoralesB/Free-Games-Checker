@@ -28,6 +28,7 @@ jobs:
       - name: Create required directories and Docker network
         run: |
           mkdir -p /tmp/free-games-test-data /tmp/free-games-test-logs
+          sudo chown -R 1000:1000 /tmp/free-games-test-data /tmp/free-games-test-logs
           docker network create apollo-server-network || true
 
       - name: Start Docker container
@@ -47,8 +48,9 @@ jobs:
             sleep 2
             attempt=$((attempt + 1))
           done
-          echo "⚠️  WARNING: Container did not reach healthy state, tests may skip"
-          docker compose logs --tail=20
+          echo "❌ Container did not reach healthy state after $max_attempts attempts"
+          docker compose logs --tail=50
+          exit 1
       
       - name: Install test dependencies
         run: pip install -r requirements-dev.txt
