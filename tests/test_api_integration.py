@@ -36,21 +36,30 @@ def get_json(path):
         f"res = urllib.request.urlopen('http://localhost:{port}{path}'); "
         "print(json.dumps(json.loads(res.read())))"
     )
-    result = subprocess.run(
-        [
-            "docker", "compose", "exec", "-T",
-            CONTAINER_NAME,
-            "python", "-c", script,
-        ],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        cwd=_COMPOSE_DIR,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "docker", "compose", "exec", "-T",
+                CONTAINER_NAME,
+                "python", "-c", script,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=_COMPOSE_DIR,
+        )
+    except FileNotFoundError as exc:
+        pytest.skip(
+            f"'docker' command not found: {exc}. "
+            "Skipping integration tests that require Docker/Compose."
+        )
+
     if result.returncode != 0:
         pytest.fail(
-            f"Could not reach API inside container: "
-            f"{result.stderr.strip() or 'python returned non-zero exit code'}"
+            "Failed to reach API inside container. "
+            "Ensure Docker Compose services are up and the API is running.\n"
+            f"stderr: {result.stderr.strip() or '<empty>'}\n"
+            f"stdout: {result.stdout.strip() or '<empty>'}"
         )
     return json.loads(result.stdout)
 
