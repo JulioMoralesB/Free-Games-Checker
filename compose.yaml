@@ -15,8 +15,8 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - TIMEZONE=${TIMEZONE:-America/Mexico_City}
       - LOCALE=${LOCALE-es_ES.UTF-8}
-      - DATE_FORMAT=${DATE_FORMAT:-"%d de %B de %Y a las %I:%M %p"}
-      - EPIC_GAMES_REGION=${EPIC_GAMES_REGION:-es-MX}
+      - "DATE_FORMAT=${DATE_FORMAT:-%d de %B de %Y a las %I:%M %p}"
+      - "EPIC_GAMES_REGION=${EPIC_GAMES_REGION:-es-MX}"
       - SCHEDULE_TIME=${SCHEDULE_TIME:-12:00}
       - HEALTHCHECK_INTERVAL=${HEALTHCHECK_INTERVAL:-1}
       - API_KEY=${API_KEY}
