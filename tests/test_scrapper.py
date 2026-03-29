@@ -87,7 +87,7 @@ class TestFetchFreeGames:
 
         assert len(games) == 1
         assert games[0]["title"] == "Test Free Game"
-        assert games[0]["link"] == "https://store.epicgames.com/en-US/p/test-free-game"
+        assert games[0]["link"] == f"https://store.epicgames.com/{scrapper.EPIC_GAMES_REGION}/p/test-free-game"
         assert games[0]["end_date"] == "2024-01-31T15:00:00.000Z"
         assert games[0]["description"] == "A free game for testing"
         assert games[0]["thumbnail"] == "https://example.com/thumbnail.jpg"
