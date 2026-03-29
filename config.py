@@ -32,13 +32,13 @@ DB_USER = os.getenv("DB_USER") or None
 DB_PASSWORD = os.getenv("DB_PASSWORD") or None
 
 # Timezone for date display in notifications (e.g. "America/New_York", "Europe/London")
-TIMEZONE = os.getenv("TIMEZONE", "America/Mexico_City")
+TIMEZONE = os.getenv("TIMEZONE", "UTC")
 
 # Locale for date formatting (e.g. "en_US.UTF-8", "es_ES.UTF-8"). Leave empty to use the system locale.
-LOCALE = os.getenv("LOCALE", "es_ES.UTF-8")
+LOCALE = os.getenv("LOCALE", "en_US.UTF-8")
 
 # Epic Games region used in store links (e.g. "en-US", "es-MX", "de-DE")
-EPIC_GAMES_REGION = os.getenv("EPIC_GAMES_REGION", "es-MX")
+EPIC_GAMES_REGION = os.getenv("EPIC_GAMES_REGION", "en-US")
 
 # Daily schedule time in HH:MM format at which free games are checked.
 # NOTE: This time is interpreted in the configured TIMEZONE (see TIMEZONE above), not fixed to UTC.
@@ -55,8 +55,8 @@ except ValueError:
     HEALTHCHECK_INTERVAL = 1
 
 # strftime format string used when displaying the promotion end date in Discord notifications.
-# The default is Spanish-style; change to match your locale, e.g. "%B %d, %Y at %I:%M" for en-US.
-DATE_FORMAT = os.getenv("DATE_FORMAT", "%d de %B de %Y a las %I:%M %p")
+# The default is English-style; change to match your locale, e.g. "%d de %B de %Y a las %I:%M %p" for es-ES.
+DATE_FORMAT = os.getenv("DATE_FORMAT", "%B %d, %Y at %I:%M %p")
 
 # REST API configuration
 API_KEY = os.getenv("API_KEY")  # Secret key for mutating API endpoints; leave empty to disable auth
