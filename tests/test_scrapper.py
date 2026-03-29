@@ -159,7 +159,8 @@ class TestFetchFreeGames:
             mock_get.return_value = _mock_response(200, _make_api_response([element]))
             games = scrapper.fetch_free_games()
 
-        assert games[0]["link"] == "https://store.epicgames.com/en-US/free-games"
+        expected_link = f"https://store.epicgames.com/{scrapper.EPIC_GAMES_REGION}/free-games"
+        assert games[0]["link"] == expected_link
 
     def test_skips_game_with_no_promotional_offers(self):
         element = _make_element(discount_price=0, has_promotions=False)
