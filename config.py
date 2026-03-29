@@ -55,7 +55,7 @@ except ValueError:
     HEALTHCHECK_INTERVAL = 1
 
 # strftime format string used when displaying the promotion end date in Discord notifications.
-# The default is English-style; change to match your locale, e.g. "%d de %B de %Y a las %I:%M %p" for es-ES.
+# The default is English-style; change to match your locale, e.g. "%d de %B de %Y a las %I:%M %p" for LOCALE="es_ES.UTF-8".
 DATE_FORMAT = os.getenv("DATE_FORMAT", "%B %d, %Y at %I:%M %p")
 
 # REST API configuration
