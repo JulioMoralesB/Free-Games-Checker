@@ -1,9 +1,9 @@
 # Use the official Python image from the Docker Hub
 FROM python:3.12-slim
 
-# Build-time locale selection (default es_ES.UTF-8).
+# Build-time locale selection (default en_US.UTF-8).
 # To use a different locale, pass --build-arg LOCALE=<your_locale> and rebuild.
-ARG LOCALE=es_ES.UTF-8
+ARG LOCALE=en_US.UTF-8
 
 # Set the working directory inside the container
 WORKDIR /app

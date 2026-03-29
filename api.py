@@ -83,7 +83,7 @@ class MetricsResponse(BaseModel):
 class ConfigResponse(BaseModel):
     """Non-secret runtime configuration."""
     epic_games_api_url: str = Field(..., description="Epic Games API endpoint URL")
-    epic_games_region: str = Field(..., description="Region code used in store links", examples=["es-MX"])
+    epic_games_region: str = Field(..., description="Region code used in store links", examples=["en-US"])
     data_file_path: str = Field(..., description="Path to the JSON storage file")
     enable_healthcheck: bool = Field(..., description="Whether the external health check ping is enabled")
     healthcheck_configured: bool = Field(..., description="Whether an external health check monitor URL is configured")
@@ -92,8 +92,8 @@ class ConfigResponse(BaseModel):
     db_port: int = Field(..., description="PostgreSQL port", examples=[5432])
     db_name: Optional[str] = Field(None, description="PostgreSQL database name")
     db_user: Optional[str] = Field(None, description="PostgreSQL user")
-    timezone: str = Field(..., description="Configured timezone for date display", examples=["America/Mexico_City"])
-    locale: str = Field(..., description="Locale used for date formatting", examples=["es_ES.UTF-8"])
+    timezone: str = Field(..., description="Configured timezone for date display", examples=["UTC"])
+    locale: str = Field(..., description="Locale used for date formatting", examples=["en_US.UTF-8"])
     schedule_time: str = Field(..., description="Daily check time in HH:MM format", examples=["12:00"])
     date_format: str = Field(..., description="strftime format string for promotion end dates")
 
