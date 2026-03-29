@@ -340,9 +340,13 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Roadmap
 
-- [x] Unit test coverage (Task #4)
-- [x] PostgreSQL as primary storage (Task #5)
-- [x] Configurable timezone and region (Task #6)
-- [ ] Retry logic with backoff (Task #7)
+- [x] Unit test coverage (#9)
+- [x] PostgreSQL as primary storage (#11)
+- [x] Configurable timezone and region (#12)
+- [x] Retry logic with exponential backoff (#13)
+- [x] Dockerfile security and modernization (#14)
+- [x] Database migrations with Alembic (#26)
+- [x] REST API for health, history, metrics, and notification management (#29)
 - [ ] Support for additional game stores (Steam, GOG, etc.)
-- [ ] Web dashboard for game history
+- [ ] Web dashboard for game history (#46)
+- [ ] Production end-to-end test suite (#49)
