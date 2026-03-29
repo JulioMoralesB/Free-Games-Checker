@@ -2,6 +2,8 @@ services:
   free-games-notifier:
     build:
       context: .
+      args:
+        LOCALE: ${LOCALE:-en_US.UTF-8}
     container_name: free-games-notifier
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL} 
@@ -13,10 +15,10 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
-      - TIMEZONE=${TIMEZONE:-America/Mexico_City}
-      - LOCALE=${LOCALE-es_ES.UTF-8}
-      - "DATE_FORMAT=${DATE_FORMAT:-%d de %B de %Y a las %I:%M %p}"
-      - "EPIC_GAMES_REGION=${EPIC_GAMES_REGION:-es-MX}"
+      - TIMEZONE=${TIMEZONE:-UTC}
+      - LOCALE=${LOCALE-en_US.UTF-8}
+      - "DATE_FORMAT=${DATE_FORMAT:-%B %d, %Y at %I:%M %p}"
+      - "EPIC_GAMES_REGION=${EPIC_GAMES_REGION:-en-US}"
       - SCHEDULE_TIME=${SCHEDULE_TIME:-12:00}
       - HEALTHCHECK_INTERVAL=${HEALTHCHECK_INTERVAL:-1}
       - API_KEY=${API_KEY}
