@@ -83,7 +83,7 @@ class MetricsResponse(BaseModel):
 class ConfigResponse(BaseModel):
     """Non-secret runtime configuration."""
     epic_games_api_url: str = Field(..., description="Epic Games API endpoint URL")
-    epic_games_region: str = Field(..., description="Region code used in store links", examples=["es-MX"])
+    epic_games_region: str = Field(..., description="Region code used in store links", examples=["en-US"])
     data_file_path: str = Field(..., description="Path to the JSON storage file")
     enable_healthcheck: bool = Field(..., description="Whether the external health check ping is enabled")
     healthcheck_configured: bool = Field(..., description="Whether an external health check monitor URL is configured")
