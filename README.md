@@ -4,7 +4,7 @@ A Python-based scheduler that monitors the Epic Games Store for free game promot
 
 ## Features
 
-- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at a configurable time (default: 12:00 in the configured timezone, default `America/Mexico_City`) for new free games
+- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at a configurable time (default: 12:00 UTC) for new free games
 - 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details
 - 📊 **Persistent Storage**: Maintains game history — PostgreSQL when `DB_HOST` is set, JSON file otherwise
 - 🏥 **Health Checks**: Optional UptimeKuma/Healthchecks.io integration for monitoring
@@ -68,9 +68,9 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 
 # Optional: Timezone / locale / region
-TIMEZONE=America/Mexico_City
-LOCALE=es_ES.UTF-8
-EPIC_GAMES_REGION=es-MX
+TIMEZONE=UTC
+LOCALE=en_US.UTF-8
+EPIC_GAMES_REGION=en-US
 
 # Optional: Scheduler
 SCHEDULE_TIME=12:00
@@ -195,12 +195,12 @@ docker run -d \
 | `DB_NAME` | ❌ No | - | PostgreSQL database name |
 | `DB_USER` | ❌ No | - | PostgreSQL username |
 | `DB_PASSWORD` | ❌ No | - | PostgreSQL password |
-| `TIMEZONE` | ❌ No | `America/Mexico_City` | IANA timezone name for date display and schedule interpretation (e.g. `America/New_York`, `Europe/London`) |
-| `LOCALE` | ❌ No | `es_ES.UTF-8` | Locale for date formatting (e.g. `en_US.UTF-8`, `de_DE.UTF-8`). Must be available in the system. |
-| `EPIC_GAMES_REGION` | ❌ No | `es-MX` | Region code used in Epic Games Store links (e.g. `en-US`, `de-DE`) |
+| `TIMEZONE` | ❌ No | `UTC` | IANA timezone name for date display and schedule interpretation (e.g. `America/New_York`, `Europe/London`) |
+| `LOCALE` | ❌ No | `en_US.UTF-8` | Locale for date formatting (e.g. `es_ES.UTF-8`, `de_DE.UTF-8`). Must be available in the system. |
+| `EPIC_GAMES_REGION` | ❌ No | `en-US` | Region code used in Epic Games Store links (e.g. `es-MX`, `de-DE`) |
 | `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM` format, interpreted in the configured `TIMEZONE` |
 | `HEALTHCHECK_INTERVAL` | ❌ No | `1` | Health check ping interval in minutes |
-| `DATE_FORMAT` | ❌ No | `%d de %B de %Y a las %I:%M` | strftime format for the promotion end date in Discord notifications |
+| `DATE_FORMAT` | ❌ No | `%B %d, %Y at %I:%M %p` | strftime format for the promotion end date in Discord notifications |
 
 ## How to Get a Discord Webhook URL
 

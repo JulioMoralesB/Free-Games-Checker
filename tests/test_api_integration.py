@@ -89,7 +89,7 @@ class TestConfigEndpointMatchesEnv:
 
     def test_date_format_matches_env(self):
         """Verify DATE_FORMAT in /config matches the env variable."""
-        expected_date_format = os.getenv("DATE_FORMAT", "%d de %B de %Y a las %I:%M %p")
+        expected_date_format = os.getenv("DATE_FORMAT", "%B %d, %Y at %I:%M %p")
 
         config = get_json("/config")
 
@@ -98,7 +98,7 @@ class TestConfigEndpointMatchesEnv:
 
     def test_timezone_matches_env(self):
         """Verify TIMEZONE in /config matches the env variable."""
-        expected_timezone = os.getenv("TIMEZONE", "America/Mexico_City")
+        expected_timezone = os.getenv("TIMEZONE", "UTC")
 
         config = get_json("/config")
 
@@ -107,7 +107,7 @@ class TestConfigEndpointMatchesEnv:
 
     def test_locale_matches_env(self):
         """Verify LOCALE in /config matches the env variable."""
-        expected_locale = os.getenv("LOCALE", "es_ES.UTF-8")
+        expected_locale = os.getenv("LOCALE", "en_US.UTF-8")
 
         config = get_json("/config")
 
@@ -125,7 +125,7 @@ class TestConfigEndpointMatchesEnv:
 
     def test_epic_games_region_matches_env(self):
         """Verify EPIC_GAMES_REGION in /config matches the env variable."""
-        expected_region = os.getenv("EPIC_GAMES_REGION", "es-MX")
+        expected_region = os.getenv("EPIC_GAMES_REGION", "en-US")
 
         config = get_json("/config")
 
