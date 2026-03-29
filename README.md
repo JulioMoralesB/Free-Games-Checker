@@ -200,7 +200,7 @@ docker run -d \
 | `EPIC_GAMES_REGION` | ❌ No | `en-US` | Region code used in Epic Games Store links (e.g. `es-MX`, `de-DE`) |
 | `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM` format, interpreted in the configured `TIMEZONE` |
 | `HEALTHCHECK_INTERVAL` | ❌ No | `1` | Health check ping interval in minutes |
-| `DATE_FORMAT` | ❌ No | `%B %d, %Y at %I:%M` | strftime format for the promotion end date in Discord notifications |
+| `DATE_FORMAT` | ❌ No | `%B %d, %Y at %I:%M %p` | strftime format for the promotion end date in Discord notifications |
 
 ## How to Get a Discord Webhook URL
 
