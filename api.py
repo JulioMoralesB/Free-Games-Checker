@@ -262,7 +262,9 @@ def games_history(
         500: {"model": ErrorResponse, "description": "Failed to send Discord notification"},
     },
 )
-def notify_discord_resend():
+def notify_discord_resend(
+    webhook_url: Optional[str] = Query(default=None, description="Override Discord webhook URL for this request"),
+):
     """Re-send the latest fetched games to the Discord webhook."""
     from modules.storage import load_previous_games
     from modules.notifier import send_discord_message
@@ -278,7 +280,7 @@ def notify_discord_resend():
         raise HTTPException(status_code=404, detail="No games available to resend")
 
     try:
-        send_discord_message(games)
+        send_discord_message(games, webhook_url=webhook_url)
         increment_metric("discord_notifications_sent")
         return {"status": "success", "games_sent": len(games)}
     except Exception as e:
@@ -331,7 +333,9 @@ def config_endpoint():
         500: {"model": ErrorResponse, "description": "Failed to fetch games from Epic Games API"},
     },
 )
-def check_e2e():
+def check_e2e(
+    webhook_url: Optional[str] = Query(default=None, description="Override Discord webhook URL for this request"),
+):
     """End-to-end test: fetch games, check DB presence, and send Discord notification regardless.
 
     This endpoint runs the full flow even when the games already exist in the
@@ -366,7 +370,7 @@ def check_e2e():
     # 3. Send Discord notification regardless of DB state
     notification_status = "skipped"
     try:
-        send_discord_message(current_games)
+        send_discord_message(current_games, webhook_url=webhook_url)
         notification_status = "sent"
         increment_metric("discord_notifications_sent")
     except Exception as e:

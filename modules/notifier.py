@@ -51,18 +51,20 @@ def _get_safe_webhook_identifier(webhook_url: str) -> str:
         # In case of any parsing error, avoid logging the raw URL
         return "invalid-webhook-url"
 
-def send_discord_message(new_games):
+def send_discord_message(new_games, webhook_url: str = None):
     """
     Send a Discord webhook message for new free games.
     
     Args:
         new_games: List of game dictionaries to send to Discord
+        webhook_url: Optional webhook URL override. Defaults to DISCORD_WEBHOOK_URL.
         
     Raises:
         ValueError: If webhook URL is not configured
         requests.RequestException: If the HTTP request fails
     """
-    if not DISCORD_WEBHOOK_URL:
+    effective_webhook_url = webhook_url or DISCORD_WEBHOOK_URL
+    if not effective_webhook_url:
         error_msg = "Discord webhook URL not configured in environment variables"
         logger.error(error_msg)
         raise ValueError(error_msg)
@@ -125,11 +127,11 @@ def send_discord_message(new_games):
         }
         logger.info(f"Sending Discord message with {len(embeds)} game(s)")
 
-        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
+        safe_webhook_id = _get_safe_webhook_identifier(effective_webhook_url)
 
         # Send the request with retry logic for transient network errors
         response = with_retry(
-            func=lambda: requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10),
+            func=lambda: requests.post(effective_webhook_url, json=data, timeout=10),
             max_attempts=2,
             base_delay=1,
             retryable_exceptions=_DISCORD_RETRYABLE,
@@ -150,19 +152,19 @@ def send_discord_message(new_games):
             response.raise_for_status()  # Raise exception for bad status codes
             
     except requests.exceptions.Timeout as e:
-        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
+        safe_webhook_id = _get_safe_webhook_identifier(effective_webhook_url)
         logger.error(
             f"Discord request timed out (10s per-attempt limit, all attempts exhausted) | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
         )
         raise
     except requests.exceptions.ConnectionError as e:
-        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
+        safe_webhook_id = _get_safe_webhook_identifier(effective_webhook_url)
         logger.error(
             f"Discord connection error: {str(e)} | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
         )
         raise
     except requests.exceptions.RequestException as e:
-        safe_webhook_id = _get_safe_webhook_identifier(DISCORD_WEBHOOK_URL)
+        safe_webhook_id = _get_safe_webhook_identifier(effective_webhook_url)
         logger.error(
             f"Discord request failed: {str(e)} | Webhook identifier: {safe_webhook_id} | Games: {len(new_games)}"
         )

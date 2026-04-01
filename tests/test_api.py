@@ -158,7 +158,7 @@ class TestNotifyDiscordResendEndpoint:
         data = resp.json()
         assert data["status"] == "success"
         assert data["games_sent"] == 1
-        mock_send.assert_called_once_with(sample_games)
+        mock_send.assert_called_once_with(sample_games, webhook_url=None)
 
     def test_returns_404_when_no_games(self, client):
         with patch("modules.storage.load_previous_games", return_value=[]):
@@ -182,6 +182,21 @@ class TestNotifyDiscordResendEndpoint:
              patch("modules.notifier.send_discord_message"):
             resp = client.post("/notify/discord/resend", headers={"X-API-Key": "valid-key"})
         assert resp.status_code == 200
+
+    def test_uses_custom_webhook_url_when_provided(self, client, sample_games):
+        custom_url = "https://discord.com/api/webhooks/9999/custom-token"
+        with patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message") as mock_send:
+            resp = client.post(f"/notify/discord/resend?webhook_url={custom_url}")
+        assert resp.status_code == 200
+        mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
+
+    def test_uses_default_webhook_when_no_override(self, client, sample_games):
+        with patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.notifier.send_discord_message") as mock_send:
+            resp = client.post("/notify/discord/resend")
+        assert resp.status_code == 200
+        mock_send.assert_called_once_with(sample_games, webhook_url=None)
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +296,23 @@ class TestCheckE2EEndpoint:
         with patch("api.API_KEY", "valid-key"):
             resp = client.post("/check", headers={"X-API-Key": "wrong-key"})
         assert resp.status_code == 401
+
+    def test_uses_custom_webhook_url_when_provided(self, client, sample_games):
+        custom_url = "https://discord.com/api/webhooks/9999/custom-token"
+        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+             patch("modules.storage.load_previous_games", return_value=[]), \
+             patch("modules.notifier.send_discord_message") as mock_send:
+            resp = client.post(f"/check?webhook_url={custom_url}")
+        assert resp.status_code == 200
+        mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
+
+    def test_uses_default_webhook_when_no_override(self, client, sample_games):
+        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+             patch("modules.storage.load_previous_games", return_value=[]), \
+             patch("modules.notifier.send_discord_message") as mock_send:
+            resp = client.post("/check")
+        assert resp.status_code == 200
+        mock_send.assert_called_once_with(sample_games, webhook_url=None)
 
 
 # ---------------------------------------------------------------------------
