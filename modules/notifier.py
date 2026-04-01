@@ -1,6 +1,7 @@
 from config import DISCORD_WEBHOOK_URL, TIMEZONE, LOCALE, DATE_FORMAT, EPIC_GAMES_REGION
 import requests
 from datetime import datetime
+from typing import Optional
 import pytz
 import locale
 from urllib.parse import urlparse
@@ -51,7 +52,7 @@ def _get_safe_webhook_identifier(webhook_url: str) -> str:
         # In case of any parsing error, avoid logging the raw URL
         return "invalid-webhook-url"
 
-def send_discord_message(new_games, webhook_url: str = None):
+def send_discord_message(new_games, webhook_url: Optional[str] = None):
     """
     Send a Discord webhook message for new free games.
     

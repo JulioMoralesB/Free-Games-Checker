@@ -187,7 +187,7 @@ class TestNotifyDiscordResendEndpoint:
         custom_url = "https://discord.com/api/webhooks/9999/custom-token"
         with patch("modules.storage.load_previous_games", return_value=sample_games), \
              patch("modules.notifier.send_discord_message") as mock_send:
-            resp = client.post(f"/notify/discord/resend?webhook_url={custom_url}")
+            resp = client.post("/notify/discord/resend", params={"webhook_url": custom_url})
         assert resp.status_code == 200
         mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
 
@@ -302,7 +302,7 @@ class TestCheckE2EEndpoint:
         with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
              patch("modules.storage.load_previous_games", return_value=[]), \
              patch("modules.notifier.send_discord_message") as mock_send:
-            resp = client.post(f"/check?webhook_url={custom_url}")
+            resp = client.post("/check", params={"webhook_url": custom_url})
         assert resp.status_code == 200
         mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
 
