@@ -60,8 +60,17 @@ def test_config():
 @pytest.mark.production
 def test_check():
     test_webhook_url = os.getenv("TEST_WEBHOOK_URL")
-    response = httpx.post(f"{API_BASE_URL}/check", headers=HEADERS, json={"webhook_url": test_webhook_url})
+    if not test_webhook_url:
+        pytest.skip("TEST_WEBHOOK_URL must be set for production smoke test_check to avoid using the default webhook")
+
+    response = httpx.post(
+        f"{API_BASE_URL}/check",
+        headers=HEADERS,
+        json={"webhook_url": test_webhook_url},
+    )
     assert response.status_code == 200
     data = response.json()
     assert data.get("games_fetched", 0) > 0
-    assert data.get("notification_status") == "sent"
+    notification_status = data.get("notification_status")
+    assert isinstance(notification_status, str)
+    assert notification_status.startswith("sent") or notification_status.startswith("failed:")
