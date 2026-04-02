@@ -187,16 +187,14 @@ class TestNotifyDiscordResendEndpoint:
         custom_url = "https://discord.com/api/webhooks/9999/custom-token"
         with patch("modules.storage.load_previous_games", return_value=sample_games), \
              patch("modules.notifier.send_discord_message") as mock_send:
-            resp = client.post("/notify/discord/resend", params={"webhook_url": custom_url})
+            resp = client.post("/notify/discord/resend", json={"webhook_url": custom_url})
         assert resp.status_code == 200
         mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
 
-    def test_uses_default_webhook_when_no_override(self, client, sample_games):
-        with patch("modules.storage.load_previous_games", return_value=sample_games), \
-             patch("modules.notifier.send_discord_message") as mock_send:
-            resp = client.post("/notify/discord/resend")
-        assert resp.status_code == 200
-        mock_send.assert_called_once_with(sample_games, webhook_url=None)
+    def test_rejects_invalid_webhook_url(self, client, sample_games):
+        with patch("modules.storage.load_previous_games", return_value=sample_games):
+            resp = client.post("/notify/discord/resend", json={"webhook_url": "https://evil.com/hook"})
+        assert resp.status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -302,17 +300,14 @@ class TestCheckE2EEndpoint:
         with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
              patch("modules.storage.load_previous_games", return_value=[]), \
              patch("modules.notifier.send_discord_message") as mock_send:
-            resp = client.post("/check", params={"webhook_url": custom_url})
+            resp = client.post("/check", json={"webhook_url": custom_url})
         assert resp.status_code == 200
         mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
 
-    def test_uses_default_webhook_when_no_override(self, client, sample_games):
-        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
-             patch("modules.storage.load_previous_games", return_value=[]), \
-             patch("modules.notifier.send_discord_message") as mock_send:
-            resp = client.post("/check")
-        assert resp.status_code == 200
-        mock_send.assert_called_once_with(sample_games, webhook_url=None)
+    def test_rejects_invalid_webhook_url(self, client, sample_games):
+        with patch("modules.scrapper.fetch_free_games", return_value=sample_games):
+            resp = client.post("/check", json={"webhook_url": "https://evil.com/hook"})
+        assert resp.status_code == 422
 
 
 # ---------------------------------------------------------------------------

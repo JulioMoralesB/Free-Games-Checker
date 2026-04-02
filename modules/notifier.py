@@ -27,6 +27,35 @@ if LOCALE:
             exc_info=True,
         )
 
+_ALLOWED_DISCORD_HOSTS = frozenset({"discord.com", "discordapp.com"})
+
+
+def validate_discord_webhook_url(url: str) -> None:
+    """
+    Validate that a URL is a legitimate Discord webhook URL.
+
+    Checks that the URL uses HTTPS, targets an allowed Discord host, and has
+    the expected /api/webhooks/ path prefix.  Raises ``ValueError`` with a
+    descriptive message when any check fails.  This is the primary guard
+    against SSRF attacks via user-supplied webhook URLs.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        raise ValueError("Invalid webhook URL format")
+
+    if parsed.scheme != "https":
+        raise ValueError("Webhook URL must use HTTPS")
+
+    if parsed.hostname not in _ALLOWED_DISCORD_HOSTS:
+        raise ValueError(
+            f"Webhook URL host must be discord.com or discordapp.com, got: {parsed.hostname!r}"
+        )
+
+    if not parsed.path.startswith("/api/webhooks/"):
+        raise ValueError("Webhook URL path must start with /api/webhooks/")
+
+
 def _get_safe_webhook_identifier(webhook_url: str) -> str:
     """
     Return a redacted identifier for a webhook URL that is safe to log.
@@ -37,7 +66,9 @@ def _get_safe_webhook_identifier(webhook_url: str) -> str:
         return "unknown-webhook"
     try:
         parsed = urlparse(webhook_url)
-        host = parsed.netloc or "unknown-host"
+        # Use parsed.hostname (not .netloc) to avoid logging userinfo credentials
+        # if a crafted URL like user:pass@discord.com is somehow supplied.
+        host = parsed.hostname or "unknown-host"
         path = parsed.path or ""
 
         # Expected Discord webhook pattern: /api/webhooks/<id>/<token>
@@ -59,9 +90,10 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
     Args:
         new_games: List of game dictionaries to send to Discord
         webhook_url: Optional webhook URL override. Defaults to DISCORD_WEBHOOK_URL.
+            Must be a valid Discord webhook URL (https://discord.com/api/webhooks/...).
         
     Raises:
-        ValueError: If webhook URL is not configured
+        ValueError: If webhook URL is not configured or fails validation
         requests.RequestException: If the HTTP request fails
     """
     effective_webhook_url = webhook_url or DISCORD_WEBHOOK_URL
@@ -69,6 +101,10 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
         error_msg = "Discord webhook URL not configured in environment variables"
         logger.error(error_msg)
         raise ValueError(error_msg)
+
+    # Validate user-supplied webhook URLs to prevent SSRF
+    if webhook_url:
+        validate_discord_webhook_url(webhook_url)
     
     try:
         embeds = []
