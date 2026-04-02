@@ -2,7 +2,7 @@ import json
 import os
 import logging
 
-from config import DATA_FILE_PATH, DB_HOST
+from config import DATA_FILE_PATH, DB_HOST, LAST_NOTIFICATION_FILE_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,63 @@ def save_games(games):
         _save_to_db(games)
     else:
         _save_to_file(games)
+
+
+def save_last_notification(games):
+    """
+    Persist the games that were included in the most recent Discord notification.
+
+    This is always stored in a JSON file regardless of the storage backend so
+    that the resend endpoint can replay the exact last-sent batch.
+
+    Args:
+        games: List of game dictionaries that were sent in the notification.
+    """
+    if not games:
+        logger.warning("Attempted to save empty last notification list")
+        return
+    try:
+        directory = os.path.dirname(LAST_NOTIFICATION_FILE_PATH)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+        with open(LAST_NOTIFICATION_FILE_PATH, "w") as f:
+            json.dump(games, f, indent=4)
+        logger.info(f"Saved {len(games)} games to last notification file.")
+    except Exception as e:
+        logger.error(f"Failed to save last notification: {e}")
+        raise IOError("Failed to save last notification") from e
+
+
+def load_last_notification():
+    """
+    Load the games that were included in the most recent Discord notification.
+
+    Returns:
+        list: Games from the last notification, or empty list if none recorded yet.
+    """
+    if not os.path.exists(LAST_NOTIFICATION_FILE_PATH):
+        logger.debug(f"Last notification file does not exist yet: {LAST_NOTIFICATION_FILE_PATH}")
+        return []
+    try:
+        with open(LAST_NOTIFICATION_FILE_PATH, "r") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            logger.error("Unexpected structure in last notification file: expected list")
+            return []
+        if not all(isinstance(game, dict) for game in data):
+            logger.error("Unexpected item types in last notification file: expected list of dicts")
+            return []
+        logger.debug(f"Loaded {len(data)} games from last notification file.")
+        return data
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error in last notification file: {e}")
+        return []
+    except IOError as e:
+        logger.error(f"I/O error reading last notification file: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error loading last notification: {e}")
+        return []
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from modules.notifier import send_discord_message
 from modules.scrapper import fetch_free_games
-from modules.storage import load_previous_games, save_games
+from modules.storage import load_previous_games, save_games, save_last_notification
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
 from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE, API_HOST, API_PORT
@@ -81,6 +81,7 @@ def check_games():
         try:
             send_discord_message(new_games)
             logging.info("Discord notification sent successfully")
+            save_last_notification(new_games)
         except ValueError as e:
             logging.error(f"Discord error (ValueError) while sending message: {str(e)}")
             logging.warning("Discord notification failed due to a ValueError, but continuing scheduler. Investigate the underlying cause (configuration or data-related).")

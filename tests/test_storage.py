@@ -204,3 +204,92 @@ class TestDatabaseBackedSaveGames:
         with open(path, "r") as f:
             saved = json.load(f)
         assert saved == sample_games
+
+
+# ---------------------------------------------------------------------------
+# Tests for save_last_notification and load_last_notification
+# ---------------------------------------------------------------------------
+
+class TestSaveLastNotification:
+    def test_saves_games_to_file(self, tmp_path, sample_games):
+        path = str(tmp_path / "last_notification.json")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            storage.save_last_notification(sample_games)
+        with open(path, "r") as f:
+            saved = json.load(f)
+        assert saved == sample_games
+
+    def test_does_not_write_when_games_is_empty(self, tmp_path):
+        path = str(tmp_path / "last_notification.json")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            storage.save_last_notification([])
+        assert not os.path.exists(path)
+
+    def test_creates_directory_if_missing(self, tmp_path, sample_games):
+        sub_dir = tmp_path / "nested" / "dir"
+        path = str(sub_dir / "last_notification.json")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            storage.save_last_notification(sample_games)
+        assert os.path.exists(path)
+
+    def test_raises_io_error_on_failure(self, tmp_path, sample_games):
+        path = str(tmp_path / "last_notification.json")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path), \
+             patch("builtins.open", side_effect=PermissionError("denied")):
+            with pytest.raises(IOError):
+                storage.save_last_notification(sample_games)
+
+    def test_saved_file_is_valid_json(self, tmp_path, sample_games):
+        path = str(tmp_path / "last_notification.json")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            storage.save_last_notification(sample_games)
+        with open(path, "r") as f:
+            parsed = json.loads(f.read())
+        assert isinstance(parsed, list)
+
+
+class TestLoadLastNotification:
+    def test_returns_empty_list_when_file_not_exists(self, tmp_path):
+        path = str(tmp_path / "nonexistent.json")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            result = storage.load_last_notification()
+        assert result == []
+
+    def test_loads_valid_json_file(self, tmp_path, sample_games):
+        path = str(tmp_path / "last_notification.json")
+        with open(path, "w") as f:
+            json.dump(sample_games, f)
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            result = storage.load_last_notification()
+        assert result == sample_games
+
+    def test_returns_empty_list_on_corrupted_json(self, tmp_path):
+        path = str(tmp_path / "last_notification.json")
+        with open(path, "w") as f:
+            f.write("not valid json {{")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            result = storage.load_last_notification()
+        assert result == []
+
+    def test_returns_empty_list_when_data_is_not_a_list(self, tmp_path):
+        path = str(tmp_path / "last_notification.json")
+        with open(path, "w") as f:
+            json.dump({"key": "value"}, f)
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            result = storage.load_last_notification()
+        assert result == []
+
+    def test_returns_empty_list_when_items_are_not_dicts(self, tmp_path):
+        path = str(tmp_path / "last_notification.json")
+        with open(path, "w") as f:
+            json.dump(["game1", "game2"], f)
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            result = storage.load_last_notification()
+        assert result == []
+
+    def test_save_then_load_round_trip(self, tmp_path, sample_games):
+        path = str(tmp_path / "last_notification.json")
+        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+            storage.save_last_notification(sample_games)
+            result = storage.load_last_notification()
+        assert result == sample_games
