@@ -4,7 +4,7 @@ import os
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 API_KEY = os.getenv("API_KEY")
-HEADERS = ("X-API-Key", API_KEY) if API_KEY else {}
+HEADERS = {"X-API-Key": API_KEY} if API_KEY else {}
 DB_HOST = os.getenv("DB_HOST") or None
 
 @pytest.mark.production
