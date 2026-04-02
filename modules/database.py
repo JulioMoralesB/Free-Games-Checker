@@ -1,3 +1,4 @@
+import json
 import psycopg2
 
 from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
@@ -159,6 +160,41 @@ class FreeGamesDatabase:
             logger.error(f"Failed to retrieve games: {e}")
             return []
     
+    def save_last_notification(self, games):
+        """Persist the last-sent notification batch as a JSON blob (single-row upsert)."""
+        try:
+            with psycopg2.connect(**self.conn_params) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SET search_path TO free_games")
+                    cursor.execute(
+                        """
+                        INSERT INTO last_notification (id, games)
+                        VALUES (1, %s)
+                        ON CONFLICT (id) DO UPDATE SET games = EXCLUDED.games
+                        """,
+                        (json.dumps(games),),
+                    )
+                    conn.commit()
+                    logger.info(f"Saved {len(games)} games to last_notification table.")
+        except Exception as e:
+            logger.error(f"Failed to save last notification to database: {e}")
+            raise
+
+    def get_last_notification(self):
+        """Return the games list from the most recent notification, or [] if none stored."""
+        try:
+            with psycopg2.connect(**self.conn_params) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SET search_path TO free_games")
+                    cursor.execute("SELECT games FROM last_notification WHERE id = 1")
+                    row = cursor.fetchone()
+                    if row is None:
+                        return []
+                    return json.loads(row[0])
+        except Exception as e:
+            logger.error(f"Failed to retrieve last notification from database: {e}")
+            raise
+
     def game_exists(self, game_id):
         """Check if a game with the given game_id already exists in the database."""
         try:

@@ -211,9 +211,10 @@ class TestDatabaseBackedSaveGames:
 # ---------------------------------------------------------------------------
 
 class TestSaveLastNotification:
-    def test_saves_games_to_file(self, tmp_path, sample_games):
+    def test_saves_games_to_file_when_db_not_configured(self, tmp_path, sample_games):
         path = str(tmp_path / "last_notification.json")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             storage.save_last_notification(sample_games)
         with open(path, "r") as f:
             saved = json.load(f)
@@ -221,37 +222,57 @@ class TestSaveLastNotification:
 
     def test_does_not_write_when_games_is_empty(self, tmp_path):
         path = str(tmp_path / "last_notification.json")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             storage.save_last_notification([])
         assert not os.path.exists(path)
 
     def test_creates_directory_if_missing(self, tmp_path, sample_games):
         sub_dir = tmp_path / "nested" / "dir"
         path = str(sub_dir / "last_notification.json")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             storage.save_last_notification(sample_games)
         assert os.path.exists(path)
 
-    def test_raises_io_error_on_failure(self, tmp_path, sample_games):
+    def test_raises_io_error_on_file_failure(self, tmp_path, sample_games):
         path = str(tmp_path / "last_notification.json")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path), \
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path), \
              patch("builtins.open", side_effect=PermissionError("denied")):
             with pytest.raises(IOError):
                 storage.save_last_notification(sample_games)
 
     def test_saved_file_is_valid_json(self, tmp_path, sample_games):
         path = str(tmp_path / "last_notification.json")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             storage.save_last_notification(sample_games)
         with open(path, "r") as f:
             parsed = json.loads(f.read())
         assert isinstance(parsed, list)
 
+    def test_delegates_to_db_when_db_configured(self, sample_games):
+        mock_db = MagicMock()
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            storage.save_last_notification(sample_games)
+        mock_db.save_last_notification.assert_called_once_with(sample_games)
+
+    def test_raises_io_error_when_db_save_fails(self, sample_games):
+        mock_db = MagicMock()
+        mock_db.save_last_notification.side_effect = Exception("db write error")
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            with pytest.raises(IOError):
+                storage.save_last_notification(sample_games)
+
 
 class TestLoadLastNotification:
     def test_returns_empty_list_when_file_not_exists(self, tmp_path):
         path = str(tmp_path / "nonexistent.json")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             result = storage.load_last_notification()
         assert result == []
 
@@ -259,7 +280,8 @@ class TestLoadLastNotification:
         path = str(tmp_path / "last_notification.json")
         with open(path, "w") as f:
             json.dump(sample_games, f)
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             result = storage.load_last_notification()
         assert result == sample_games
 
@@ -267,7 +289,8 @@ class TestLoadLastNotification:
         path = str(tmp_path / "last_notification.json")
         with open(path, "w") as f:
             f.write("not valid json {{")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             result = storage.load_last_notification()
         assert result == []
 
@@ -275,7 +298,8 @@ class TestLoadLastNotification:
         path = str(tmp_path / "last_notification.json")
         with open(path, "w") as f:
             json.dump({"key": "value"}, f)
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             result = storage.load_last_notification()
         assert result == []
 
@@ -283,13 +307,32 @@ class TestLoadLastNotification:
         path = str(tmp_path / "last_notification.json")
         with open(path, "w") as f:
             json.dump(["game1", "game2"], f)
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             result = storage.load_last_notification()
         assert result == []
 
     def test_save_then_load_round_trip(self, tmp_path, sample_games):
         path = str(tmp_path / "last_notification.json")
-        with patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
+        with patch("modules.storage.DB_HOST", None), \
+             patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             storage.save_last_notification(sample_games)
             result = storage.load_last_notification()
         assert result == sample_games
+
+    def test_delegates_to_db_when_db_configured(self, sample_games):
+        mock_db = MagicMock()
+        mock_db.get_last_notification.return_value = sample_games
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            result = storage.load_last_notification()
+        assert result == sample_games
+        mock_db.get_last_notification.assert_called_once()
+
+    def test_returns_empty_list_when_db_raises(self):
+        mock_db = MagicMock()
+        mock_db.get_last_notification.side_effect = Exception("connection refused")
+        with patch("modules.storage.DB_HOST", "localhost"), \
+             patch("modules.database.FreeGamesDatabase", return_value=mock_db):
+            result = storage.load_last_notification()
+        assert result == []
