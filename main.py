@@ -81,7 +81,6 @@ def check_games():
         try:
             send_discord_message(new_games)
             logging.info("Discord notification sent successfully")
-            save_last_notification(new_games)
         except ValueError as e:
             logging.error(f"Discord error (ValueError) while sending message: {str(e)}")
             logging.warning("Discord notification failed due to a ValueError, but continuing scheduler. Investigate the underlying cause (configuration or data-related).")
@@ -97,6 +96,13 @@ def check_games():
             logging.warning("Discord notification failed unexpectedly, but continuing scheduler.")
             # Don't save games if Discord notification fails
             return
+
+        # Persist the last notification batch so the resend endpoint can replay it
+        try:
+            save_last_notification(new_games)
+        except Exception as e:
+            logging.error(f"Failed to save last notification: {str(e)}")
+            logging.warning("Discord notification was sent but failed to record it for the resend endpoint.")
 
         # Save games to storage after successful Discord notification
         try:

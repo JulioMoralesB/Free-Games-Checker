@@ -60,7 +60,7 @@ def save_last_notification(games):
         games: List of game dictionaries that were sent in the notification.
     """
     if not games:
-        logger.warning("Attempted to save empty last notification list")
+        logger.debug("save_last_notification called with empty list; skipping")
         return
     try:
         directory = os.path.dirname(LAST_NOTIFICATION_FILE_PATH)
