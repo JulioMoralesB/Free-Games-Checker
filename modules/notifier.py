@@ -90,7 +90,8 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
     Args:
         new_games: List of game dictionaries to send to Discord
         webhook_url: Optional webhook URL override. Defaults to DISCORD_WEBHOOK_URL.
-            Must be a valid Discord webhook URL (https://discord.com/api/webhooks/...).
+            Must be a valid Discord webhook URL on either discord.com or discordapp.com
+            (e.g. https://discord.com/api/webhooks/... or https://discordapp.com/api/webhooks/...).
         
     Raises:
         ValueError: If webhook URL is not configured or fails validation
