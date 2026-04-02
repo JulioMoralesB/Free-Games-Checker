@@ -96,15 +96,25 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
         ValueError: If webhook URL is not configured or fails validation
         requests.RequestException: If the HTTP request fails
     """
-    effective_webhook_url = webhook_url or DISCORD_WEBHOOK_URL
+    # Determine effective webhook URL, giving precedence to an explicit override
+    if webhook_url is not None:
+        override = webhook_url.strip()
+        if not override:
+            error_msg = "Explicit Discord webhook URL override is empty or whitespace-only"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        effective_webhook_url = override
+    else:
+        effective_webhook_url = DISCORD_WEBHOOK_URL
+
     if not effective_webhook_url:
         error_msg = "Discord webhook URL not configured in environment variables"
         logger.error(error_msg)
         raise ValueError(error_msg)
 
     # Validate user-supplied webhook URLs to prevent SSRF
-    if webhook_url:
-        validate_discord_webhook_url(webhook_url)
+    if webhook_url is not None:
+        validate_discord_webhook_url(effective_webhook_url)
     
     try:
         embeds = []
