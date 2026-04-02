@@ -134,10 +134,15 @@ class WebhookOverrideRequest(BaseModel):
     @field_validator("webhook_url")
     @classmethod
     def _validate_webhook_url(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            validate_discord_webhook_url(v)
-        return v
+        if v is None:
+            return None
 
+        v_stripped = v.strip()
+        if not v_stripped:
+            raise ValueError("webhook_url must not be empty or whitespace")
+
+        validate_discord_webhook_url(v_stripped)
+        return v_stripped
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
