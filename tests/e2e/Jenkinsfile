@@ -1,0 +1,59 @@
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  parameters {
+    string(name: 'API_BASE_URL', defaultValue: 'http://localhost:9901', description: 'URL of the API')
+  }
+
+  environment {
+    PYTHONDONTWRITEBYTECODE = '1'
+    PYTHONUNBUFFERED = '1'
+    SERVICE_NAME = 'free-games-notifier'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'feat/create-production-test-cases', url: "git@github.com:JulioMoralesB/${env.SERVICE_NAME}.git"
+      }
+    }
+
+    stage('Setup Python') {
+      steps {
+        sh '''
+          python3 -m venv .venv
+          . .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+        '''
+      }
+    }
+
+    stage('Run Production Smoke') {
+      steps {
+        withCredentials([
+                string(credentialsId: 'free-games-notifier-api-key', variable: 'API_KEY'),
+                string(credentialsId: 'free-games-test-webhook', variable: 'TEST_WEBHOOK_URL')
+                ]) {
+          sh '''
+            . .venv/bin/activate
+            export API_BASE_URL="$API_BASE_URL"
+            pytest tests/e2e/test_production_smoke.py -v --tb=short --junitxml=junit.xml
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'junit.xml', allowEmptyArchive: true
+      junit testResults: 'junit.xml', allowEmptyResults: true
+      cleanWs()
+    }
+  }
+}
