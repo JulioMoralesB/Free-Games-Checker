@@ -126,7 +126,8 @@ class WebhookOverrideRequest(BaseModel):
         None,
         description=(
             "Override Discord webhook URL for this request. "
-            "Must be a valid https://discord.com/api/webhooks/... URL."
+            "Must be a valid Discord webhook URL "
+            "(https://discord.com/api/webhooks/... or https://discordapp.com/api/webhooks/...)."
         ),
     )
 
