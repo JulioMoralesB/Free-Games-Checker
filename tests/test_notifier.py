@@ -209,3 +209,74 @@ class TestSendDiscordMessage:
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK):
             with pytest.raises(KeyError):
                 notifier.send_discord_message([bad_game])
+
+
+class TestSendDiscordMessageWebhookOverride:
+    """Tests for the optional webhook_url override in send_discord_message."""
+
+    def _make_response(self, status_code=204):
+        mock_resp = MagicMock()
+        mock_resp.status_code = status_code
+        mock_resp.text = ""
+        mock_resp.raise_for_status = MagicMock()
+        return mock_resp
+
+    def test_override_url_is_used_instead_of_env_var(self, sample_games):
+        """When webhook_url is provided, requests.post() uses it, not DISCORD_WEBHOOK_URL."""
+        override_url = "https://discord.com/api/webhooks/9999/override-token"
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games, webhook_url=override_url)
+
+        args, _ = mock_post.call_args
+        assert args[0] == override_url
+        assert args[0] != VALID_WEBHOOK
+
+    def test_env_var_used_when_no_override(self, sample_games):
+        """When webhook_url is not provided, requests.post() uses DISCORD_WEBHOOK_URL."""
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        args, _ = mock_post.call_args
+        assert args[0] == VALID_WEBHOOK
+
+    def test_raises_on_non_discord_override_url(self, sample_games):
+        """User-supplied webhook URLs pointing to non-Discord hosts are rejected."""
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK):
+            with pytest.raises(ValueError, match="discord.com"):
+                notifier.send_discord_message(
+                    sample_games,
+                    webhook_url="https://evil.com/api/webhooks/123/token",
+                )
+
+    def test_raises_on_non_https_override_url(self, sample_games):
+        """User-supplied webhook URLs not using HTTPS are rejected."""
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK):
+            with pytest.raises(ValueError, match="HTTPS"):
+                notifier.send_discord_message(
+                    sample_games,
+                    webhook_url="http://discord.com/api/webhooks/123/token",
+                )
+
+    def test_raises_on_override_url_with_wrong_path(self, sample_games):
+        """User-supplied webhook URLs without /api/webhooks/ path are rejected."""
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK):
+            with pytest.raises(ValueError, match="/api/webhooks/"):
+                notifier.send_discord_message(
+                    sample_games,
+                    webhook_url="https://discord.com/not/a/webhook",
+                )
+
+    def test_discordapp_com_host_is_allowed(self, sample_games):
+        """discord.com and discordapp.com are both valid webhook hosts."""
+        alt_host_url = "https://discordapp.com/api/webhooks/123/token"
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games, webhook_url=alt_host_url)
+
+        args, _ = mock_post.call_args
+        assert args[0] == alt_host_url

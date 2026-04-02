@@ -8,8 +8,9 @@ from typing import List, Optional
 import requests as requests_lib
 from fastapi import FastAPI, HTTPException, Query, Security
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from modules.notifier import validate_discord_webhook_url
 from config import (
     API_KEY,
     DB_HOST,
@@ -111,6 +112,37 @@ class ErrorResponse(BaseModel):
     """Standard error response."""
     detail: str = Field(..., description="Human-readable error message")
 
+
+class WebhookOverrideRequest(BaseModel):
+    """Optional request body for Discord notification endpoints.
+
+    Allows callers to specify an alternative Discord webhook URL so that
+    test/E2E runs can target a non-default channel without changing global
+    configuration.  The ``webhook_url`` field is validated to allow only
+    legitimate Discord webhook URLs, preventing SSRF attacks.
+    """
+
+    webhook_url: Optional[str] = Field(
+        None,
+        description=(
+            "Override Discord webhook URL for this request. "
+            "Must be a valid Discord webhook URL "
+            "(https://discord.com/api/webhooks/... or https://discordapp.com/api/webhooks/...)."
+        ),
+    )
+
+    @field_validator("webhook_url")
+    @classmethod
+    def _validate_webhook_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+
+        v_stripped = v.strip()
+        if not v_stripped:
+            raise ValueError("webhook_url must not be empty or whitespace")
+
+        validate_discord_webhook_url(v_stripped)
+        return v_stripped
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -262,10 +294,12 @@ def games_history(
         500: {"model": ErrorResponse, "description": "Failed to send Discord notification"},
     },
 )
-def notify_discord_resend():
+def notify_discord_resend(body: Optional[WebhookOverrideRequest] = None):
     """Re-send the latest fetched games to the Discord webhook."""
     from modules.storage import load_previous_games
     from modules.notifier import send_discord_message
+
+    webhook_url = body.webhook_url if body else None
 
     try:
         games = load_previous_games()
@@ -278,7 +312,7 @@ def notify_discord_resend():
         raise HTTPException(status_code=404, detail="No games available to resend")
 
     try:
-        send_discord_message(games)
+        send_discord_message(games, webhook_url=webhook_url)
         increment_metric("discord_notifications_sent")
         return {"status": "success", "games_sent": len(games)}
     except Exception as e:
@@ -331,7 +365,7 @@ def config_endpoint():
         500: {"model": ErrorResponse, "description": "Failed to fetch games from Epic Games API"},
     },
 )
-def check_e2e():
+def check_e2e(body: Optional[WebhookOverrideRequest] = None):
     """End-to-end test: fetch games, check DB presence, and send Discord notification regardless.
 
     This endpoint runs the full flow even when the games already exist in the
@@ -340,6 +374,8 @@ def check_e2e():
     from modules.scrapper import fetch_free_games
     from modules.storage import load_previous_games
     from modules.notifier import send_discord_message
+
+    webhook_url = body.webhook_url if body else None
 
     # 1. Fetch current free games from Epic Games
     try:
@@ -366,7 +402,7 @@ def check_e2e():
     # 3. Send Discord notification regardless of DB state
     notification_status = "skipped"
     try:
-        send_discord_message(current_games)
+        send_discord_message(current_games, webhook_url=webhook_url)
         notification_status = "sent"
         increment_metric("discord_notifications_sent")
     except Exception as e:
