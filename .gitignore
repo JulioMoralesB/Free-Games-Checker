@@ -9,3 +9,5 @@ whitelist.json
 free_games.json
 /data
 .DS_Store
+dashboard/node_modules
+dashboard/dist

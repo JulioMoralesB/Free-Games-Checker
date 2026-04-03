@@ -1,4 +1,13 @@
 # Use the official Python image from the Docker Hub
+# Stage 1: Build the React/TypeScript dashboard
+FROM node:20-slim AS dashboard-builder
+WORKDIR /app/dashboard
+COPY dashboard/package*.json ./
+RUN npm ci
+COPY dashboard/ ./
+RUN npm run build
+
+# Stage 2: Python runtime
 FROM python:3.12-slim
 
 # Build-time locale selection (default en_US.UTF-8).
@@ -28,6 +37,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
 COPY . .
+
+# Copy the pre-built dashboard static files from the builder stage
+COPY --from=dashboard-builder /app/dashboard/dist ./dashboard/dist
 
 # Create writable directories for appuser and make healthcheck executable.
 # NOTE: /mnt/logs and /mnt/data are typically bind-mounted at runtime (see compose.yaml).
