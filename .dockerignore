@@ -6,3 +6,4 @@ free_games.json
 *.log
 /data
 dashboard/node_modules
+dashboard/dist
