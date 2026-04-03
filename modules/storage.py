@@ -236,8 +236,23 @@ def _save_last_notification_to_file(games):
         with open(LAST_NOTIFICATION_FILE_PATH, "w") as f:
             json.dump(games, f, indent=4)
         logger.info(f"Saved {len(games)} games to last notification file.")
-    except Exception as e:
-        logger.error(f"Failed to save last notification to file: {e}")
+    except TypeError as e:
+        logger.error(
+            f"JSON serialization error saving last notification: {e} | "
+            f"Games data type: {type(games)}"
+        )
+        raise
+    except PermissionError as e:
+        logger.error(
+            f"Permission denied saving last notification to file: {e} | "
+            f"File path: {LAST_NOTIFICATION_FILE_PATH}"
+        )
+        raise IOError("Failed to save last notification to file") from e
+    except (IOError, OSError) as e:
+        logger.error(
+            f"I/O error saving last notification to file: {e} | "
+            f"File path: {LAST_NOTIFICATION_FILE_PATH}"
+        )
         raise IOError("Failed to save last notification to file") from e
 
 
