@@ -295,7 +295,7 @@ def games_history(
     },
 )
 def notify_discord_resend(body: Optional[WebhookOverrideRequest] = None):
-    """Re-send the latest fetched games to the Discord webhook."""
+    """Re-send the last Discord notification batch to the Discord webhook."""
     from modules.storage import load_last_notification
     from modules.notifier import send_discord_message
 
