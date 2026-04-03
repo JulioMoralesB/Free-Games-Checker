@@ -158,7 +158,7 @@ The dashboard is a React/TypeScript SPA served by the same FastAPI process at **
 
 ### Language Support (i18n)
 
-The dashboard auto-detects the visitor's preferred language from `navigator.languages` and falls back to English if the browser language is not supported.  A language selector in the header lets the user manually switch between available languages; the choice is remembered across sessions via `localStorage`.
+The dashboard auto-detects the visitor's preferred language from `navigator.languages` and falls back to English if the browser language is not supported. A language selector in the header lets the user manually switch between available languages; the choice is remembered across sessions via `localStorage`.
 
 #### Adding a new language
 

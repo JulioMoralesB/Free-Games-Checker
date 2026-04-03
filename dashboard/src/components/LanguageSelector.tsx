@@ -10,7 +10,7 @@ export default function LanguageSelector() {
   const { locale, setLocale, t } = useTranslation()
 
   return (
-    <div className="lang-selector" aria-label={t.languageLabel}>
+    <div className="lang-selector" role="group" aria-label={t.languageLabel}>
       {(Object.keys(LOCALE_LABELS) as Locale[]).map((lang) => (
         <button
           key={lang}

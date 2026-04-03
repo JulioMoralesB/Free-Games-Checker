@@ -25,7 +25,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Props) {
   }
 
   return (
-    <nav className="pagination" aria-label="Pagination">
+    <nav className="pagination" aria-label={t.paginationNavAriaLabel}>
       <button
         className="page-btn"
         onClick={() => onPageChange(page - 1)}

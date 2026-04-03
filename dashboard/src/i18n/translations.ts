@@ -27,6 +27,7 @@ export interface Translations {
   viewOnEpicGames: string
 
   // Pagination
+  paginationNavAriaLabel: string
   previousPage: string
   nextPage: string
   pageN: (n: number) => string
@@ -43,7 +44,7 @@ const en: Translations = {
   // Header
   headerTitle: 'Free Games History',
   headerSubtitle: 'All previously tracked free game promotions',
-  gamesTracked: (count) => `${count} games tracked`,
+  gamesTracked: (count) => `${count} ${count === 1 ? 'game' : 'games'} tracked`,
 
   // Toolbar
   searchPlaceholder: 'Search by title or description…',
@@ -66,6 +67,7 @@ const en: Translations = {
   viewOnEpicGames: 'View on Epic Games →',
 
   // Pagination
+  paginationNavAriaLabel: 'Pagination',
   previousPage: 'Previous page',
   nextPage: 'Next page',
   pageN: (n) => `Page ${n}`,
@@ -82,7 +84,7 @@ const es: Translations = {
   // Header
   headerTitle: 'Historial de Juegos Gratis',
   headerSubtitle: 'Todas las promociones de juegos gratis registradas',
-  gamesTracked: (count) => `${count} juegos registrados`,
+  gamesTracked: (count) => `${count} ${count === 1 ? 'juego' : 'juegos'} registrados`,
 
   // Toolbar
   searchPlaceholder: 'Buscar por título o descripción…',
@@ -105,6 +107,7 @@ const es: Translations = {
   viewOnEpicGames: 'Ver en Epic Games →',
 
   // Pagination
+  paginationNavAriaLabel: 'Paginación',
   previousPage: 'Página anterior',
   nextPage: 'Página siguiente',
   pageN: (n) => `Página ${n}`,
@@ -140,7 +143,11 @@ export const localeBcp47: Record<Locale, string> = {
  */
 export function detectLocale(): Locale {
   const supported = Object.keys(translations) as Locale[]
-  for (const lang of navigator.languages ?? [navigator.language]) {
+  const preferredLanguages =
+    navigator.languages && navigator.languages.length > 0
+      ? navigator.languages
+      : [navigator.language]
+  for (const lang of preferredLanguages) {
     const base = lang.split('-')[0].toLowerCase()
     if (supported.includes(base as Locale)) return base as Locale
   }
