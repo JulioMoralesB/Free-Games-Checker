@@ -177,9 +177,15 @@ All translation strings live in one file: **`dashboard/src/i18n/translations.ts`
      // … fill in all remaining keys …
    }
    ```
-3. **Register it** in the `translations` map:
+3. **Register it** in the `translations` map and add its BCP 47 language tag:
    ```ts
    export const translations: Record<Locale, Translations> = { en, es, fr }
+
+   export const localeBcp47: Record<Locale, string> = {
+     en: 'en-US',
+     es: 'es-ES',
+     fr: 'fr-FR',
+   }
    ```
 4. **Add a flag/label** in `dashboard/src/components/LanguageSelector.tsx`:
    ```ts

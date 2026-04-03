@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import type { GameItem } from '../types'
 import { useTranslation } from '../i18n'
+import type { Locale } from '../i18n/translations'
+import { localeBcp47 } from '../i18n/translations'
 
 interface Props {
   game: GameItem
 }
 
-function formatDate(iso: string, locale: string): string {
+function formatDate(iso: string, locale: Locale): string {
   try {
-    return new Intl.DateTimeFormat(locale, {
+    return new Intl.DateTimeFormat(localeBcp47[locale], {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

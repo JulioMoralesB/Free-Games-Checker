@@ -120,6 +120,16 @@ const es: Translations = {
 export const translations: Record<Locale, Translations> = { en, es }
 
 /**
+ * Maps our short `Locale` codes to full BCP 47 language tags accepted by
+ * `Intl.DateTimeFormat` (e.g. 'en' → 'en-US', 'es' → 'es-ES').
+ * Add an entry here when registering a new locale.
+ */
+export const localeBcp47: Record<Locale, string> = {
+  en: 'en-US',
+  es: 'es-ES',
+}
+
+/**
  * Detect the preferred locale from the browser's language settings.
  * Falls back to 'en' if no supported locale is found.
  *
@@ -131,8 +141,8 @@ export const translations: Record<Locale, Translations> = { en, es }
 export function detectLocale(): Locale {
   const supported = Object.keys(translations) as Locale[]
   for (const lang of navigator.languages ?? [navigator.language]) {
-    const base = lang.split('-')[0].toLowerCase() as Locale
-    if (supported.includes(base)) return base
+    const base = lang.split('-')[0].toLowerCase()
+    if (supported.includes(base as Locale)) return base as Locale
   }
   return 'en'
 }
