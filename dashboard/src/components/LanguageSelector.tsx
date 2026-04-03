@@ -3,7 +3,7 @@ import type { Locale } from '../i18n/translations'
 
 const LOCALE_LABELS: Record<Locale, string> = {
   en: '🇺🇸 EN',
-  es: '🇪🇸 ES',
+  es: '🇲🇽 ES',
 }
 
 export default function LanguageSelector() {
