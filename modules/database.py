@@ -190,7 +190,19 @@ class FreeGamesDatabase:
                     row = cursor.fetchone()
                     if row is None:
                         return []
-                    return json.loads(row[0])
+                    data = json.loads(row[0])
+                    if not isinstance(data, list):
+                        logger.error(
+                            "Unexpected structure in last_notification table: expected list, "
+                            f"got {type(data).__name__}"
+                        )
+                        return []
+                    if not all(isinstance(game, dict) for game in data):
+                        logger.error(
+                            "Unexpected item types in last_notification table: expected list of dicts"
+                        )
+                        return []
+                    return data
         except Exception as e:
             logger.error(f"Failed to retrieve last notification from database: {e}")
             raise

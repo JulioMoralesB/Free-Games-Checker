@@ -336,3 +336,59 @@ class TestLoadLastNotification:
              patch("modules.database.FreeGamesDatabase", return_value=mock_db):
             result = storage.load_last_notification()
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for FreeGamesDatabase.get_last_notification validation
+# ---------------------------------------------------------------------------
+
+class TestFreeGamesDatabaseGetLastNotification:
+    """Unit-test the validation logic inside FreeGamesDatabase.get_last_notification()."""
+
+    def _make_db(self):
+        from modules.database import FreeGamesDatabase
+        db = FreeGamesDatabase.__new__(FreeGamesDatabase)
+        db.conn_params = {}
+        return db
+
+    def _mock_conn(self, row):
+        """Return a context-manager chain for psycopg2.connect that yields *row*."""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = row
+        mock_cursor.__enter__ = lambda s: s
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__ = lambda s: s
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        return mock_conn
+
+    def test_returns_empty_list_when_no_row(self):
+        db = self._make_db()
+        mock_conn = self._mock_conn(None)
+        with patch("modules.database.psycopg2.connect", return_value=mock_conn):
+            result = db.get_last_notification()
+        assert result == []
+
+    def test_returns_games_for_valid_list(self, sample_games):
+        db = self._make_db()
+        mock_conn = self._mock_conn((json.dumps(sample_games),))
+        with patch("modules.database.psycopg2.connect", return_value=mock_conn):
+            result = db.get_last_notification()
+        assert result == sample_games
+
+    def test_returns_empty_list_when_data_is_not_a_list(self):
+        db = self._make_db()
+        mock_conn = self._mock_conn((json.dumps({"key": "value"}),))
+        with patch("modules.database.psycopg2.connect", return_value=mock_conn):
+            result = db.get_last_notification()
+        assert result == []
+
+    def test_returns_empty_list_when_items_are_not_dicts(self):
+        db = self._make_db()
+        mock_conn = self._mock_conn((json.dumps(["game1", "game2"]),))
+        with patch("modules.database.psycopg2.connect", return_value=mock_conn):
+            result = db.get_last_notification()
+        assert result == []
