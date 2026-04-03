@@ -110,6 +110,9 @@ When `DB_HOST` is configured the application will:
 
 If all `DB_*` variables are left unset the service falls back to the JSON file backend with no code or configuration changes required.
 
+## Database Migrations
+
+When using the PostgreSQL backend, Alembic migrations are applied automatically on startup to keep the database schema up to date.
 ## REST API
 
 The service exposes a FastAPI REST API on `API_HOST:API_PORT` (default `0.0.0.0:8000`). The auto-generated interactive docs are available at `/docs`.
