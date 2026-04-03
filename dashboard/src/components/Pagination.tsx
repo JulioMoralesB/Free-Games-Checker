@@ -1,3 +1,5 @@
+import { useTranslation } from '../i18n'
+
 interface Props {
   page: number
   totalPages: number
@@ -5,6 +7,8 @@ interface Props {
 }
 
 export default function Pagination({ page, totalPages, onPageChange }: Props) {
+  const { t } = useTranslation()
+
   // Build the page number list with ellipsis for large ranges
   const pages: (number | 'ellipsis')[] = []
 
@@ -26,7 +30,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Props) {
         className="page-btn"
         onClick={() => onPageChange(page - 1)}
         disabled={page === 1}
-        aria-label="Previous page"
+        aria-label={t.previousPage}
       >
         ‹
       </button>
@@ -41,7 +45,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Props) {
             key={p}
             className={`page-btn${p === page ? ' current' : ''}`}
             onClick={() => onPageChange(p)}
-            aria-label={`Page ${p}`}
+            aria-label={t.pageN(p)}
             aria-current={p === page ? 'page' : undefined}
           >
             {p}
@@ -53,7 +57,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Props) {
         className="page-btn"
         onClick={() => onPageChange(page + 1)}
         disabled={page === totalPages || totalPages === 0}
-        aria-label="Next page"
+        aria-label={t.nextPage}
       >
         ›
       </button>
