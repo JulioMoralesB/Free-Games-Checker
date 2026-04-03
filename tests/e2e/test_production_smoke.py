@@ -9,7 +9,7 @@ DB_HOST = os.getenv("DB_HOST") or None
 
 @pytest.mark.production
 def test_health_check():
-    response = httpx.get(f"{API_BASE_URL}/health", headers=HEADERS)
+    response = httpx.get(f"{API_BASE_URL}/health", headers=HEADERS, timeout=10)
     assert response.status_code == 200
     assert response.json().get("status") == "healthy"
     assert response.json().get("epic_games_api") == "healthy"
@@ -18,7 +18,7 @@ def test_health_check():
 
 @pytest.mark.production
 def test_games_latest():
-    response = httpx.get(f"{API_BASE_URL}/games/latest", headers=HEADERS)
+    response = httpx.get(f"{API_BASE_URL}/games/latest", headers=HEADERS, timeout=10)
     assert response.status_code == 200
     data = response.json()
     assert data.get("count", 0) >= 0
@@ -33,12 +33,23 @@ def test_games_latest():
 
 @pytest.mark.production
 def test_games_history():
-    response = httpx.get(f"{API_BASE_URL}/games/history", headers=HEADERS)
+    response = httpx.get(f"{API_BASE_URL}/games/history", headers=HEADERS, timeout=10)
     assert response.status_code == 200
     data = response.json()
-    assert data.get("count", 0) >= 0
-    assert isinstance(data.get("games"), list)
-    if data.get("games"):
+    assert "games" in data
+    assert "total" in data
+    assert "limit" in data
+    assert "offset" in data
+    assert isinstance(data["games"], list)
+    assert isinstance(data["total"], int)
+    assert isinstance(data["limit"], int)
+    assert isinstance(data["offset"], int)
+    assert data["total"] >= 0
+    assert data["limit"] >= 0
+    assert data["offset"] >= 0
+    assert len(data["games"]) <= data["limit"]
+    assert data["total"] >= len(data["games"])
+    if data["games"]:
         game = data["games"][0]
         assert "title" in game
         assert "link" in game
@@ -48,7 +59,7 @@ def test_games_history():
 
 @pytest.mark.production
 def test_config():
-    response = httpx.get(f"{API_BASE_URL}/config", headers=HEADERS)
+    response = httpx.get(f"{API_BASE_URL}/config", headers=HEADERS, timeout=10)
     assert response.status_code == 200
     data = response.json()
     assert "epic_games_region" in data
@@ -67,6 +78,7 @@ def test_check():
         f"{API_BASE_URL}/check",
         headers=HEADERS,
         json={"webhook_url": test_webhook_url},
+        timeout=10,
     )
     assert response.status_code == 200
     data = response.json()
