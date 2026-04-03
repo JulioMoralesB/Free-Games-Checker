@@ -295,8 +295,7 @@ docker run -d \
 ├── requirements.txt       # Python dependencies
 ├── alembic.ini            # Alembic migration tool configuration
 ├── Dockerfile            # Multi-stage Docker image (Node.js builder + Python runtime)
-├── docker-compose.yaml   # Docker Compose orchestration
-├── compose.yaml          # Alternative compose config
+├── compose.yaml          # Docker Compose orchestration
 ├── dashboard/             # React/TypeScript web dashboard (Vite)
 │   ├── package.json      # Node.js dependencies
 │   ├── vite.config.ts    # Vite config (base path /dashboard/, dev proxy)
