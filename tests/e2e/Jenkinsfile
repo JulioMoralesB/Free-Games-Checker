@@ -42,7 +42,7 @@ pipeline {
           sh '''
             . .venv/bin/activate
             export API_BASE_URL="$API_BASE_URL"
-            pytest tests/e2e/test_production_smoke.py -v --tb=short --junitxml=junit.xml
+            pytest tests/e2e/test_production_smoke.py -v --tb=short --junitxml=junit.xml -o addopts='' -m production
           '''
         }
       }
