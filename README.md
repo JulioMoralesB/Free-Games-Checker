@@ -154,6 +154,50 @@ The dashboard is a React/TypeScript SPA served by the same FastAPI process at **
 - **Pagination** — server-side pagination using the `/games/history` API; smart ellipsis for large datasets
 - **Responsive layout** — single column on mobile, two columns on tablet, auto-fill grid on desktop
 - **Dark theme** — gaming-themed dark UI with CSS custom properties; no external UI framework
+- **Multi-language (i18n)** — English and Spanish built-in; browser language is auto-detected; user preference is persisted in `localStorage`
+
+### Language Support (i18n)
+
+The dashboard auto-detects the visitor's preferred language from `navigator.languages` and falls back to English if the browser language is not supported. A language selector in the header lets the user manually switch between available languages; the choice is remembered across sessions via `localStorage`.
+
+#### Adding a new language
+
+All translation strings live in one file: **`dashboard/src/i18n/translations.ts`**.
+
+1. **Add your locale code** to the `Locale` union type:
+   ```ts
+   export type Locale = 'en' | 'es' | 'fr'   // ← add 'fr' (French)
+   ```
+2. **Create a translation object** that implements the `Translations` interface:
+   ```ts
+   const fr: Translations = {
+     headerTitle: 'Historique des jeux gratuits',
+     headerSubtitle: 'Toutes les promotions de jeux gratuits suivies',
+     gamesTracked: (count) => `${count} jeux suivis`,
+     // … fill in all remaining keys …
+   }
+   ```
+3. **Register it** in the `translations` map and add its BCP 47 language tag:
+   ```ts
+   export const translations: Record<Locale, Translations> = { en, es, fr }
+
+   export const localeBcp47: Record<Locale, string> = {
+     en: 'en-US',
+     es: 'es-ES',
+     fr: 'fr-FR',
+   }
+   ```
+4. **Add a flag/label** in `dashboard/src/components/LanguageSelector.tsx`:
+   ```ts
+   const LOCALE_LABELS: Record<Locale, string> = {
+     en: '🇺🇸 EN',
+     es: '🇲🇽 ES',
+     fr: '🇫🇷 FR',
+   }
+   ```
+5. Rebuild the dashboard (`npm run build`) — no other changes required.
+
+TypeScript will enforce that all keys of `Translations` are present; the compiler will report missing strings if you leave any out.
 
 ### Building the dashboard locally
 

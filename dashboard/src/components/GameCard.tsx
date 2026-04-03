@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import type { GameItem } from '../types'
+import { useTranslation } from '../i18n'
+import type { Locale } from '../i18n/translations'
+import { localeBcp47 } from '../i18n/translations'
 
 interface Props {
   game: GameItem
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: Locale): string {
   try {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(localeBcp47[locale], {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -21,6 +24,7 @@ function formatDate(iso: string): string {
 }
 
 export default function GameCard({ game }: Props) {
+  const { t, locale } = useTranslation()
   const [imgError, setImgError] = useState(false)
 
   const isPastPromotion = new Date(game.end_date) < new Date()
@@ -58,11 +62,11 @@ export default function GameCard({ game }: Props) {
           <div className="card-date">
             <span className="card-date-icon">📅</span>
             <span>
-              {isPastPromotion ? 'Was free until' : 'Free until'}:{' '}
-              {formatDate(game.end_date)}
+              {isPastPromotion ? t.wasFreeUntil : t.freeUntil}:{' '}
+              {formatDate(game.end_date, locale)}
             </span>
           </div>
-          <span className="card-store">🏪 Epic Games</span>
+          <span className="card-store">{t.epicGamesStore}</span>
         </div>
       </div>
 
@@ -73,7 +77,7 @@ export default function GameCard({ game }: Props) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          View on Epic Games →
+          {t.viewOnEpicGames}
         </a>
       </div>
     </article>

@@ -124,6 +124,48 @@ a:hover {
 }
 
 /* ============================================================
+   Header actions (stats + language selector)
+   ============================================================ */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   Language Selector
+   ============================================================ */
+.lang-selector {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.lang-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.lang-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.lang-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent-light);
+  font-weight: 600;
+}
+
+/* ============================================================
    Main
    ============================================================ */
 .main {

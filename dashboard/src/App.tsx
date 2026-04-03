@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import type { GameItem, GamesHistoryResponse, SortField, SortDirection } from './types'
 import GameCard from './components/GameCard'
 import Pagination from './components/Pagination'
+import LanguageSelector from './components/LanguageSelector'
+import { useTranslation } from './i18n'
 
 const PAGE_SIZE = 12
 
 export default function App() {
+  const { t } = useTranslation()
   const [games, setGames] = useState<GameItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -98,15 +101,18 @@ export default function App() {
           <div className="header-title">
             <span className="header-icon">🎮</span>
             <div>
-              <h1>Free Games History</h1>
-              <p>All previously tracked free game promotions</p>
+              <h1>{t.headerTitle}</h1>
+              <p>{t.headerSubtitle}</p>
             </div>
           </div>
-          {!loading && !error && (
-            <div className="header-stats">
-              <span className="stat-badge">{total} games tracked</span>
-            </div>
-          )}
+          <div className="header-actions">
+            {!loading && !error && (
+              <div className="header-stats">
+                <span className="stat-badge">{t.gamesTracked(total)}</span>
+              </div>
+            )}
+            <LanguageSelector />
+          </div>
         </div>
       </header>
 
@@ -117,32 +123,32 @@ export default function App() {
             <input
               type="text"
               className="search-input"
-              placeholder="Search by title or description…"
+              placeholder={t.searchPlaceholder}
               value={search}
               onChange={e => handleSearch(e.target.value)}
-              aria-label="Search games"
+              aria-label={t.searchAriaLabel}
             />
             {search && (
               <button
                 className="clear-btn"
                 onClick={() => handleSearch('')}
-                aria-label="Clear search"
+                aria-label={t.clearSearchAriaLabel}
               >
                 ✕
               </button>
             )}
           </div>
           <div className="sort-controls">
-            <span className="sort-label">Sort by:</span>
-            <SortButton field="end_date" label="Date" />
-            <SortButton field="title" label="Title" />
+            <span className="sort-label">{t.sortBy}</span>
+            <SortButton field="end_date" label={t.sortByDate} />
+            <SortButton field="title" label={t.sortByTitle} />
           </div>
         </div>
 
         {loading && (
           <div className="state-container">
             <div className="spinner" />
-            <p>Loading games…</p>
+            <p>{t.loadingGames}</p>
           </div>
         )}
 
@@ -151,7 +157,7 @@ export default function App() {
             <span className="state-icon">⚠️</span>
             <p>{error}</p>
             <button className="retry-btn" onClick={fetchGames}>
-              Retry
+              {t.errorRetry}
             </button>
           </div>
         )}
@@ -161,8 +167,8 @@ export default function App() {
             <span className="state-icon">🕹️</span>
             <p>
               {search
-                ? `No games match "${search}"`
-                : 'No games in history yet.'}
+                ? t.noGamesMatch(search)
+                : t.noGamesYet}
             </p>
           </div>
         )}
@@ -186,13 +192,13 @@ export default function App() {
 
       <footer className="footer">
         <p>
-          Free Games Notifier &mdash; Game history dashboard &middot; Data from{' '}
+          {t.footerText}{' '}
           <a
             href="https://www.epicgames.com/store/free-games"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Epic Games
+            {t.footerEpicGamesLink}
           </a>
         </p>
       </footer>
