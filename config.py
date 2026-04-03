@@ -17,6 +17,9 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 # Path to store free games data
 DATA_FILE_PATH = "/mnt/data/free_games.json" # This path can be overridden by mounting a volume in Docker
 
+# Path to store the last sent notification batch (used by the resend endpoint)
+LAST_NOTIFICATION_FILE_PATH = "/mnt/data/last_notification.json"
+
 # URL to Healthcheck Monitor
 HEALTHCHECK_URL = os.getenv("HEALTHCHECK_URL")
 

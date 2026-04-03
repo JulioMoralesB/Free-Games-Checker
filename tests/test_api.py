@@ -151,7 +151,7 @@ class TestGamesHistoryEndpoint:
 
 class TestNotifyDiscordResendEndpoint:
     def test_resends_notification_successfully(self, client, sample_games):
-        with patch("modules.storage.load_previous_games", return_value=sample_games), \
+        with patch("modules.storage.load_last_notification", return_value=sample_games), \
              patch("modules.notifier.send_discord_message") as mock_send:
             resp = client.post("/notify/discord/resend")
         assert resp.status_code == 200
@@ -161,12 +161,12 @@ class TestNotifyDiscordResendEndpoint:
         mock_send.assert_called_once_with(sample_games, webhook_url=None)
 
     def test_returns_404_when_no_games(self, client):
-        with patch("modules.storage.load_previous_games", return_value=[]):
+        with patch("modules.storage.load_last_notification", return_value=[]):
             resp = client.post("/notify/discord/resend")
         assert resp.status_code == 404
 
     def test_returns_500_on_discord_error(self, client, sample_games):
-        with patch("modules.storage.load_previous_games", return_value=sample_games), \
+        with patch("modules.storage.load_last_notification", return_value=sample_games), \
              patch("modules.notifier.send_discord_message", side_effect=Exception("webhook error")):
             resp = client.post("/notify/discord/resend")
         assert resp.status_code == 500
@@ -178,21 +178,21 @@ class TestNotifyDiscordResendEndpoint:
 
     def test_accepts_valid_api_key(self, client, sample_games):
         with patch("api.API_KEY", "valid-key"), \
-             patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.storage.load_last_notification", return_value=sample_games), \
              patch("modules.notifier.send_discord_message"):
             resp = client.post("/notify/discord/resend", headers={"X-API-Key": "valid-key"})
         assert resp.status_code == 200
 
     def test_uses_custom_webhook_url_when_provided(self, client, sample_games):
         custom_url = "https://discord.com/api/webhooks/9999/custom-token"
-        with patch("modules.storage.load_previous_games", return_value=sample_games), \
+        with patch("modules.storage.load_last_notification", return_value=sample_games), \
              patch("modules.notifier.send_discord_message") as mock_send:
             resp = client.post("/notify/discord/resend", json={"webhook_url": custom_url})
         assert resp.status_code == 200
         mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
 
     def test_rejects_invalid_webhook_url(self, client, sample_games):
-        with patch("modules.storage.load_previous_games", return_value=sample_games):
+        with patch("modules.storage.load_last_notification", return_value=sample_games):
             resp = client.post("/notify/discord/resend", json={"webhook_url": "https://evil.com/hook"})
         assert resp.status_code == 422
 
@@ -317,7 +317,7 @@ class TestCheckE2EEndpoint:
 class TestAPIKeyAuth:
     def test_no_auth_required_when_api_key_not_set(self, client, sample_games):
         with patch("api.API_KEY", None), \
-             patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.storage.load_last_notification", return_value=sample_games), \
              patch("modules.notifier.send_discord_message"):
             resp = client.post("/notify/discord/resend")
         assert resp.status_code == 200
@@ -329,7 +329,7 @@ class TestAPIKeyAuth:
 
     def test_valid_key_allows_access(self, client, sample_games):
         with patch("api.API_KEY", "secret-key"), \
-             patch("modules.storage.load_previous_games", return_value=sample_games), \
+             patch("modules.storage.load_last_notification", return_value=sample_games), \
              patch("modules.notifier.send_discord_message"):
             resp = client.post(
                 "/notify/discord/resend",

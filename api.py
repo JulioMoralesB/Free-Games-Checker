@@ -295,14 +295,14 @@ def games_history(
     },
 )
 def notify_discord_resend(body: Optional[WebhookOverrideRequest] = None):
-    """Re-send the latest fetched games to the Discord webhook."""
-    from modules.storage import load_previous_games
+    """Re-send the last Discord notification batch to the Discord webhook."""
+    from modules.storage import load_last_notification
     from modules.notifier import send_discord_message
 
     webhook_url = body.webhook_url if body else None
 
     try:
-        games = load_previous_games()
+        games = load_last_notification()
     except Exception as e:
         logger.error("Failed to load games for resend: %s", e)
         increment_metric("errors")

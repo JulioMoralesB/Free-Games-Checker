@@ -38,7 +38,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short -m "not integration"
+        run: pytest tests/ -v --tb=short -m "not integration and not production"
         env:
           LANG: es_ES.UTF-8
           LC_ALL: es_ES.UTF-8
