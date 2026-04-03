@@ -99,8 +99,8 @@ const es: Translations = {
   noGamesYet: 'Aún no hay juegos en el historial.',
 
   // GameCard
-  wasFreeUntil: 'Estuvo gratis hasta',
-  freeUntil: 'Gratis hasta',
+  wasFreeUntil: 'Estuvo gratis hasta el',
+  freeUntil: 'Gratis hasta el',
   epicGamesStore: '🏪 Epic Games',
   viewOnEpicGames: 'Ver en Epic Games →',
 

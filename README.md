@@ -191,7 +191,7 @@ All translation strings live in one file: **`dashboard/src/i18n/translations.ts`
    ```ts
    const LOCALE_LABELS: Record<Locale, string> = {
      en: '🇺🇸 EN',
-     es: '🇪🇸 ES',
+     es: '🇲🇽 ES',
      fr: '🇫🇷 FR',
    }
    ```
