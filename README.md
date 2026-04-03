@@ -1,6 +1,6 @@
 # Free Games Notifier
 
-A Python-based scheduler that monitors the Epic Games Store for free game promotions and sends Discord notifications. Runs as a Docker container with health check support and optional PostgreSQL integration.
+A Python-based scheduler that monitors the Epic Games Store for free game promotions and sends Discord notifications. Runs as a Docker container with health check support, optional PostgreSQL integration, a REST API, and a built-in web dashboard.
 
 ## Features
 
@@ -8,6 +8,8 @@ A Python-based scheduler that monitors the Epic Games Store for free game promot
 - 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details
 - 📊 **Persistent Storage**: Maintains game history — PostgreSQL when `DB_HOST` is set, JSON file otherwise
 - 🏥 **Health Checks**: Optional UptimeKuma/Healthchecks.io integration for monitoring
+- 🌐 **Web Dashboard**: Browse and search the full history of tracked free games at `/dashboard/`
+- 🔌 **REST API**: Built-in FastAPI endpoints for health, history, metrics, and notification management
 - 🐳 **Docker Ready**: Includes Docker and docker-compose configurations
 - 🌍 **Fully Configurable**: Timezone, locale, region, schedule time, and health check interval are all configurable via environment variables
 
@@ -17,6 +19,7 @@ A Python-based scheduler that monitors the Epic Games Store for free game promot
 - Python 3.9+
 - pip (Python package manager)
 - Virtual environment support (venv)
+- Node.js 20+ and npm (only required to build the dashboard locally)
 
 ### Docker Deployment
 - Docker 20.10+
@@ -108,6 +111,119 @@ When `DB_HOST` is configured the application will:
 If all `DB_*` variables are left unset the service falls back to the JSON file backend with no code or configuration changes required.
 
 ## Database Migrations
+
+When using the PostgreSQL backend, Alembic migrations are applied automatically on startup to keep the database schema up to date.
+## REST API
+
+The service exposes a FastAPI REST API on `API_HOST:API_PORT` (default `0.0.0.0:8000`). The auto-generated interactive docs are available at `/docs`.
+
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/health` | GET | — | Epic Games API and database health check |
+| `/games/latest` | GET | — | Most recently fetched free games |
+| `/games/history` | GET | — | Paginated full game history (`limit`, `offset` query params) |
+| `/notify/discord/resend` | POST | API key | Re-send last Discord notification |
+| `/metrics` | GET | — | Uptime, games processed, notification counts |
+| `/config` | GET | — | Non-secret runtime configuration |
+| `/check` | POST | API key | Full end-to-end pipeline test |
+| `/dashboard/` | GET | — | Web dashboard (served as static files) |
+
+### Authentication
+
+Protected endpoints (`POST`) require an `X-API-Key` header when `API_KEY` is set. Read-only (`GET`) endpoints are always public.
+
+### REST API environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `API_HOST` | `0.0.0.0` | Interface to bind the API server |
+| `API_PORT` | `8000` | Port to listen on |
+| `API_KEY` | _(empty)_ | Secret key for mutating endpoints; leave empty to disable auth |
+
+## Web Dashboard
+
+The dashboard is a React/TypeScript SPA served by the same FastAPI process at **`http://<host>:<API_PORT>/dashboard/`** — no additional container, port, or CORS configuration needed.
+
+![Web Dashboard](https://github.com/user-attachments/assets/1ffef230-45e2-4ef1-9ffb-6a7a9d573d62)
+
+### Features
+
+- **Game cards** — thumbnail with fallback, title, description, promotion end date, store badge, and a direct Epic Games Store link
+- **Search** — live filter by title or description
+- **Sort** — by date (newest/oldest) or title (A-Z / Z-A) with one-click direction toggle
+- **Pagination** — server-side pagination using the `/games/history` API; smart ellipsis for large datasets
+- **Responsive layout** — single column on mobile, two columns on tablet, auto-fill grid on desktop
+- **Dark theme** — gaming-themed dark UI with CSS custom properties; no external UI framework
+- **Multi-language (i18n)** — English and Spanish built-in; browser language is auto-detected; user preference is persisted in `localStorage`
+
+### Language Support (i18n)
+
+The dashboard auto-detects the visitor's preferred language from `navigator.languages` and falls back to English if the browser language is not supported. A language selector in the header lets the user manually switch between available languages; the choice is remembered across sessions via `localStorage`.
+
+#### Adding a new language
+
+All translation strings live in one file: **`dashboard/src/i18n/translations.ts`**.
+
+1. **Add your locale code** to the `Locale` union type:
+   ```ts
+   export type Locale = 'en' | 'es' | 'fr'   // ← add 'fr' (French)
+   ```
+2. **Create a translation object** that implements the `Translations` interface:
+   ```ts
+   const fr: Translations = {
+     headerTitle: 'Historique des jeux gratuits',
+     headerSubtitle: 'Toutes les promotions de jeux gratuits suivies',
+     gamesTracked: (count) => `${count} jeux suivis`,
+     // … fill in all remaining keys …
+   }
+   ```
+3. **Register it** in the `translations` map and add its BCP 47 language tag:
+   ```ts
+   export const translations: Record<Locale, Translations> = { en, es, fr }
+
+   export const localeBcp47: Record<Locale, string> = {
+     en: 'en-US',
+     es: 'es-ES',
+     fr: 'fr-FR',
+   }
+   ```
+4. **Add a flag/label** in `dashboard/src/components/LanguageSelector.tsx`:
+   ```ts
+   const LOCALE_LABELS: Record<Locale, string> = {
+     en: '🇺🇸 EN',
+     es: '🇲🇽 ES',
+     fr: '🇫🇷 FR',
+   }
+   ```
+5. Rebuild the dashboard (`npm run build`) — no other changes required.
+
+TypeScript will enforce that all keys of `Translations` are present; the compiler will report missing strings if you leave any out.
+
+### Building the dashboard locally
+
+The dashboard source lives in `dashboard/`. When deploying via Docker the Dockerfile builds it automatically in a multi-stage build (Node.js builder → Python runtime). To build it manually for local development:
+
+```bash
+cd dashboard
+npm install
+npm run build   # output goes to dashboard/dist/
+```
+
+Then start the Python service normally — FastAPI will detect and serve `dashboard/dist/`.
+
+### Dashboard development (hot-reload)
+
+```bash
+# Terminal 1 — start the Python API
+python main.py
+
+# Terminal 2 — start the Vite dev server (proxies /games → localhost:8000)
+cd dashboard
+npm install
+npm run dev     # http://localhost:5173/dashboard/
+```
+
+
 
 Schema changes are managed by [Alembic](https://alembic.sqlalchemy.org/). Versioned migration scripts live in `alembic/versions/`.
 
@@ -201,6 +317,9 @@ docker run -d \
 | `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM` format, interpreted in the configured `TIMEZONE` |
 | `HEALTHCHECK_INTERVAL` | ❌ No | `1` | Health check ping interval in minutes |
 | `DATE_FORMAT` | ❌ No | `%B %d, %Y at %I:%M %p` | strftime format for the promotion end date in Discord notifications |
+| `API_HOST` | ❌ No | `0.0.0.0` | Interface the REST API and dashboard server binds to |
+| `API_PORT` | ❌ No | `8000` | Port the REST API and dashboard server listens on |
+| `API_KEY` | ❌ No | _(empty)_ | Secret key for mutating API endpoints; leave empty to disable auth |
 
 ## How to Get a Discord Webhook URL
 
@@ -215,12 +334,25 @@ docker run -d \
 ```
 .
 ├── main.py                 # Main scheduler entry point
+├── api.py                 # FastAPI REST API + dashboard static file mount
 ├── config.py              # Configuration and environment variables
 ├── requirements.txt       # Python dependencies
 ├── alembic.ini            # Alembic migration tool configuration
-├── Dockerfile            # Docker image definition
-├── docker-compose.yaml   # Docker Compose orchestration
-├── compose.yaml          # Alternative compose config
+├── Dockerfile            # Multi-stage Docker image (Node.js builder + Python runtime)
+├── compose.yaml          # Docker Compose orchestration
+├── dashboard/             # React/TypeScript web dashboard (Vite)
+│   ├── package.json      # Node.js dependencies
+│   ├── vite.config.ts    # Vite config (base path /dashboard/, dev proxy)
+│   ├── tsconfig.json     # TypeScript configuration
+│   ├── index.html        # HTML entry point
+│   └── src/
+│       ├── main.tsx      # React entry point
+│       ├── App.tsx        # Root component (search, sort, pagination)
+│       ├── index.css      # Global responsive dark-theme styles
+│       ├── types.ts       # TypeScript types (GameItem, API responses)
+│       └── components/
+│           ├── GameCard.tsx    # Individual game card component
+│           └── Pagination.tsx  # Pagination with ellipsis
 ├── alembic/
 │   ├── env.py            # Alembic runtime environment (reads config.py)
 │   ├── script.py.mako    # Migration script template
@@ -347,6 +479,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [x] Dockerfile security and modernization (#14)
 - [x] Database migrations with Alembic (#26)
 - [x] REST API for health, history, metrics, and notification management (#29)
+- [x] Web dashboard for game history (#46)
 - [ ] Support for additional game stores (Steam, GOG, etc.)
-- [ ] Web dashboard for game history (#46)
 - [ ] Production end-to-end test suite (#49)
