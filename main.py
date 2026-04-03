@@ -2,7 +2,7 @@ from datetime import datetime
 
 from modules.notifier import send_discord_message
 from modules.scrapper import fetch_free_games
-from modules.storage import load_previous_games, save_games
+from modules.storage import load_previous_games, save_games, save_last_notification
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
 from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE, API_HOST, API_PORT
@@ -96,6 +96,13 @@ def check_games():
             logging.warning("Discord notification failed unexpectedly, but continuing scheduler.")
             # Don't save games if Discord notification fails
             return
+
+        # Persist the last notification batch so the resend endpoint can replay it
+        try:
+            save_last_notification(new_games)
+        except Exception as e:
+            logging.error(f"Failed to save last notification: {str(e)}")
+            logging.warning("Discord notification was sent but failed to record it for the resend endpoint.")
 
         # Save games to storage after successful Discord notification
         try:
