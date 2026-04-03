@@ -5,3 +5,4 @@ __pycache__/
 free_games.json
 *.log
 /data
+dashboard/node_modules

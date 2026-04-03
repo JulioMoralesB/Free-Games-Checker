@@ -1,5 +1,6 @@
 """REST API for the Free Games Notifier service."""
 
+import os
 import threading
 import time
 import logging
@@ -8,6 +9,7 @@ from typing import List, Optional
 import requests as requests_lib
 from fastapi import FastAPI, HTTPException, Query, Security
 from fastapi.security import APIKeyHeader
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from modules.notifier import validate_discord_webhook_url
@@ -418,3 +420,12 @@ def check_e2e(body: Optional[WebhookOverrideRequest] = None):
         "new_games": [g.get("title", "") for g in new_games],
         "notification_status": notification_status,
     }
+
+
+# ---------------------------------------------------------------------------
+# Dashboard – serve the pre-built React/TypeScript frontend
+# ---------------------------------------------------------------------------
+
+_dashboard_dist = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard", "dist")
+if os.path.isdir(_dashboard_dist):
+    app.mount("/dashboard", StaticFiles(directory=_dashboard_dist, html=True), name="dashboard")
