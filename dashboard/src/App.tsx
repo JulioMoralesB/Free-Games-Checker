@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import type { GameItem, GamesHistoryResponse, SortField, SortDirection } from './types'
 import GameCard from './components/GameCard'
 import Pagination from './components/Pagination'
-import './App.css'
 
 const PAGE_SIZE = 12
 
@@ -171,7 +170,7 @@ export default function App() {
         {!loading && !error && filtered.length > 0 && (
           <div className="grid">
             {filtered.map((game, i) => (
-              <GameCard key={`${game.title}-${i}`} game={game} />
+              <GameCard key={game.link || `${game.title}-${i}`} game={game} />
             ))}
           </div>
         )}

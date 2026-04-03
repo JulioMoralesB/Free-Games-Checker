@@ -52,7 +52,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Props) {
       <button
         className="page-btn"
         onClick={() => onPageChange(page + 1)}
-        disabled={page === totalPages}
+        disabled={page === totalPages || totalPages === 0}
         aria-label="Next page"
       >
         ›
