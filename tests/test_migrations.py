@@ -102,7 +102,7 @@ class TestMainDbBranch:
         with patch("main.DB_HOST", "localhost"), \
              patch("main.FreeGamesDatabase", return_value=mock_db), \
              patch("main._run_db_migrations") as mock_migrate, \
-               patch("main._verify_required_tables") as mock_verify_tables, \
+                         patch("main._verify_required_tables") as mock_verify_tables, \
              patch("main._start_api_server"), \
              patch("main.check_games"), \
              patch("main.healthcheck"), \
@@ -138,3 +138,150 @@ class TestMainDbBranch:
         mock_db_cls.assert_not_called()
         mock_migrate.assert_not_called()
         mock_verify_tables.assert_not_called()
+
+
+class TestCheckGamesDedupe:
+    """Tests for check_games new-game detection behavior."""
+
+    def test_does_not_notify_when_only_non_identity_fields_change(self):
+        """No Discord notification should be sent when only thumbnail/description changes."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "TOMAK: Save the Earth Regeneration",
+                "link": "https://store.epicgames.com/es-MX/p/tomak-save-the-earth-regeneration-c1207c",
+                "description": "old description",
+                "thumbnail": "https://cdn1.epicgames.com/old-image.png",
+                "end_date": "2026-04-16T15:00:00.000Z",
+            }
+        ]
+        current_games = [
+            {
+                "title": "TOMAK: Save the Earth Regeneration",
+                "link": "https://store.epicgames.com/es-MX/p/tomak-save-the-earth-regeneration-c1207c",
+                "description": "new description",
+                "thumbnail": "https://cdn1.epicgames.com/new-image.png",
+                "end_date": "2026-04-16T15:00:00.000Z",
+            }
+        ]
+
+        with patch("main.fetch_free_games", return_value=current_games), \
+             patch("main.load_previous_games", return_value=previous_games), \
+             patch("main.send_discord_message") as mock_send_discord, \
+             patch("main.save_last_notification") as mock_save_last_notification, \
+             patch("main.save_games") as mock_save_games:
+            main.check_games()
+
+        mock_send_discord.assert_not_called()
+        mock_save_last_notification.assert_not_called()
+        mock_save_games.assert_not_called()
+
+    def test_notifies_when_link_is_new(self):
+        """Discord notification should be sent only for games with unseen links."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "Old Game",
+                "link": "https://store.epicgames.com/es-MX/p/old-game",
+                "description": "desc",
+                "thumbnail": "https://example.com/old.png",
+                "end_date": "2026-04-09T15:00:00.000Z",
+            }
+        ]
+        current_games = [
+            {
+                "title": "Old Game",
+                "link": "https://store.epicgames.com/es-MX/p/old-game",
+                "description": "updated desc",
+                "thumbnail": "https://example.com/old-new.png",
+                "end_date": "2026-04-09T15:00:00.000Z",
+            },
+            {
+                "title": "Brand New Game",
+                "link": "https://store.epicgames.com/es-MX/p/brand-new-game",
+                "description": "desc",
+                "thumbnail": "https://example.com/new.png",
+                "end_date": "2026-04-16T15:00:00.000Z",
+            },
+        ]
+
+        with patch("main.fetch_free_games", return_value=current_games), \
+             patch("main.load_previous_games", return_value=previous_games), \
+             patch("main.send_discord_message") as mock_send_discord, \
+             patch("main.save_last_notification") as mock_save_last_notification, \
+             patch("main.save_games") as mock_save_games:
+            main.check_games()
+
+        mock_send_discord.assert_called_once_with([current_games[1]])
+        mock_save_last_notification.assert_called_once_with([current_games[1]])
+        mock_save_games.assert_called_once_with(current_games)
+
+    def test_notifies_again_when_previous_promo_has_expired(self):
+        """A game can be notified again when its prior free period has already ended."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "Recurring Game",
+                "link": "https://store.epicgames.com/es-MX/p/recurring-game",
+                "description": "old",
+                "thumbnail": "https://example.com/old.png",
+                "end_date": "2025-10-01T15:00:00.000Z",
+            }
+        ]
+        current_games = [
+            {
+                "title": "Recurring Game",
+                "link": "https://store.epicgames.com/es-MX/p/recurring-game",
+                "description": "new",
+                "thumbnail": "https://example.com/new.png",
+                "end_date": "2026-10-01T15:00:00.000Z",
+            }
+        ]
+
+        with patch("main.fetch_free_games", return_value=current_games), \
+             patch("main.load_previous_games", return_value=previous_games), \
+             patch("main.send_discord_message") as mock_send_discord, \
+             patch("main.save_last_notification") as mock_save_last_notification, \
+             patch("main.save_games") as mock_save_games:
+            main.check_games()
+
+        mock_send_discord.assert_called_once_with(current_games)
+        mock_save_last_notification.assert_called_once_with(current_games)
+        mock_save_games.assert_called_once_with(current_games)
+
+    def test_does_not_notify_when_previous_promo_is_still_active(self):
+        """No duplicate notification while the previously notified promo is still active."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "Still Free",
+                "link": "https://store.epicgames.com/es-MX/p/still-free",
+                "description": "old",
+                "thumbnail": "https://example.com/old.png",
+                "end_date": "2099-10-01T15:00:00.000Z",
+            }
+        ]
+        current_games = [
+            {
+                "title": "Still Free",
+                "link": "https://store.epicgames.com/es-MX/p/still-free",
+                "description": "new",
+                "thumbnail": "https://example.com/new.png",
+                "end_date": "2099-10-01T15:00:00.000Z",
+            }
+        ]
+
+        with patch("main.fetch_free_games", return_value=current_games), \
+             patch("main.load_previous_games", return_value=previous_games), \
+             patch("main.send_discord_message") as mock_send_discord, \
+             patch("main.save_last_notification") as mock_save_last_notification, \
+             patch("main.save_games") as mock_save_games:
+            main.check_games()
+
+        mock_send_discord.assert_not_called()
+        mock_save_last_notification.assert_not_called()
+        mock_save_games.assert_not_called()

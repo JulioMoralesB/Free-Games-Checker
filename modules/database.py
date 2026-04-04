@@ -100,7 +100,12 @@ class FreeGamesDatabase:
                             """
                             INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date)
                             VALUES (%s, %s, %s, %s, %s, %s)
-                            ON CONFLICT (game_id) DO NOTHING
+                            ON CONFLICT (game_id) DO UPDATE SET
+                                title = EXCLUDED.title,
+                                link = EXCLUDED.link,
+                                description = EXCLUDED.description,
+                                thumbnail = EXCLUDED.thumbnail,
+                                promotion_end_date = EXCLUDED.promotion_end_date
                             """,
                             (
                                 game_id,
