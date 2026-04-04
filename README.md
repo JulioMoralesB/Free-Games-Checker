@@ -251,7 +251,7 @@ alembic current
 alembic history --verbose
 
 # Verify required table exists
-psql "$DATABASE_URL" -c "SELECT to_regclass('free_games.last_notification');"
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT to_regclass('free_games.last_notification');"
 
 # Roll back one revision
 alembic downgrade -1
