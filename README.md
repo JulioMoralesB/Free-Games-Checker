@@ -138,7 +138,7 @@ Protected endpoints (`POST` methods and `GET /config`) require an `X-API-Key` he
 |---|---|---|
 | `API_HOST` | `0.0.0.0` | Interface to bind the API server |
 | `API_PORT` | `8000` | Port to listen on |
-| `API_KEY` | _(empty)_ | Secret key for mutating endpoints; leave empty to disable auth |
+| `API_KEY` | _(empty)_ | Secret key for mutating endpoints and `GET /config`; leave empty to disable auth |
 
 ## Web Dashboard
 
