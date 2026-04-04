@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from modules.notifier import send_discord_message
 from modules.scrapper import fetch_free_games
@@ -61,6 +61,54 @@ console_handler.setFormatter(TimezoneFormatter('%(asctime)s - %(name)s - %(level
 
 logging.basicConfig(level=logging.INFO, handlers=[log_handler, console_handler])
 
+
+def _find_new_games(current_games, previous_games):
+    """Return games that are newly free compared to still-active previous promos."""
+
+    def _is_still_active(previous_game):
+        end_date = previous_game.get("end_date")
+        if not end_date:
+            # Treat unknown end dates as active to avoid duplicate notifications.
+            return True
+
+        normalized = end_date.strip()
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+
+        try:
+            ends_at = datetime.fromisoformat(normalized)
+        except ValueError:
+            # Keep legacy/malformed records from causing false "new" alerts.
+            return True
+
+        if ends_at.tzinfo is None:
+            ends_at = ends_at.replace(tzinfo=timezone.utc)
+
+        return ends_at >= datetime.now(timezone.utc)
+
+    previous_active_links = {
+        game.get("link")
+        for game in previous_games
+        if isinstance(game, dict) and game.get("link") and _is_still_active(game)
+    }
+
+    new_games = []
+    for game in current_games:
+        if not isinstance(game, dict):
+            continue
+
+        link = game.get("link")
+        if link:
+            if link not in previous_active_links:
+                new_games.append(game)
+            continue
+
+        # Fallback for malformed records that do not have a link.
+        if game not in previous_games:
+            new_games.append(game)
+
+    return new_games
+
 def check_games():
     
     """Main execution function that checks for new free games and sends Discord notification."""
@@ -84,7 +132,7 @@ def check_games():
         logging.error(f"Failed to load previous games: {str(e)}")
         return
 
-    new_games = [game for game in current_games if game not in previous_games]
+    new_games = _find_new_games(current_games, previous_games)
 
     if new_games:
         logging.info(f"Found {len(new_games)} new free games! Sending Discord notification...")
@@ -116,18 +164,20 @@ def check_games():
             logging.error(f"Failed to save last notification: {str(e)}")
             logging.warning("Discord notification was sent but failed to record it for the resend endpoint.")
 
-        # Save games to storage after successful Discord notification
-        try:
-            save_games(current_games)
-            logging.info(f"Games saved successfully after Discord notification")
-        except IOError as e:
-            logging.error(f"Failed to save games to storage: {str(e)}")
-            logging.warning("Discord notification was sent but failed to update local cache. This may cause duplicate notifications next run.")
-        except Exception as e:
-            logging.error(f"Unexpected error saving games: {str(e)}")
-            logging.warning("Discord notification was sent but failed to update local cache.")
     else:
         logging.warning("No new free games detected.")
+
+    # Always persist current_games so that the DB upsert keeps end_date values
+    # fresh, preventing stale promos from triggering false re-notifications.
+    try:
+        save_games(current_games)
+        logging.info("Games saved successfully to storage")
+    except IOError as e:
+        logging.error(f"Failed to save games to storage: {str(e)}")
+        logging.warning("Failed to update local cache. This may cause duplicate notifications next run.")
+    except Exception as e:
+        logging.error(f"Unexpected error saving games: {str(e)}")
+        logging.warning("Failed to update local cache.")
 
 def _run_db_migrations():
     """Apply any pending Alembic migrations up to the latest revision."""
