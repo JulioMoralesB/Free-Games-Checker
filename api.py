@@ -186,10 +186,11 @@ _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def _verify_api_key(api_key: str = Security(_api_key_header)):
-    """Validate the API key for mutating endpoints.
+    """Validate the API key for mutating endpoints and sensitive read endpoints.
 
-    When ``API_KEY`` is not set the check is skipped so that local /
-    development deployments work out-of-the-box without auth.
+    Used by both state-changing (POST) endpoints and sensitive GET endpoints
+    such as ``/config``.  When ``API_KEY`` is not set the check is skipped so
+    that local / development deployments work out-of-the-box without auth.
     """
     if not API_KEY:
         return
@@ -336,9 +337,18 @@ def metrics():
     }
 
 
-@app.get("/config", response_model=ConfigResponse)
+@app.get(
+    "/config",
+    response_model=ConfigResponse,
+    # API key verification protects both mutating endpoints and sensitive
+    # read endpoints such as `/config`.
+    dependencies=[Security(_verify_api_key)],
+    responses={
+        401: {"model": ErrorResponse, "description": "Invalid or missing API key"},
+    },
+)
 def config_endpoint():
-    """Expose non-secret runtime configuration."""
+    """Expose non-secret runtime configuration for this sensitive read endpoint protected by the API key."""
     return {
         "epic_games_api_url": EPIC_GAMES_API_URL,
         "epic_games_region": EPIC_GAMES_REGION,
