@@ -9,7 +9,7 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool, text
+from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Make the project root importable so we can use config.py
@@ -87,8 +87,6 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        # All migrations operate within the free_games schema.
-        connection.execute(text("SET search_path TO free_games, public"))
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

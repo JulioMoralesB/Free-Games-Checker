@@ -234,6 +234,7 @@ Schema changes are managed by [Alembic](https://alembic.sqlalchemy.org/). Versio
 | `0001`   | Initial schema — creates the `free_games` schema and `games` table |
 | `0002`   | Widens `games.game_id` from `VARCHAR(255)` to `TEXT` |
 | `0003`   | Converts `games.promotion_end_date` from `TIMESTAMP` to `TEXT` (ISO-8601 UTC) |
+| `0004`   | Adds `last_notification` table for Discord resend support |
 
 ### Running migrations
 
@@ -248,6 +249,9 @@ alembic current
 
 # Show migration history
 alembic history --verbose
+
+# Verify required table exists
+psql "$DATABASE_URL" -c "SELECT to_regclass('free_games.last_notification');"
 
 # Roll back one revision
 alembic downgrade -1

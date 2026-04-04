@@ -58,6 +58,39 @@ class TestRunDbMigrations:
                 main._run_db_migrations()
 
 
+class TestVerifyRequiredTables:
+    """Tests for main._verify_required_tables()."""
+
+    def test_succeeds_when_last_notification_exists(self):
+        """Verification should pass when the required table exists."""
+        main = _import_main()
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = ("free_games.last_notification",)
+
+        mock_conn = MagicMock()
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        with patch("main.psycopg2.connect", return_value=mock_conn):
+            main._verify_required_tables()
+
+    def test_raises_when_last_notification_is_missing(self):
+        """Verification should fail fast when last_notification table is absent."""
+        main = _import_main()
+
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = (None,)
+
+        mock_conn = MagicMock()
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        with patch("main.psycopg2.connect", return_value=mock_conn):
+            with pytest.raises(RuntimeError, match="last_notification"):
+                main._verify_required_tables()
+
+
 class TestMainDbBranch:
     """Tests for the DB-enabled branch of main()."""
 
@@ -69,6 +102,7 @@ class TestMainDbBranch:
         with patch("main.DB_HOST", "localhost"), \
              patch("main.FreeGamesDatabase", return_value=mock_db), \
              patch("main._run_db_migrations") as mock_migrate, \
+               patch("main._verify_required_tables") as mock_verify_tables, \
              patch("main._start_api_server"), \
              patch("main.check_games"), \
              patch("main.healthcheck"), \
@@ -81,6 +115,7 @@ class TestMainDbBranch:
 
         mock_db.init_db.assert_called_once()
         mock_migrate.assert_called_once()
+        mock_verify_tables.assert_called_once()
 
     def test_does_not_run_migrations_when_db_host_is_not_set(self):
         """main() should skip DB init and migrations when DB_HOST is not set."""
@@ -88,6 +123,7 @@ class TestMainDbBranch:
 
         with patch("main.DB_HOST", None), \
              patch("main._run_db_migrations") as mock_migrate, \
+             patch("main._verify_required_tables") as mock_verify_tables, \
              patch("main.FreeGamesDatabase") as mock_db_cls, \
              patch("main._start_api_server"), \
              patch("main.check_games"), \
@@ -101,3 +137,4 @@ class TestMainDbBranch:
 
         mock_db_cls.assert_not_called()
         mock_migrate.assert_not_called()
+        mock_verify_tables.assert_not_called()

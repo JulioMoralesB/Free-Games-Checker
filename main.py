@@ -5,13 +5,25 @@ from modules.scrapper import fetch_free_games
 from modules.storage import load_previous_games, save_games, save_last_notification
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
-from config import DB_HOST, SCHEDULE_TIME, HEALTHCHECK_INTERVAL, TIMEZONE, API_HOST, API_PORT
+from config import (
+    DB_HOST,
+    DB_PORT,
+    DB_NAME,
+    DB_USER,
+    DB_PASSWORD,
+    SCHEDULE_TIME,
+    HEALTHCHECK_INTERVAL,
+    TIMEZONE,
+    API_HOST,
+    API_PORT,
+)
 
 import os
 import schedule
 import time
 import threading
 import requests
+import psycopg2
 
 from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
@@ -129,6 +141,30 @@ def _run_db_migrations():
     logging.info("Database migrations applied successfully.")
 
 
+def _verify_required_tables():
+    """Fail fast when required DB tables are missing after migrations."""
+    logging.info("Verifying required database tables...")
+
+    conn_params = {
+        "host": DB_HOST,
+        "port": DB_PORT,
+        "dbname": DB_NAME,
+        "user": DB_USER,
+        "password": DB_PASSWORD,
+    }
+
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT to_regclass('free_games.last_notification')")
+            if cursor.fetchone()[0] is None:
+                raise RuntimeError(
+                    "Required table free_games.last_notification is missing after migrations. "
+                    "Run 'alembic upgrade head' and verify DB permissions."
+                )
+
+    logging.info("Required database tables verified successfully.")
+
+
 def _start_api_server():
     """Start the FastAPI server in a background daemon thread."""
     import uvicorn
@@ -144,6 +180,7 @@ def main():
         db = FreeGamesDatabase()
         db.init_db()
         _run_db_migrations()
+        _verify_required_tables()
     else:
         logging.info("No database configuration detected. Using JSON file storage.")
 
