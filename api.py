@@ -336,7 +336,14 @@ def metrics():
     }
 
 
-@app.get("/config", response_model=ConfigResponse)
+@app.get(
+    "/config",
+    response_model=ConfigResponse,
+    dependencies=[Security(_verify_api_key)],
+    responses={
+        401: {"model": ErrorResponse, "description": "Invalid or missing API key"},
+    },
+)
 def config_endpoint():
     """Expose non-secret runtime configuration."""
     return {

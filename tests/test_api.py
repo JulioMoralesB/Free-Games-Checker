@@ -223,7 +223,8 @@ class TestMetricsEndpoint:
 
 class TestConfigEndpoint:
     def test_returns_config(self, client):
-        resp = client.get("/config")
+        with patch("api.API_KEY", None):
+            resp = client.get("/config")
         assert resp.status_code == 200
         data = resp.json()
         assert "epic_games_api_url" in data
@@ -231,7 +232,8 @@ class TestConfigEndpoint:
         assert "schedule_time" in data
 
     def test_does_not_expose_secrets(self, client):
-        resp = client.get("/config")
+        with patch("api.API_KEY", None):
+            resp = client.get("/config")
         data = resp.json()
         data_str = str(data)
         assert "DB_PASSWORD" not in data_str
@@ -241,6 +243,21 @@ class TestConfigEndpoint:
         assert "password" not in data
         assert "webhook" not in data
         assert "api_key" not in data
+
+    def test_requires_api_key_when_set(self, client):
+        with patch("api.API_KEY", "secret-key"):
+            resp = client.get("/config")
+        assert resp.status_code == 401
+
+    def test_accepts_valid_api_key(self, client):
+        with patch("api.API_KEY", "secret-key"):
+            resp = client.get("/config", headers={"X-API-Key": "secret-key"})
+        assert resp.status_code == 200
+
+    def test_rejects_invalid_api_key(self, client):
+        with patch("api.API_KEY", "secret-key"):
+            resp = client.get("/config", headers={"X-API-Key": "wrong-key"})
+        assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -339,11 +356,10 @@ class TestAPIKeyAuth:
 
     def test_read_endpoints_do_not_require_auth(self, client):
         with patch("api.API_KEY", "secret-key"):
-            # GET endpoints should work without API key
+            # GET endpoints without auth protection should work without API key
             with patch("modules.storage.load_previous_games", return_value=[]):
                 assert client.get("/games/latest").status_code == 200
             assert client.get("/metrics").status_code == 200
-            assert client.get("/config").status_code == 200
 
 
 # ---------------------------------------------------------------------------
