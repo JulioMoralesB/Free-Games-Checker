@@ -124,13 +124,13 @@ The service exposes a FastAPI REST API on `API_HOST:API_PORT` (default `0.0.0.0:
 | `/games/history` | GET | — | Paginated full game history (`limit`, `offset` query params) |
 | `/notify/discord/resend` | POST | API key | Re-send last Discord notification |
 | `/metrics` | GET | — | Uptime, games processed, notification counts |
-| `/config` | GET | — | Non-secret runtime configuration |
+| `/config` | GET | API key | Non-secret runtime configuration |
 | `/check` | POST | API key | Full end-to-end pipeline test |
 | `/dashboard/` | GET | — | Web dashboard (served as static files) |
 
 ### Authentication
 
-Protected endpoints (`POST`) require an `X-API-Key` header when `API_KEY` is set. Read-only (`GET`) endpoints are always public.
+Protected endpoints (`POST` methods and `GET /config`) require an `X-API-Key` header when `API_KEY` is set. Other read-only (`GET`) endpoints are always public.
 
 ### REST API environment variables
 
@@ -138,7 +138,7 @@ Protected endpoints (`POST`) require an `X-API-Key` header when `API_KEY` is set
 |---|---|---|
 | `API_HOST` | `0.0.0.0` | Interface to bind the API server |
 | `API_PORT` | `8000` | Port to listen on |
-| `API_KEY` | _(empty)_ | Secret key for mutating endpoints; leave empty to disable auth |
+| `API_KEY` | _(empty)_ | Secret key for mutating endpoints and `GET /config`; leave empty to disable auth |
 
 ## Web Dashboard
 

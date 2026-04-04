@@ -32,8 +32,11 @@ def get_json(path):
     """Fetch an API endpoint by running a Python one-liner inside the container."""
     port = int(os.getenv("API_PORT", 8000))
     script = (
-        "import urllib.request, json, sys; "
-        f"res = urllib.request.urlopen('http://localhost:{port}{path}'); "
+        "import urllib.request, json, os; "
+        f"req = urllib.request.Request('http://localhost:{port}{path}'); "
+        "api_key = os.getenv('API_KEY', ''); "
+        "api_key and req.add_header('X-API-Key', api_key); "
+        "res = urllib.request.urlopen(req); "
         "print(json.dumps(json.loads(res.read())))"
     )
     try:
