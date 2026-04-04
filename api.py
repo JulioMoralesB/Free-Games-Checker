@@ -339,13 +339,15 @@ def metrics():
 @app.get(
     "/config",
     response_model=ConfigResponse,
+    # API key verification protects both mutating endpoints and sensitive
+    # read endpoints such as `/config`.
     dependencies=[Security(_verify_api_key)],
     responses={
         401: {"model": ErrorResponse, "description": "Invalid or missing API key"},
     },
 )
 def config_endpoint():
-    """Expose non-secret runtime configuration."""
+    """Expose non-secret runtime configuration for this sensitive read endpoint protected by the API key."""
     return {
         "epic_games_api_url": EPIC_GAMES_API_URL,
         "epic_games_region": EPIC_GAMES_REGION,
