@@ -80,7 +80,7 @@ class FreeGamesDatabase:
             raise
 
     def save_games(self, games):
-        """Save games to the database, ignoring duplicates based on game_id (link)."""
+        """Save games to the database, upserting records on conflict by game_id (link)."""
         if not games:
             logger.warning("Attempted to save empty games list to database")
             return

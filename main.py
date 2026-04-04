@@ -164,18 +164,20 @@ def check_games():
             logging.error(f"Failed to save last notification: {str(e)}")
             logging.warning("Discord notification was sent but failed to record it for the resend endpoint.")
 
-        # Save games to storage after successful Discord notification
-        try:
-            save_games(current_games)
-            logging.info(f"Games saved successfully after Discord notification")
-        except IOError as e:
-            logging.error(f"Failed to save games to storage: {str(e)}")
-            logging.warning("Discord notification was sent but failed to update local cache. This may cause duplicate notifications next run.")
-        except Exception as e:
-            logging.error(f"Unexpected error saving games: {str(e)}")
-            logging.warning("Discord notification was sent but failed to update local cache.")
     else:
         logging.warning("No new free games detected.")
+
+    # Always persist current_games so that the DB upsert keeps end_date values
+    # fresh, preventing stale promos from triggering false re-notifications.
+    try:
+        save_games(current_games)
+        logging.info("Games saved successfully to storage")
+    except IOError as e:
+        logging.error(f"Failed to save games to storage: {str(e)}")
+        logging.warning("Failed to update local cache. This may cause duplicate notifications next run.")
+    except Exception as e:
+        logging.error(f"Unexpected error saving games: {str(e)}")
+        logging.warning("Failed to update local cache.")
 
 def _run_db_migrations():
     """Apply any pending Alembic migrations up to the latest revision."""

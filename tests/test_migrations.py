@@ -175,7 +175,7 @@ class TestCheckGamesDedupe:
 
         mock_send_discord.assert_not_called()
         mock_save_last_notification.assert_not_called()
-        mock_save_games.assert_not_called()
+        mock_save_games.assert_called_once_with(current_games)
 
     def test_notifies_when_link_is_new(self):
         """Discord notification should be sent only for games with unseen links."""
@@ -284,4 +284,127 @@ class TestCheckGamesDedupe:
 
         mock_send_discord.assert_not_called()
         mock_save_last_notification.assert_not_called()
-        mock_save_games.assert_not_called()
+        mock_save_games.assert_called_once_with(current_games)
+
+
+class TestFindNewGamesEdgeCases:
+    """Tests for _find_new_games / _is_still_active edge cases."""
+
+    def test_missing_end_date_treated_as_active(self):
+        """A previous game with no end_date should be treated as still active (no re-notify)."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "description": "desc",
+                "thumbnail": "https://example.com/img.png",
+                # end_date intentionally absent
+            }
+        ]
+        current_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "description": "updated desc",
+                "thumbnail": "https://example.com/img.png",
+            }
+        ]
+
+        result = main._find_new_games(current_games, previous_games)
+
+        assert result == [], "Missing end_date should be treated as active; no new games expected"
+
+    def test_none_end_date_treated_as_active(self):
+        """A previous game with end_date=None should be treated as still active."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": None,
+            }
+        ]
+        current_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": None,
+            }
+        ]
+
+        result = main._find_new_games(current_games, previous_games)
+
+        assert result == [], "end_date=None should be treated as active; no new games expected"
+
+    def test_malformed_end_date_treated_as_active(self):
+        """A previous game with a malformed end_date (non-ISO string) should be treated as still active."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": "not-a-valid-date",
+            }
+        ]
+        current_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": "2099-01-01T00:00:00.000Z",
+            }
+        ]
+
+        result = main._find_new_games(current_games, previous_games)
+
+        assert result == [], "Malformed end_date should be treated as active; no new games expected"
+
+    def test_naive_datetime_without_tzinfo_treated_as_future(self):
+        """A previous game with a naive ISO datetime (no timezone) should be assigned UTC and handled correctly."""
+        main = _import_main()
+
+        # A naive far-future date that should be treated as active.
+        previous_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": "2099-01-01T00:00:00",  # no timezone suffix
+            }
+        ]
+        current_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": "2099-01-01T00:00:00",
+            }
+        ]
+
+        result = main._find_new_games(current_games, previous_games)
+
+        assert result == [], "Naive far-future end_date should be treated as active after UTC assignment"
+
+    def test_naive_datetime_in_past_treated_as_expired(self):
+        """A previous game with a naive ISO datetime in the past should be treated as expired."""
+        main = _import_main()
+
+        previous_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": "2000-01-01T00:00:00",  # naive past date
+            }
+        ]
+        current_games = [
+            {
+                "title": "Free Game",
+                "link": "https://store.epicgames.com/es-MX/p/free-game",
+                "end_date": "2099-01-01T00:00:00",
+            }
+        ]
+
+        result = main._find_new_games(current_games, previous_games)
+
+        assert result == current_games, "Naive past end_date should be treated as expired; game should appear as new"
