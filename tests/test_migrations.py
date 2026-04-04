@@ -102,7 +102,7 @@ class TestMainDbBranch:
         with patch("main.DB_HOST", "localhost"), \
              patch("main.FreeGamesDatabase", return_value=mock_db), \
              patch("main._run_db_migrations") as mock_migrate, \
-                         patch("main._verify_required_tables") as mock_verify_tables, \
+             patch("main._verify_required_tables") as mock_verify_tables, \
              patch("main._start_api_server"), \
              patch("main.check_games"), \
              patch("main.healthcheck"), \
