@@ -473,5 +473,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [x] Database migrations with Alembic (#26)
 - [x] REST API for health, history, metrics, and notification management (#29)
 - [x] Web dashboard for game history (#46)
-- [ ] Support for additional game stores (Steam, GOG, etc.)
-- [ ] Production end-to-end test suite (#49)
+- [x] Production end-to-end test suite (#49)
+- [ ] Add support for multiple notification channels (Discord, Slack, Telegram, etc.) (#55)
+- [ ] UI/UX Enchancements (#71)
+- [ ] Support for additional game stores (Steam, GOG, etc.) [#56]
+
