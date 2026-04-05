@@ -80,7 +80,8 @@ SCHEDULE_TIME=12:00
 python main.py
 ```
 
-The service checks for new free games daily at `SCHEDULE_TIME` and logs activity to `data/logs/notifier.log`.
+The service checks for new free games daily at `SCHEDULE_TIME` and logs activity to `/mnt/logs/notifier.log`.
+In Docker deployments, this log path is typically backed by a bind-mounted host directory so logs persist outside the container.
 
 ## Storage Backends
 
