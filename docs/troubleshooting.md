@@ -18,9 +18,9 @@
 - **Check**: `psql -h $DB_HOST -U $DB_USER -d $DB_NAME`
 
 ### 4. No logs appearing
-- **Problem**: `data/logs/` directory doesn't exist
-- **Solution**: `mkdir -p data/logs`
-- **Docker**: Mount volume: `-v $(pwd)/data/logs:/mnt/logs`
+- **Problem**: `data/logs/notifier.log` doesn't exist
+- **Solution**: `mkdir -p data/logs && touch data/logs/notifier.log`
+- **Docker**: Mount volume: `-v $(pwd)/data/logs/notifier.log:/mnt/logs/notifier.log`
 
 ### 5. Games not detected
 - **Problem**: Service runs but no notifications are sent
