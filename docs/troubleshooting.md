@@ -27,7 +27,7 @@
 - **Solution**:
   - Check if the Epic Games API is responding (may be rate limited)
   - Verify the Discord webhook is still valid (webhooks can expire)
-  - Check logs: `grep ERROR data/logs/notifier.log`
+  - Check logs: `grep ERROR /mnt/logs/notifier.log`
 
 ### 6. Health check pings failing
 - **Problem**: Healthchecks.io shows "Down"
