@@ -89,8 +89,9 @@ The notifier automatically selects a storage backend based on the `DB_HOST` envi
 | `DB_HOST` set? | Backend used | Data location |
 |---|---|---|
 | ✅ Yes | PostgreSQL (`free_games` schema) | Remote database |
-| ❌ No (default) | JSON file | `data/free_games.json` |
+| ❌ No (default) | JSON file | `/mnt/data/free_games.json` |
 
+> The application stores JSON-backed data under `/mnt/data/free_games.json`. In Docker deployments, `/mnt/data` is typically the container path you bind-mount to a host directory or volume for persistence.
 When `DB_HOST` is configured the application creates the schema and applies any pending Alembic migrations automatically on startup. `link` is used as the deduplication key (`ON CONFLICT DO NOTHING`).
 
 ## Database Migrations
