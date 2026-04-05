@@ -443,16 +443,6 @@ docker restart free-games-notifier
 docker-compose down
 ```
 
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Open an issue to discuss major changes
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -m 'Add feature description'`
-4. Push to branch: `git push origin feature/your-feature`
-5. Open a pull request
-
 ## Testing
 
 Run the test suite with:
@@ -472,7 +462,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 - 📖 [Documentation](README.md)
 - 🐛 [Report Issues](https://github.com/JulioMoralesB/Free-Games-Notifier/issues)
-- 💬 [Discussions](https://github.com/JulioMoralesB/Free-Games-Notifier/discussions)
 
 ## Roadmap
 
