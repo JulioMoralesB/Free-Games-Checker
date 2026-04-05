@@ -2,8 +2,8 @@
 
 ## Common Issues
 
-### 1. "Discord webhook URL not set!"
-- **Problem**: Notifications fail silently
+### 1. `ValueError: Discord webhook URL not configured in environment variables`
+- **Problem**: Notification sending fails and the error is raised/logged by the scheduler
 - **Solution**: Verify `DISCORD_WEBHOOK_URL` is set in `.env` and the webhook is valid
 - **Check**: `grep DISCORD_WEBHOOK_URL .env`
 
