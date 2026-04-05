@@ -1,0 +1,50 @@
+# Troubleshooting
+
+## Common Issues
+
+### 1. "Discord webhook URL not set!"
+- **Problem**: Notifications fail silently
+- **Solution**: Verify `DISCORD_WEBHOOK_URL` is set in `.env` and the webhook is valid
+- **Check**: `grep DISCORD_WEBHOOK_URL .env`
+
+### 2. AttributeError on missing environment variables
+- **Problem**: Service crashes during startup
+- **Solution**: Ensure `DISCORD_WEBHOOK_URL` is defined at minimum
+- **Check**: `printenv | grep DISCORD`
+
+### 3. Database connection errors
+- **Problem**: `psycopg2.OperationalError: could not connect to server`
+- **Solution**: Verify PostgreSQL credentials in `.env` or leave `DB_HOST` unset to use file storage
+- **Check**: `psql -h $DB_HOST -U $DB_USER -d $DB_NAME`
+
+### 4. No logs appearing
+- **Problem**: `data/logs/` directory doesn't exist
+- **Solution**: `mkdir -p data/logs`
+- **Docker**: Mount volume: `-v $(pwd)/data/logs:/mnt/logs`
+
+### 5. Games not detected
+- **Problem**: Service runs but no notifications are sent
+- **Solution**:
+  - Check if the Epic Games API is responding (may be rate limited)
+  - Verify the Discord webhook is still valid (webhooks can expire)
+  - Check logs: `grep ERROR data/logs/notifier.log`
+
+### 6. Health check pings failing
+- **Problem**: Healthchecks.io shows "Down"
+- **Solution**:
+  - Verify `HEALTHCHECK_URL` is correct
+  - Confirm `ENABLE_HEALTHCHECK=true` is set
+  - Ensure the container has internet access
+
+## Docker
+
+```bash
+# View logs
+docker logs free-games-notifier
+
+# Restart service
+docker restart free-games-notifier
+
+# Stop and remove
+docker-compose down
+```
