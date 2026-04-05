@@ -226,10 +226,10 @@ Tests cover both the file-backend and PostgreSQL-backend paths. File-backend tes
 
 See [docs/troubleshooting.md](docs/troubleshooting.md) for common issues and solutions.
 
-Logs are written to `data/logs/notifier.log` and rotated weekly:
+Logs are written to `/mnt/logs/notifier.log` and rotated weekly:
 
 ```bash
-tail -f data/logs/notifier.log
+tail -f /mnt/logs/notifier.log
 ```
 
 ## License
