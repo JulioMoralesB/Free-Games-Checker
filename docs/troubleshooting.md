@@ -29,10 +29,11 @@
   - Verify the Discord webhook is still valid (webhooks can expire)
   - Check logs: `grep ERROR /mnt/logs/notifier.log`
 
-### 6. Health check pings failing
-- **Problem**: Healthchecks.io shows "Down"
+### 6. Health check monitor failing
+- **Problem**: Your configured health monitor reports the service as unhealthy
 - **Solution**:
-  - Verify `HEALTHCHECK_URL` is correct
+  - Verify `HEALTHCHECK_URL` points to a health endpoint that returns JSON
+  - Confirm the response includes an `ok` field (for example: `{"ok": true}`)
   - Confirm `ENABLE_HEALTHCHECK=true` is set
   - Ensure the container has internet access
 
