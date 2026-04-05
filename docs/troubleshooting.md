@@ -7,8 +7,8 @@
 - **Solution**: Verify `DISCORD_WEBHOOK_URL` is set in `.env` and the webhook is valid
 - **Check**: `grep DISCORD_WEBHOOK_URL .env`
 
-### 2. AttributeError on missing environment variables
-- **Problem**: Service crashes during startup
+### 2. ValueError when `DISCORD_WEBHOOK_URL` is missing
+- **Problem**: Logs show a `ValueError` and notifications do not start because the Discord webhook URL is not configured
 - **Solution**: Ensure `DISCORD_WEBHOOK_URL` is defined at minimum
 - **Check**: `printenv | grep DISCORD`
 
