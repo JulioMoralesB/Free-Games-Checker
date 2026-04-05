@@ -50,20 +50,13 @@ pip install -r requirements.txt
 
 ### 4. Configure Environment Variables
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (see [Environment Variables Reference](#environment-variables-reference) for all options):
 
 ```env
-# Required: Discord webhook for notifications
+# Required
 DISCORD_WEBHOOK_URL=https://discordapp.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_TOKEN
 
-# Optional: Epic Games API (defaults to official store API)
-EPIC_GAMES_API_URL=https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions
-
-# Optional: Health Check Monitoring
-HEALTHCHECK_URL=https://healthchecks.io/ping/YOUR_UUID
-ENABLE_HEALTHCHECK=false
-
-# Optional: PostgreSQL Database (file-based JSON by default)
+# Optional: PostgreSQL (file-based JSON by default)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=free_games
@@ -77,8 +70,9 @@ EPIC_GAMES_REGION=en-US
 
 # Optional: Scheduler
 SCHEDULE_TIME=12:00
-HEALTHCHECK_INTERVAL=1
 ```
+
+> To get your Discord webhook URL, go to **Server Settings → Integrations → Webhooks** and create a new webhook for the desired channel.
 
 ### 5. Run the Scheduler
 
@@ -86,10 +80,8 @@ HEALTHCHECK_INTERVAL=1
 python main.py
 ```
 
-The service will:
-- Check for new free games daily at the configured `SCHEDULE_TIME` (default: 12:00 in the configured `TIMEZONE`)
-- Send health check pings every `HEALTHCHECK_INTERVAL` minutes (if enabled)
-- Log activity to `data/logs/notifier.log`
+The service checks for new free games daily at `SCHEDULE_TIME` and logs activity to `/mnt/logs/notifier.log`.
+In Docker deployments, this log path is typically backed by a bind-mounted host directory so logs persist outside the container.
 
 ## Storage Backends
 
@@ -98,24 +90,27 @@ The notifier automatically selects a storage backend based on the `DB_HOST` envi
 | `DB_HOST` set? | Backend used | Data location |
 |---|---|---|
 | ✅ Yes | PostgreSQL (`free_games` schema) | Remote database |
-| ❌ No (default) | JSON file | `data/free_games.json` |
+| ❌ No (default) | JSON file | `/mnt/data/free_games.json` |
 
-### PostgreSQL backend
-
-When `DB_HOST` is configured the application will:
-
-1. Create the `free_games` schema and the `games` table on first startup (idempotent)
-2. Apply any pending Alembic migrations automatically on startup (see [Database Migrations](#database-migrations) below)
-3. Use `link` as the stable deduplication key (`ON CONFLICT DO NOTHING`)
-
-If all `DB_*` variables are left unset the service falls back to the JSON file backend with no code or configuration changes required.
+> The application stores JSON-backed data under `/mnt/data/free_games.json`. In Docker deployments, `/mnt/data` is typically the container path you bind-mount to a host directory or volume for persistence.
+When `DB_HOST` is configured the application creates the schema and applies any pending Alembic migrations automatically on startup. The database derives `game_id` from the game `link` and uses `ON CONFLICT (game_id) DO UPDATE` to upsert existing rows, refreshing fields such as `promotion_end_date`.
 
 ## Database Migrations
 
-When using the PostgreSQL backend, Alembic migrations are applied automatically on startup to keep the database schema up to date.
+Schema changes are managed by [Alembic](https://alembic.sqlalchemy.org/) and applied **automatically on startup**. Migration scripts live in `alembic/versions/`.
+
+| Revision | Description |
+|----------|-------------|
+| `0001`   | Initial schema — creates the `free_games` schema and `games` table |
+| `0002`   | Widens `games.game_id` from `VARCHAR(255)` to `TEXT` |
+| `0003`   | Converts `games.promotion_end_date` from `TIMESTAMP` to `TEXT` (ISO-8601 UTC) |
+| `0004`   | Adds `last_notification` table for Discord resend support |
+
+For manual migration commands and instructions for creating new migrations, see [docs/database-migrations.md](docs/database-migrations.md).
+
 ## REST API
 
-The service exposes a FastAPI REST API on `API_HOST:API_PORT` (default `0.0.0.0:8000`). The auto-generated interactive docs are available at `/docs`.
+The service exposes a FastAPI REST API on `API_HOST:API_PORT` (default `0.0.0.0:8000`). Interactive docs are available at `/docs`.
 
 | Endpoint | Method | Auth | Description |
 |---|---|---|---|
@@ -128,11 +123,7 @@ The service exposes a FastAPI REST API on `API_HOST:API_PORT` (default `0.0.0.0:
 | `/check` | POST | API key | Full end-to-end pipeline test |
 | `/dashboard/` | GET | — | Web dashboard (served as static files) |
 
-### Authentication
-
-Protected endpoints (`POST` methods and `GET /config`) require an `X-API-Key` header when `API_KEY` is set. Other read-only (`GET`) endpoints are always public.
-
-### REST API environment variables
+Protected endpoints (`POST` methods and `GET /config`) require an `X-API-Key` header when `API_KEY` is set.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -142,147 +133,26 @@ Protected endpoints (`POST` methods and `GET /config`) require an `X-API-Key` he
 
 ## Web Dashboard
 
-The dashboard is a React/TypeScript SPA served by the same FastAPI process at **`http://<host>:<API_PORT>/dashboard/`** — no additional container, port, or CORS configuration needed.
+The dashboard is a React/TypeScript SPA served at **`http://<host>:<API_PORT>/dashboard/`** — no additional container or CORS configuration needed.
 
 ![Web Dashboard](https://github.com/user-attachments/assets/1ffef230-45e2-4ef1-9ffb-6a7a9d573d62)
 
-### Features
+- Game cards with thumbnail, title, description, promotion end date, and Epic Games Store link
+- Live search by title or description
+- Sort by date or title
+- Server-side pagination with smart ellipsis
+- Responsive dark theme, no external UI framework
+- English and Spanish built-in; browser language auto-detected; preference persisted in `localStorage`
 
-- **Game cards** — thumbnail with fallback, title, description, promotion end date, store badge, and a direct Epic Games Store link
-- **Search** — live filter by title or description
-- **Sort** — by date (newest/oldest) or title (A-Z / Z-A) with one-click direction toggle
-- **Pagination** — server-side pagination using the `/games/history` API; smart ellipsis for large datasets
-- **Responsive layout** — single column on mobile, two columns on tablet, auto-fill grid on desktop
-- **Dark theme** — gaming-themed dark UI with CSS custom properties; no external UI framework
-- **Multi-language (i18n)** — English and Spanish built-in; browser language is auto-detected; user preference is persisted in `localStorage`
-
-### Language Support (i18n)
-
-The dashboard auto-detects the visitor's preferred language from `navigator.languages` and falls back to English if the browser language is not supported. A language selector in the header lets the user manually switch between available languages; the choice is remembered across sessions via `localStorage`.
-
-#### Adding a new language
-
-All translation strings live in one file: **`dashboard/src/i18n/translations.ts`**.
-
-1. **Add your locale code** to the `Locale` union type:
-   ```ts
-   export type Locale = 'en' | 'es' | 'fr'   // ← add 'fr' (French)
-   ```
-2. **Create a translation object** that implements the `Translations` interface:
-   ```ts
-   const fr: Translations = {
-     headerTitle: 'Historique des jeux gratuits',
-     headerSubtitle: 'Toutes les promotions de jeux gratuits suivies',
-     gamesTracked: (count) => `${count} jeux suivis`,
-     // … fill in all remaining keys …
-   }
-   ```
-3. **Register it** in the `translations` map and add its BCP 47 language tag:
-   ```ts
-   export const translations: Record<Locale, Translations> = { en, es, fr }
-
-   export const localeBcp47: Record<Locale, string> = {
-     en: 'en-US',
-     es: 'es-ES',
-     fr: 'fr-FR',
-   }
-   ```
-4. **Add a flag/label** in `dashboard/src/components/LanguageSelector.tsx`:
-   ```ts
-   const LOCALE_LABELS: Record<Locale, string> = {
-     en: '🇺🇸 EN',
-     es: '🇲🇽 ES',
-     fr: '🇫🇷 FR',
-   }
-   ```
-5. Rebuild the dashboard (`npm run build`) — no other changes required.
-
-TypeScript will enforce that all keys of `Translations` are present; the compiler will report missing strings if you leave any out.
-
-### Building the dashboard locally
-
-The dashboard source lives in `dashboard/`. When deploying via Docker the Dockerfile builds it automatically in a multi-stage build (Node.js builder → Python runtime). To build it manually for local development:
-
-```bash
-cd dashboard
-npm install
-npm run build   # output goes to dashboard/dist/
-```
-
-Then start the Python service normally — FastAPI will detect and serve `dashboard/dist/`.
-
-### Dashboard development (hot-reload)
-
-```bash
-# Terminal 1 — start the Python API
-python main.py
-
-# Terminal 2 — start the Vite dev server (proxies /games → localhost:8000)
-cd dashboard
-npm install
-npm run dev     # http://localhost:5173/dashboard/
-```
-
-
-
-Schema changes are managed by [Alembic](https://alembic.sqlalchemy.org/). Versioned migration scripts live in `alembic/versions/`.
-
-### Current migrations
-
-| Revision | Description |
-|----------|-------------|
-| `0001`   | Initial schema — creates the `free_games` schema and `games` table |
-| `0002`   | Widens `games.game_id` from `VARCHAR(255)` to `TEXT` |
-| `0003`   | Converts `games.promotion_end_date` from `TIMESTAMP` to `TEXT` (ISO-8601 UTC) |
-| `0004`   | Adds `last_notification` table for Discord resend support |
-
-### Running migrations
-
-Ensure your DB environment variables are set (see [Configure Environment Variables](#4-configure-environment-variables)), then run:
-
-```bash
-# Apply all pending migrations (safe to run on first-time or existing deployments)
-alembic upgrade head
-
-# Show current revision
-alembic current
-
-# Show migration history
-alembic history --verbose
-
-# Verify required table exists
-PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT to_regclass('free_games.last_notification');"
-
-# Roll back one revision
-alembic downgrade -1
-```
-
-On **Docker / docker-compose** deployments the application applies migrations automatically at startup via `alembic upgrade head`. You can also run them manually inside the container:
-
-```bash
-docker exec free-games-notifier alembic upgrade head
-```
-
-> **Note for existing deployments:** The migration scripts use conditional SQL so they are safe to run against databases created by the old `init_db()` logic — columns that are already the correct type are left unchanged.
-
-### Creating a new migration
-
-```bash
-alembic revision -m "describe your change here"
-# Edit the generated file in alembic/versions/ to add upgrade()/downgrade() logic
-```
+For development setup, hot-reload, and adding new languages, see [docs/dashboard.md](docs/dashboard.md).
 
 ## Docker Deployment
 
-### Quick Start with Docker Compose
+### Quick Start
 
 ```bash
 docker-compose up -d
 ```
-
-This will start:
-- **free-games-notifier** service (runs scheduler)
-- **PostgreSQL** database (optional, configure in compose.yaml)
 
 ### Using Only Docker
 
@@ -291,14 +161,8 @@ docker build -t free-games-notifier .
 docker run -d \
   --name free-games-notifier \
   -e DISCORD_WEBHOOK_URL="YOUR_WEBHOOK_URL" \
-  -e ENABLE_HEALTHCHECK=false \
   -e TIMEZONE=UTC \
-  -e LOCALE=en_US.UTF-8 \
-  -e EPIC_GAMES_REGION=en-US \
   -e SCHEDULE_TIME=12:00 \
-  -e HEALTHCHECK_INTERVAL=1 \
-  -v /mnt/data:/mnt/data \
-  -v /mnt/logs:/mnt/logs \
   free-games-notifier
 ```
 
@@ -315,154 +179,58 @@ docker run -d \
 | `DB_NAME` | ❌ No | - | PostgreSQL database name |
 | `DB_USER` | ❌ No | - | PostgreSQL username |
 | `DB_PASSWORD` | ❌ No | - | PostgreSQL password |
-| `TIMEZONE` | ❌ No | `UTC` | IANA timezone name for date display and schedule interpretation (e.g. `America/New_York`, `Europe/London`) |
-| `LOCALE` | ❌ No | `en_US.UTF-8` | Locale for date formatting (e.g. `es_ES.UTF-8`, `de_DE.UTF-8`). Must be available in the system. |
-| `EPIC_GAMES_REGION` | ❌ No | `en-US` | Region code used in Epic Games Store links (e.g. `es-MX`, `de-DE`) |
-| `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM` format, interpreted in the configured `TIMEZONE` |
+| `TIMEZONE` | ❌ No | `UTC` | IANA timezone name (e.g. `America/New_York`, `Europe/London`) |
+| `LOCALE` | ❌ No | `en_US.UTF-8` | Locale for date formatting (e.g. `es_ES.UTF-8`, `de_DE.UTF-8`) |
+| `EPIC_GAMES_REGION` | ❌ No | `en-US` | Region code for Epic Games Store links (e.g. `es-MX`, `de-DE`) |
+| `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM`, interpreted in `TIMEZONE` |
 | `HEALTHCHECK_INTERVAL` | ❌ No | `1` | Health check ping interval in minutes |
 | `DATE_FORMAT` | ❌ No | `%B %d, %Y at %I:%M %p` | strftime format for the promotion end date in Discord notifications |
 | `API_HOST` | ❌ No | `0.0.0.0` | Interface the REST API and dashboard server binds to |
 | `API_PORT` | ❌ No | `8000` | Port the REST API and dashboard server listens on |
 | `API_KEY` | ❌ No | _(empty)_ | Secret key for mutating API endpoints; leave empty to disable auth |
 
-## How to Get a Discord Webhook URL
-
-1. Go to your Discord server → Server Settings → Channels & Roles
-2. Select the channel where notifications should appear
-3. Click "Edit Channel" → Integrations → Webhooks
-4. Click "Create Webhook"
-5. Copy the webhook URL and add to `.env`
-
 ## Project Structure
 
 ```
 .
 ├── main.py                 # Main scheduler entry point
-├── api.py                 # FastAPI REST API + dashboard static file mount
-├── config.py              # Configuration and environment variables
-├── requirements.txt       # Python dependencies
-├── alembic.ini            # Alembic migration tool configuration
-├── Dockerfile            # Multi-stage Docker image (Node.js builder + Python runtime)
-├── compose.yaml          # Docker Compose orchestration
-├── dashboard/             # React/TypeScript web dashboard (Vite)
-│   ├── package.json      # Node.js dependencies
-│   ├── vite.config.ts    # Vite config (base path /dashboard/, dev proxy)
-│   ├── tsconfig.json     # TypeScript configuration
-│   ├── index.html        # HTML entry point
-│   └── src/
-│       ├── main.tsx      # React entry point
-│       ├── App.tsx        # Root component (search, sort, pagination)
-│       ├── index.css      # Global responsive dark-theme styles
-│       ├── types.ts       # TypeScript types (GameItem, API responses)
-│       └── components/
-│           ├── GameCard.tsx    # Individual game card component
-│           └── Pagination.tsx  # Pagination with ellipsis
-├── alembic/
-│   ├── env.py            # Alembic runtime environment (reads config.py)
-│   ├── script.py.mako    # Migration script template
-│   └── versions/         # Versioned migration scripts
-│       ├── 0001_initial_schema.py
-│       ├── 0002_widen_game_id.py
-│       └── 0003_promotion_end_date_to_text.py
+├── api.py                  # FastAPI REST API + dashboard static file mount
+├── config.py               # Configuration and environment variables
+├── requirements.txt        # Python dependencies
+├── alembic.ini             # Alembic migration tool configuration
+├── Dockerfile              # Multi-stage Docker image (Node.js builder + Python runtime)
+├── compose.yaml            # Docker Compose orchestration
+├── dashboard/              # React/TypeScript web dashboard (Vite)
+├── alembic/versions/       # Versioned migration scripts
 ├── modules/
-│   ├── scrapper.py      # Epic Games API fetch logic
-│   ├── notifier.py      # Discord webhook sender
-│   ├── storage.py       # Storage dispatcher (PostgreSQL or JSON file)
-│   ├── database.py      # PostgreSQL database operations
-│   └── healthcheck.py   # Health check monitoring
-├── data/
-│   ├── free_games.json  # Local game history (file-based storage only)
-│   └── logs/            # Application logs
-└── README.md            # This file
+│   ├── scrapper.py         # Epic Games API fetch logic
+│   ├── notifier.py         # Discord webhook sender
+│   ├── storage.py          # Storage dispatcher (PostgreSQL or JSON file)
+│   ├── database.py         # PostgreSQL database operations
+│   └── healthcheck.py      # Health check monitoring
+└── data/
+    ├── free_games.json     # Local game history (file-based storage only)
+    └── logs/               # Application logs
 ```
-
-## Logging
-
-Logs are written to `data/logs/notifier.log` and rotated weekly. The log format includes:
-- Timestamp
-- Module name
-- Log level (INFO, WARNING, ERROR, DEBUG)
-- Message
-
-View logs:
-```bash
-tail -f data/logs/notifier.log
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. "Discord webhook URL not set!"
-- **Problem**: Notifications fail silently
-- **Solution**: Verify `DISCORD_WEBHOOK_URL` is set in `.env` and the webhook is valid
-- **Check**: Run `grep DISCORD_WEBHOOK_URL .env` to confirm it's loaded
-
-#### 2. AttributeError on missing environment variables
-- **Problem**: Service crashes during startup
-- **Solution**: Ensure all required variables are defined (at minimum: `DISCORD_WEBHOOK_URL`)
-- **Check**: Run `printenv | grep DISCORD` to verify
-
-#### 3. Database connection errors
-- **Problem**: "psycopg2.OperationalError: could not connect to server"
-- **Solution**: Verify PostgreSQL credentials in `.env` or disable database (`DB_HOST` commented out)
-- **Check**: Test connection: `psql -h DB_HOST -U DB_USER -d DB_NAME`
-
-#### 4. No logs appearing
-- **Problem**: `data/logs/` directory doesn't exist
-- **Solution**: Create logs directory: `mkdir -p data/logs`
-- **Docker**: Mount volume: `-v $(pwd)/data/logs:/mnt/logs`
-
-#### 5. Games not detected
-- **Problem**: Service runs but no notifications sent
-- **Solution**: 
-  - Check if Epic Games API is responding (may be rate limited)
-  - Verify Discord webhook is still valid (webhooks expire)
-  - Check logs for parsing errors: `grep ERROR data/logs/notifier.log`
-
-#### 6. Health check pings failing
-- **Problem**: Healthchecks.io shows "Down"
-- **Solution**: 
-  - Verify `HEALTHCHECK_URL` is correct
-  - Check if `ENABLE_HEALTHCHECK=true` is set
-  - Ensure container has internet access
-
-## Docker Troubleshooting
-
-```bash
-# View running container logs
-docker logs free-games-notifier
-
-# Execute command in container
-docker exec free-games- cat /mnt/data/free_games.json
-
-# Restart service
-docker restart free-games-notifier
-
-# Stop and remove
-docker-compose down
-```
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Open an issue to discuss major changes
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -m 'Add feature description'`
-4. Push to branch: `git push origin feature/your-feature`
-5. Open a pull request
 
 ## Testing
-
-Run the test suite with:
 
 ```bash
 pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-The tests cover both the file-backend and PostgreSQL-backend paths in `storage.py`. File-backend tests explicitly set `DB_HOST=None` so they remain hermetic even when a database is available in the environment.
+Tests cover both the file-backend and PostgreSQL-backend paths. File-backend tests explicitly set `DB_HOST=None` to remain hermetic.
+
+## Troubleshooting
+
+See [docs/troubleshooting.md](docs/troubleshooting.md) for common issues and solutions.
+
+Logs are written to `/mnt/logs/notifier.log` and rotated weekly:
+
+```bash
+tail -f /mnt/logs/notifier.log
+```
 
 ## License
 
@@ -470,9 +238,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Support
 
-- 📖 [Documentation](README.md)
 - 🐛 [Report Issues](https://github.com/JulioMoralesB/Free-Games-Notifier/issues)
-- 💬 [Discussions](https://github.com/JulioMoralesB/Free-Games-Notifier/discussions)
 
 ## Roadmap
 
@@ -484,5 +250,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [x] Database migrations with Alembic (#26)
 - [x] REST API for health, history, metrics, and notification management (#29)
 - [x] Web dashboard for game history (#46)
-- [ ] Support for additional game stores (Steam, GOG, etc.)
-- [ ] Production end-to-end test suite (#49)
+- [x] Production end-to-end test suite (#49)
+- [ ] Add support for multiple notification channels (Discord, Slack, Telegram, etc.) (#55)
+- [ ] UI/UX Enhancements (#71)
+- [ ] Support for additional game stores (Steam, GOG, etc.) (#56)
+
