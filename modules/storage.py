@@ -3,6 +3,7 @@ import os
 import logging
 
 from config import DATA_FILE_PATH, DB_HOST, LAST_NOTIFICATION_FILE_PATH
+from modules.models import FreeGame
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +142,7 @@ def _load_from_file():
     Load the last known free games from file.
 
     Returns:
-        list: Previously saved games, or empty list if file doesn't exist or is corrupted.
+        list: Previously saved games as FreeGame objects, or empty list if file doesn't exist or is corrupted.
     """
     if not os.path.exists(DATA_FILE_PATH):
         logger.debug(f"Data file does not exist yet: {DATA_FILE_PATH}")
@@ -151,7 +152,7 @@ def _load_from_file():
         with open(DATA_FILE_PATH, "r") as file:
             data = json.load(file)
 
-            # Validate that the loaded data is a list of game dictionaries
+            # Validate that the loaded data is a list
             if not isinstance(data, list):
                 logger.error(
                     f"Unexpected JSON structure in data file: expected list, got {type(data).__name__} | "
@@ -168,8 +169,9 @@ def _load_from_file():
                 logger.warning("Returning empty list due to invalid game entries to prevent incorrect processing.")
                 return []
 
-            logger.debug(f"Successfully loaded {len(data)} previous games from {DATA_FILE_PATH}")
-            return data
+            games = [FreeGame.from_dict(game) for game in data]
+            logger.debug(f"Successfully loaded {len(games)} previous games from {DATA_FILE_PATH}")
+            return games
     except FileNotFoundError:
         logger.error(f"Data file not found when attempting to read: {DATA_FILE_PATH}")
         return []
@@ -190,7 +192,7 @@ def _save_to_file(games):
     Save the current free games list to file.
 
     Args:
-        games: List of game dictionaries to save.
+        games: List of FreeGame objects to save.
 
     Raises:
         IOError: If file write fails due to I/O issues.
@@ -207,8 +209,9 @@ def _save_to_file(games):
             os.makedirs(directory, exist_ok=True)
             logger.debug(f"Created directory: {directory}")
 
+        serializable = [g.to_dict() for g in games]
         with open(DATA_FILE_PATH, "w") as file:
-            json.dump(games, file, indent=4)
+            json.dump(serializable, file, indent=4)
             logger.info(f"Successfully saved {len(games)} games to {DATA_FILE_PATH}")
 
     except PermissionError as e:
@@ -233,8 +236,9 @@ def _save_last_notification_to_file(games):
         directory = os.path.dirname(LAST_NOTIFICATION_FILE_PATH)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
+        serializable = [g.to_dict() for g in games]
         with open(LAST_NOTIFICATION_FILE_PATH, "w") as f:
-            json.dump(games, f, indent=4)
+            json.dump(serializable, f, indent=4)
         logger.info(f"Saved {len(games)} games to last notification file.")
     except TypeError as e:
         logger.error(
@@ -270,8 +274,9 @@ def _load_last_notification_from_file():
         if not all(isinstance(game, dict) for game in data):
             logger.error("Unexpected item types in last notification file: expected list of dicts")
             return []
-        logger.debug(f"Loaded {len(data)} games from last notification file.")
-        return data
+        games = [FreeGame.from_dict(game) for game in data]
+        logger.debug(f"Loaded {len(games)} games from last notification file.")
+        return games
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error in last notification file: {e}")
         return []

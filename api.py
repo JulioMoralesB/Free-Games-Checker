@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from modules.notifier import validate_discord_webhook_url
+from modules.models import FreeGame
 from config import (
     API_KEY,
     DB_HOST,
@@ -147,6 +148,26 @@ class WebhookOverrideRequest(BaseModel):
         return v_stripped
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Serialization helpers
+# ---------------------------------------------------------------------------
+
+
+def _to_game_item_dict(game) -> dict:
+    """Convert a FreeGame object (or legacy dict) to a GameItem-compatible dict."""
+    if isinstance(game, FreeGame):
+        return {
+            "title": game.title,
+            "link": game.url,
+            "end_date": game.end_date,
+            "description": game.description,
+            "thumbnail": game.image_url,
+        }
+    # Legacy dict format – pass through as-is for backward compatibility.
+    return game
+
+
 # ---------------------------------------------------------------------------
 # Metrics state (module-level, shared across requests)
 # ---------------------------------------------------------------------------
@@ -252,7 +273,7 @@ def games_latest():
 
     try:
         games = load_previous_games()
-        return {"games": games, "count": len(games)}
+        return {"games": [_to_game_item_dict(g) for g in games], "count": len(games)}
     except Exception as e:
         logger.error("Failed to load latest games: %s", e)
         increment_metric("errors")
@@ -280,7 +301,7 @@ def games_history(
         all_games = load_previous_games()
         total = len(all_games)
         page = all_games[offset : offset + limit]
-        return {"games": page, "total": total, "limit": limit, "offset": offset}
+        return {"games": [_to_game_item_dict(g) for g in page], "total": total, "limit": limit, "offset": offset}
     except Exception as e:
         logger.error("Failed to load game history: %s", e)
         increment_metric("errors")
@@ -423,11 +444,14 @@ def check_e2e(body: Optional[WebhookOverrideRequest] = None):
         increment_metric("discord_notification_errors")
         increment_metric("errors")
 
+    def _get_title(game) -> str:
+        return game.title if isinstance(game, FreeGame) else game.get("title", "")
+
     return {
         "games_fetched": len(current_games),
-        "games": current_games,
-        "already_in_storage": [g.get("title", "") for g in already_saved],
-        "new_games": [g.get("title", "") for g in new_games],
+        "games": [_to_game_item_dict(g) for g in current_games],
+        "already_in_storage": [_get_title(g) for g in already_saved],
+        "new_games": [_get_title(g) for g in new_games],
         "notification_status": notification_status,
     }
 

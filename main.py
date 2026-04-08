@@ -66,7 +66,7 @@ def _find_new_games(current_games, previous_games):
     """Return games that are newly free compared to still-active previous promos."""
 
     def _is_still_active(previous_game):
-        end_date = previous_game.get("end_date")
+        end_date = previous_game.end_date
         if not end_date:
             # Treat unknown end dates as active to avoid duplicate notifications.
             return True
@@ -86,24 +86,21 @@ def _find_new_games(current_games, previous_games):
 
         return ends_at >= datetime.now(timezone.utc)
 
-    previous_active_links = {
-        game.get("link")
+    previous_active_urls = {
+        game.url
         for game in previous_games
-        if isinstance(game, dict) and game.get("link") and _is_still_active(game)
+        if game.url and _is_still_active(game)
     }
 
     new_games = []
     for game in current_games:
-        if not isinstance(game, dict):
-            continue
-
-        link = game.get("link")
-        if link:
-            if link not in previous_active_links:
+        url = game.url
+        if url:
+            if url not in previous_active_urls:
                 new_games.append(game)
             continue
 
-        # Fallback for malformed records that do not have a link.
+        # Fallback for malformed records that do not have a url.
         if game not in previous_games:
             new_games.append(game)
 

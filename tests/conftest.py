@@ -1,21 +1,26 @@
 import pytest
 
+from modules.models import FreeGame
+
 
 @pytest.fixture
 def sample_game():
-    """A sample free game dictionary as returned by the scrapper."""
-    return {
-        "title": "Test Free Game",
-        "link": "https://store.epicgames.com/es-MX/p/test-free-game",
-        "end_date": "2024-01-31T15:00:00.000Z",
-        "description": "A test game description",
-        "thumbnail": "https://example.com/thumbnail.jpg",
-    }
+    """A sample FreeGame as returned by the scrapper."""
+    return FreeGame(
+        title="Test Free Game",
+        store="epic",
+        url="https://store.epicgames.com/es-MX/p/test-free-game",
+        image_url="https://example.com/thumbnail.jpg",
+        original_price=None,
+        end_date="2024-01-31T15:00:00.000Z",
+        is_permanent=False,
+        description="A test game description",
+    )
 
 
 @pytest.fixture
 def sample_games(sample_game):
-    """A list containing one sample free game."""
+    """A list containing one sample FreeGame."""
     return [sample_game]
 
 

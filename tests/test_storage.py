@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from modules import storage
+from modules.models import FreeGame
 
 
 # ---------------------------------------------------------------------------
@@ -21,7 +22,7 @@ class TestLoadPreviousGames:
     def test_loads_valid_json_file(self, tmp_path, sample_games):
         path = str(tmp_path / "games.json")
         with open(path, "w") as f:
-            json.dump(sample_games, f)
+            json.dump([g.to_dict() for g in sample_games], f)
         with patch("modules.storage.DB_HOST", None), \
              patch("modules.storage.DATA_FILE_PATH", path):
             result = storage.load_previous_games()
@@ -66,15 +67,15 @@ class TestLoadPreviousGames:
     def test_loaded_games_preserve_all_fields(self, tmp_path, sample_game):
         path = str(tmp_path / "games.json")
         with open(path, "w") as f:
-            json.dump([sample_game], f)
+            json.dump([sample_game.to_dict()], f)
         with patch("modules.storage.DB_HOST", None), \
              patch("modules.storage.DATA_FILE_PATH", path):
             result = storage.load_previous_games()
-        assert result[0]["title"] == sample_game["title"]
-        assert result[0]["link"] == sample_game["link"]
-        assert result[0]["end_date"] == sample_game["end_date"]
-        assert result[0]["description"] == sample_game["description"]
-        assert result[0]["thumbnail"] == sample_game["thumbnail"]
+        assert result[0].title == sample_game.title
+        assert result[0].url == sample_game.url
+        assert result[0].end_date == sample_game.end_date
+        assert result[0].description == sample_game.description
+        assert result[0].image_url == sample_game.image_url
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +90,7 @@ class TestSaveGames:
             storage.save_games(sample_games)
         with open(path, "r") as f:
             saved = json.load(f)
-        assert saved == sample_games
+        assert saved == [g.to_dict() for g in sample_games]
 
     def test_does_not_write_when_games_is_empty(self, tmp_path):
         path = str(tmp_path / "games.json")
@@ -115,12 +116,21 @@ class TestSaveGames:
                 storage.save_games(sample_games)
 
     def test_raises_type_error_on_unserializable_data(self, tmp_path):
+        from unittest.mock import patch as _patch
+        from modules.models import FreeGame
         path = str(tmp_path / "games.json")
-        games = [{"title": object()}]  # object() is not JSON-serialisable
-        with patch("modules.storage.DB_HOST", None), \
-             patch("modules.storage.DATA_FILE_PATH", path):
-            with pytest.raises(TypeError):
-                storage.save_games(games)
+        game = FreeGame(
+            title="Test", store="epic", url="https://example.com", image_url="",
+            original_price=None, end_date="", is_permanent=False, description="",
+        )
+        # Simulate to_dict returning an object() which is not JSON-serialisable
+        unserializable = {"title": object()}
+        with _patch.object(game, "to_dict", return_value=unserializable):
+            games = [game]
+            with patch("modules.storage.DB_HOST", None), \
+                 patch("modules.storage.DATA_FILE_PATH", path):
+                with pytest.raises(TypeError):
+                    storage.save_games(games)
 
     def test_saved_file_is_valid_json(self, tmp_path, sample_games):
         path = str(tmp_path / "games.json")
@@ -166,7 +176,7 @@ class TestDatabaseBackedLoadPreviousGames:
     def test_uses_file_backend_when_db_host_not_set(self, tmp_path, sample_games):
         path = str(tmp_path / "games.json")
         with open(path, "w") as f:
-            json.dump(sample_games, f)
+            json.dump([g.to_dict() for g in sample_games], f)
         with patch("modules.storage.DB_HOST", None), \
              patch("modules.storage.DATA_FILE_PATH", path):
             result = storage.load_previous_games()
@@ -203,7 +213,7 @@ class TestDatabaseBackedSaveGames:
             storage.save_games(sample_games)
         with open(path, "r") as f:
             saved = json.load(f)
-        assert saved == sample_games
+        assert saved == [g.to_dict() for g in sample_games]
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +228,7 @@ class TestSaveLastNotification:
             storage.save_last_notification(sample_games)
         with open(path, "r") as f:
             saved = json.load(f)
-        assert saved == sample_games
+        assert saved == [g.to_dict() for g in sample_games]
 
     def test_does_not_write_when_games_is_empty(self, tmp_path):
         path = str(tmp_path / "last_notification.json")
@@ -279,7 +289,7 @@ class TestLoadLastNotification:
     def test_loads_valid_json_file(self, tmp_path, sample_games):
         path = str(tmp_path / "last_notification.json")
         with open(path, "w") as f:
-            json.dump(sample_games, f)
+            json.dump([g.to_dict() for g in sample_games], f)
         with patch("modules.storage.DB_HOST", None), \
              patch("modules.storage.LAST_NOTIFICATION_FILE_PATH", path):
             result = storage.load_last_notification()
@@ -374,7 +384,7 @@ class TestFreeGamesDatabaseGetLastNotification:
 
     def test_returns_games_for_valid_list(self, sample_games):
         db = self._make_db()
-        mock_conn = self._mock_conn((json.dumps(sample_games),))
+        mock_conn = self._mock_conn((json.dumps([g.to_dict() for g in sample_games]),))
         with patch("modules.database.psycopg2.connect", return_value=mock_conn):
             result = db.get_last_notification()
         assert result == sample_games
