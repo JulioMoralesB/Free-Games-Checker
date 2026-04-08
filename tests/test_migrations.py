@@ -4,6 +4,8 @@ import sys
 import pytest
 from unittest.mock import patch, MagicMock
 
+from modules.models import FreeGame
+
 
 def _import_main():
     """Import (or reimport) main with the log-file handler mocked out.
@@ -140,6 +142,20 @@ class TestMainDbBranch:
         mock_verify_tables.assert_not_called()
 
 
+def _make_game(title, link, description="desc", thumbnail="https://example.com/img.png", end_date="2026-04-16T15:00:00.000Z"):
+    """Helper to create a FreeGame for testing."""
+    return FreeGame(
+        title=title,
+        store="epic",
+        url=link,
+        image_url=thumbnail,
+        original_price=None,
+        end_date=end_date,
+        is_permanent=False,
+        description=description,
+    )
+
+
 class TestCheckGamesDedupe:
     """Tests for check_games new-game detection behavior."""
 
@@ -148,22 +164,22 @@ class TestCheckGamesDedupe:
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "TOMAK: Save the Earth Regeneration",
-                "link": "https://store.epicgames.com/es-MX/p/tomak-save-the-earth-regeneration-c1207c",
-                "description": "old description",
-                "thumbnail": "https://cdn1.epicgames.com/old-image.png",
-                "end_date": "2026-04-16T15:00:00.000Z",
-            }
+            _make_game(
+                "TOMAK: Save the Earth Regeneration",
+                "https://store.epicgames.com/es-MX/p/tomak-save-the-earth-regeneration-c1207c",
+                description="old description",
+                thumbnail="https://cdn1.epicgames.com/old-image.png",
+                end_date="2026-04-16T15:00:00.000Z",
+            )
         ]
         current_games = [
-            {
-                "title": "TOMAK: Save the Earth Regeneration",
-                "link": "https://store.epicgames.com/es-MX/p/tomak-save-the-earth-regeneration-c1207c",
-                "description": "new description",
-                "thumbnail": "https://cdn1.epicgames.com/new-image.png",
-                "end_date": "2026-04-16T15:00:00.000Z",
-            }
+            _make_game(
+                "TOMAK: Save the Earth Regeneration",
+                "https://store.epicgames.com/es-MX/p/tomak-save-the-earth-regeneration-c1207c",
+                description="new description",
+                thumbnail="https://cdn1.epicgames.com/new-image.png",
+                end_date="2026-04-16T15:00:00.000Z",
+            )
         ]
 
         with patch("main.fetch_free_games", return_value=current_games), \
@@ -182,29 +198,24 @@ class TestCheckGamesDedupe:
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "Old Game",
-                "link": "https://store.epicgames.com/es-MX/p/old-game",
-                "description": "desc",
-                "thumbnail": "https://example.com/old.png",
-                "end_date": "2026-04-09T15:00:00.000Z",
-            }
+            _make_game(
+                "Old Game",
+                "https://store.epicgames.com/es-MX/p/old-game",
+                end_date="2026-04-09T15:00:00.000Z",
+            )
         ]
         current_games = [
-            {
-                "title": "Old Game",
-                "link": "https://store.epicgames.com/es-MX/p/old-game",
-                "description": "updated desc",
-                "thumbnail": "https://example.com/old-new.png",
-                "end_date": "2026-04-09T15:00:00.000Z",
-            },
-            {
-                "title": "Brand New Game",
-                "link": "https://store.epicgames.com/es-MX/p/brand-new-game",
-                "description": "desc",
-                "thumbnail": "https://example.com/new.png",
-                "end_date": "2026-04-16T15:00:00.000Z",
-            },
+            _make_game(
+                "Old Game",
+                "https://store.epicgames.com/es-MX/p/old-game",
+                description="updated desc",
+                end_date="2026-04-09T15:00:00.000Z",
+            ),
+            _make_game(
+                "Brand New Game",
+                "https://store.epicgames.com/es-MX/p/brand-new-game",
+                end_date="2026-04-16T15:00:00.000Z",
+            ),
         ]
 
         with patch("main.fetch_free_games", return_value=current_games), \
@@ -223,22 +234,18 @@ class TestCheckGamesDedupe:
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "Recurring Game",
-                "link": "https://store.epicgames.com/es-MX/p/recurring-game",
-                "description": "old",
-                "thumbnail": "https://example.com/old.png",
-                "end_date": "2025-10-01T15:00:00.000Z",
-            }
+            _make_game(
+                "Recurring Game",
+                "https://store.epicgames.com/es-MX/p/recurring-game",
+                end_date="2025-10-01T15:00:00.000Z",
+            )
         ]
         current_games = [
-            {
-                "title": "Recurring Game",
-                "link": "https://store.epicgames.com/es-MX/p/recurring-game",
-                "description": "new",
-                "thumbnail": "https://example.com/new.png",
-                "end_date": "2026-10-01T15:00:00.000Z",
-            }
+            _make_game(
+                "Recurring Game",
+                "https://store.epicgames.com/es-MX/p/recurring-game",
+                end_date="2026-10-01T15:00:00.000Z",
+            )
         ]
 
         with patch("main.fetch_free_games", return_value=current_games), \
@@ -257,22 +264,18 @@ class TestCheckGamesDedupe:
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "Still Free",
-                "link": "https://store.epicgames.com/es-MX/p/still-free",
-                "description": "old",
-                "thumbnail": "https://example.com/old.png",
-                "end_date": "2099-10-01T15:00:00.000Z",
-            }
+            _make_game(
+                "Still Free",
+                "https://store.epicgames.com/es-MX/p/still-free",
+                end_date="2099-10-01T15:00:00.000Z",
+            )
         ]
         current_games = [
-            {
-                "title": "Still Free",
-                "link": "https://store.epicgames.com/es-MX/p/still-free",
-                "description": "new",
-                "thumbnail": "https://example.com/new.png",
-                "end_date": "2099-10-01T15:00:00.000Z",
-            }
+            _make_game(
+                "Still Free",
+                "https://store.epicgames.com/es-MX/p/still-free",
+                end_date="2099-10-01T15:00:00.000Z",
+            )
         ]
 
         with patch("main.fetch_free_games", return_value=current_games), \
@@ -295,21 +298,18 @@ class TestFindNewGamesEdgeCases:
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "description": "desc",
-                "thumbnail": "https://example.com/img.png",
-                # end_date intentionally absent
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="",
+            )
         ]
         current_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "description": "updated desc",
-                "thumbnail": "https://example.com/img.png",
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="",
+            )
         ]
 
         result = main._find_new_games(current_games, previous_games)
@@ -317,45 +317,45 @@ class TestFindNewGamesEdgeCases:
         assert result == [], "Missing end_date should be treated as active; no new games expected"
 
     def test_none_end_date_treated_as_active(self):
-        """A previous game with end_date=None should be treated as still active."""
+        """A previous game with end_date='' (empty) should be treated as still active."""
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": None,
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="",
+            )
         ]
         current_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": None,
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="",
+            )
         ]
 
         result = main._find_new_games(current_games, previous_games)
 
-        assert result == [], "end_date=None should be treated as active; no new games expected"
+        assert result == [], "empty end_date should be treated as active; no new games expected"
 
     def test_malformed_end_date_treated_as_active(self):
         """A previous game with a malformed end_date (non-ISO string) should be treated as still active."""
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": "not-a-valid-date",
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="not-a-valid-date",
+            )
         ]
         current_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": "2099-01-01T00:00:00.000Z",
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="2099-01-01T00:00:00.000Z",
+            )
         ]
 
         result = main._find_new_games(current_games, previous_games)
@@ -368,18 +368,18 @@ class TestFindNewGamesEdgeCases:
 
         # A naive far-future date that should be treated as active.
         previous_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": "2099-01-01T00:00:00",  # no timezone suffix
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="2099-01-01T00:00:00",  # no timezone suffix
+            )
         ]
         current_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": "2099-01-01T00:00:00",
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="2099-01-01T00:00:00",
+            )
         ]
 
         result = main._find_new_games(current_games, previous_games)
@@ -391,18 +391,18 @@ class TestFindNewGamesEdgeCases:
         main = _import_main()
 
         previous_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": "2000-01-01T00:00:00",  # naive past date
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="2000-01-01T00:00:00",  # naive past date
+            )
         ]
         current_games = [
-            {
-                "title": "Free Game",
-                "link": "https://store.epicgames.com/es-MX/p/free-game",
-                "end_date": "2099-01-01T00:00:00",
-            }
+            _make_game(
+                "Free Game",
+                "https://store.epicgames.com/es-MX/p/free-game",
+                end_date="2099-01-01T00:00:00",
+            )
         ]
 
         result = main._find_new_games(current_games, previous_games)

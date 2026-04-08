@@ -2,6 +2,7 @@ import json
 import psycopg2
 
 from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+from modules.models import FreeGame
 
 import logging
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class FreeGamesDatabase:
             raise
 
     def get_games(self):
-        """Retrieve all stored games from the database as a list of dicts."""
+        """Retrieve all stored games from the database as a list of FreeGame objects."""
         try:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
@@ -64,13 +65,16 @@ class FreeGamesDatabase:
                     )
                     rows = cursor.fetchall()
                     games = [
-                        {
-                            "title": title,
-                            "link": link,
-                            "description": description or "",
-                            "thumbnail": thumbnail or "",
-                            "end_date": end_date or "",
-                        }
+                        FreeGame(
+                            title=title,
+                            store="epic",
+                            url=link,
+                            image_url=thumbnail or "",
+                            original_price=None,
+                            end_date=end_date or "",
+                            is_permanent=False,
+                            description=description or "",
+                        )
                         for title, link, description, thumbnail, end_date in rows
                     ]
                     logger.debug(f"Retrieved {len(games)} games from database.")
@@ -80,7 +84,7 @@ class FreeGamesDatabase:
             raise
 
     def save_games(self, games):
-        """Save games to the database, upserting records on conflict by game_id (link)."""
+        """Save games to the database, upserting records on conflict by game_id (url)."""
         if not games:
             logger.warning("Attempted to save empty games list to database")
             return
@@ -89,11 +93,10 @@ class FreeGamesDatabase:
                 with conn.cursor() as cursor:
                     cursor.execute("SET search_path TO free_games")
                     for game in games:
-                        # Use the full link as a stable unique identifier
-                        game_id = game.get("link", "")
+                        game_id = game.url
                         if not game_id:
                             logger.warning(
-                                f"Skipping game with missing link: {game.get('title', 'unknown')}"
+                                f"Skipping game with missing url: {game.title}"
                             )
                             continue
                         cursor.execute(
@@ -109,11 +112,11 @@ class FreeGamesDatabase:
                             """,
                             (
                                 game_id,
-                                game.get("title", ""),
-                                game.get("link", ""),
-                                game.get("description", ""),
-                                game.get("thumbnail", ""),
-                                game.get("end_date") or None,
+                                game.title,
+                                game.url,
+                                game.description,
+                                game.image_url,
+                                game.end_date or None,
                             ),
                         )
                     conn.commit()
@@ -171,13 +174,14 @@ class FreeGamesDatabase:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
                     cursor.execute("SET search_path TO free_games")
+                    serializable = [g.to_dict() for g in games]
                     cursor.execute(
                         """
                         INSERT INTO last_notification (id, games)
                         VALUES (1, %s)
                         ON CONFLICT (id) DO UPDATE SET games = EXCLUDED.games
                         """,
-                        (json.dumps(games),),
+                        (json.dumps(serializable),),
                     )
                     conn.commit()
                     logger.info(f"Saved {len(games)} games to last_notification table.")
@@ -186,7 +190,7 @@ class FreeGamesDatabase:
             raise
 
     def get_last_notification(self):
-        """Return the games list from the most recent notification, or [] if none stored."""
+        """Return the games list from the most recent notification as FreeGame objects, or [] if none stored."""
         try:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
@@ -207,7 +211,7 @@ class FreeGamesDatabase:
                             "Unexpected item types in last_notification table: expected list of dicts"
                         )
                         return []
-                    return data
+                    return [FreeGame.from_dict(game) for game in data]
         except Exception as e:
             logger.error(f"Failed to retrieve last notification from database: {e}")
             raise
