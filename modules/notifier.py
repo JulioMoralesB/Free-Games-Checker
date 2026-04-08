@@ -121,7 +121,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
         embeds = []
         for game in new_games:
             try:
-                end_date = datetime.strptime(game["end_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                end_date = datetime.strptime(game.end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
 
                 dt_obj = pytz.utc.localize(end_date)
                 try:
@@ -153,19 +153,19 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                             "name": "Epic Games Store",
                             "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
                         },
-                        "title": game["title"],
-                        "url": game["link"],
-                        "description": game["description"].replace("'", ""),
+                        "title": game.title,
+                        "url": game.url,
+                        "description": game.description.replace("'", ""),
                         "color": 0x2ECC71,
                         "image": {
-                            "url": game["thumbnail"]
+                            "url": game.image_url
                         },
                         "footer": {
                             "text": f"Finaliza el {formatted_end_date}"
                         }
                     }
                 )
-            except (KeyError, ValueError) as e:
+            except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")
                 raise
             

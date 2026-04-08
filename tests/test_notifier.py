@@ -82,7 +82,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
-        assert payload["embeds"][0]["url"] == sample_games[0]["link"]
+        assert payload["embeds"][0]["url"] == sample_games[0].url
 
     def test_embed_contains_thumbnail(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -92,7 +92,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
-        assert payload["embeds"][0]["image"]["url"] == sample_games[0]["thumbnail"]
+        assert payload["embeds"][0]["image"]["url"] == sample_games[0].image_url
 
     def test_embed_footer_contains_end_date_prefix(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -192,8 +192,8 @@ class TestSendDiscordMessage:
                 notifier.send_discord_message(sample_games)
 
     def test_sends_multiple_game_embeds(self, sample_game):
-        game2 = dict(sample_game)
-        game2["title"] = "Second Free Game"
+        import dataclasses
+        game2 = dataclasses.replace(sample_game, title="Second Free Game")
         games = [sample_game, game2]
 
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -204,10 +204,20 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         assert len(kwargs["json"]["embeds"]) == 2
 
-    def test_raises_on_missing_game_key(self):
-        bad_game = {"title": "Incomplete Game"}  # missing end_date, link, etc.
+    def test_raises_on_invalid_end_date(self):
+        from modules.models import FreeGame
+        bad_game = FreeGame(
+            title="Incomplete Game",
+            store="epic",
+            url="https://store.epicgames.com/p/incomplete",
+            image_url="",
+            original_price=None,
+            end_date="not-a-valid-date",
+            is_permanent=False,
+            description="",
+        )
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK):
-            with pytest.raises(KeyError):
+            with pytest.raises(ValueError):
                 notifier.send_discord_message([bad_game])
 
 

@@ -118,7 +118,8 @@ class TestGamesLatestEndpoint:
 
 class TestGamesHistoryEndpoint:
     def test_returns_paginated_results(self, client, sample_game):
-        games = [dict(sample_game, title=f"Game {i}") for i in range(5)]
+        import dataclasses
+        games = [dataclasses.replace(sample_game, title=f"Game {i}") for i in range(5)]
         with patch("modules.storage.load_previous_games", return_value=games):
             resp = client.get("/games/history?limit=2&offset=1")
         assert resp.status_code == 200
