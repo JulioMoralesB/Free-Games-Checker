@@ -1,5 +1,6 @@
 import requests
 from config import EPIC_GAMES_API_URL, EPIC_GAMES_REGION
+from modules.models import FreeGame
 from modules.retry import with_retry
 
 import logging
@@ -112,6 +113,17 @@ def fetch_free_games():
                 thumbnail = "https://static-assets-prod.epicgames.com/epic-store/static/webpack/25c285e020572b4f76b770d6cca272ec.png"
             logger.info(f"Thumbnail to be used: {thumbnail}")
 
-            games.append({"title": title, "link": link, "end_date": end_date, "description": description, "thumbnail": thumbnail})
+            games.append(
+                FreeGame(
+                    title=title,
+                    store="epic",
+                    url=link,
+                    image_url=thumbnail,
+                    original_price=None,
+                    end_date=end_date,
+                    is_permanent=False,
+                    description=description,
+                )
+            )
     logger.info(f"Returning games: {games}")
     return games
