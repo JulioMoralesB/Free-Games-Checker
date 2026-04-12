@@ -267,7 +267,7 @@ class TestConfigEndpoint:
 
 class TestCheckE2EEndpoint:
     def test_full_flow_new_games(self, client, sample_games):
-        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=sample_games), \
              patch("modules.storage.load_previous_games", return_value=[]), \
              patch("modules.notifier.send_discord_message"):
             resp = client.post("/check")
@@ -279,7 +279,7 @@ class TestCheckE2EEndpoint:
         assert len(data["already_in_storage"]) == 0
 
     def test_full_flow_games_already_saved(self, client, sample_games):
-        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=sample_games), \
              patch("modules.storage.load_previous_games", return_value=sample_games), \
              patch("modules.notifier.send_discord_message"):
             resp = client.post("/check")
@@ -290,12 +290,12 @@ class TestCheckE2EEndpoint:
         assert data["notification_status"] == "sent"
 
     def test_returns_404_when_no_free_games(self, client):
-        with patch("modules.scrapper.fetch_free_games", return_value=[]):
+        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=[]):
             resp = client.post("/check")
         assert resp.status_code == 404
 
     def test_handles_discord_failure(self, client, sample_games):
-        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=sample_games), \
              patch("modules.storage.load_previous_games", return_value=[]), \
              patch("modules.notifier.send_discord_message", side_effect=Exception("webhook error")):
             resp = client.post("/check")
@@ -304,7 +304,7 @@ class TestCheckE2EEndpoint:
         assert "failed" in data["notification_status"]
 
     def test_returns_500_on_scraper_error(self, client):
-        with patch("modules.scrapper.fetch_free_games", side_effect=Exception("API error")):
+        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", side_effect=Exception("API error")):
             resp = client.post("/check")
         assert resp.status_code == 500
 
@@ -315,7 +315,7 @@ class TestCheckE2EEndpoint:
 
     def test_uses_custom_webhook_url_when_provided(self, client, sample_games):
         custom_url = "https://discord.com/api/webhooks/9999/custom-token"
-        with patch("modules.scrapper.fetch_free_games", return_value=sample_games), \
+        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=sample_games), \
              patch("modules.storage.load_previous_games", return_value=[]), \
              patch("modules.notifier.send_discord_message") as mock_send:
             resp = client.post("/check", json={"webhook_url": custom_url})
@@ -323,7 +323,7 @@ class TestCheckE2EEndpoint:
         mock_send.assert_called_once_with(sample_games, webhook_url=custom_url)
 
     def test_rejects_invalid_webhook_url(self, client, sample_games):
-        with patch("modules.scrapper.fetch_free_games", return_value=sample_games):
+        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=sample_games):
             resp = client.post("/check", json={"webhook_url": "https://evil.com/hook"})
         assert resp.status_code == 422
 

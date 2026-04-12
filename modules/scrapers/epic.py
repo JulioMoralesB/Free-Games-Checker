@@ -41,6 +41,7 @@ class EpicGamesScraper(BaseScraper):
                 description="Epic Games API fetch",
             )
         except _RETRYABLE_ERRORS as e:
+            logger.error("Failed to fetch Epic Games API after retries: %s", e, exc_info=True)
             return []
 
         if response.status_code != 200:
@@ -59,7 +60,7 @@ class EpicGamesScraper(BaseScraper):
                 logger.info(f"Found free game!: {title}")
                 
                 ## Get the game link
-                gameId = ""
+                game_id = ""
                 ## If the game is a mystery game, skip it
                 if "Mystery Game" in title:
                     logger.info("Mystery Game found, skipping.")
@@ -67,52 +68,54 @@ class EpicGamesScraper(BaseScraper):
                 
                 ## Try to get the offer page slug
                 try:
-                    offerPageSlug = game["offerMappings"][0]["pageSlug"]
-                    if offerPageSlug:
-                        logger.info(f"Found Offer Page Slug: {offerPageSlug}")
-                        gameId = offerPageSlug
+                    offer_page_slug = game["offerMappings"][0]["pageSlug"]
+                    if offer_page_slug:
+                        logger.info(f"Found Offer Page Slug: {offer_page_slug}")
+                        game_id = offer_page_slug
                 
                 except IndexError:
                     logger.info("No Offer Page Slug found.")
                 ## If it fails, try to get the catalogNs page slug
-                if not gameId:
+                if not game_id:
                     try:
-                        pageSlug = game["catalogNs"]["mappings"][0]["pageSlug"]
-                        if pageSlug:
-                            logger.info(f"Found CatalogNs Page Slug: {pageSlug}")
-                            gameId = pageSlug
+                        page_slug = game["catalogNs"]["mappings"][0]["pageSlug"]
+                        if page_slug:
+                            logger.info(f"Found CatalogNs Page Slug: {page_slug}")
+                            game_id = page_slug
                     except IndexError:
                         logger.info("No CatalogNs Page Slug found.")
                 ## If it fails, try to get the product slug
-                if not gameId:
+                if not game_id:
                     try:
-                        productSlug = game["productSlug"]
-                        if productSlug:
-                            logger.info(f"Found Product Slug: {productSlug}")
-                            gameId = productSlug
+                        product_slug = game["productSlug"]
+                        if product_slug:
+                            logger.info(f"Found Product Slug: {product_slug}")
+                            game_id = product_slug
                     except KeyError:
                         logger.info("No Product Slug found.")
                 
-                ## If gameId is found, use it to create the link
-                if gameId:
-                    logger.info(f"Using gameId: {gameId}")
-                    link = f"https://store.epicgames.com/{EPIC_GAMES_REGION}/p/{gameId}"
+                ## If game_id is found, use it to create the link
+                if game_id:
+                    logger.info(f"Using game_id: {game_id}")
+                    link = f"https://store.epicgames.com/{EPIC_GAMES_REGION}/p/{game_id}"
                 ## If not, use the default link
                 else:
                     logger.info("No game url found, using default link.")
                     link = f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
                     
                 end_date = ""
-                logger.info(f"Promotions: {game['promotions']}")
+                promotions = game.get("promotions")
+                logger.debug(f"Promotions payload: {promotions}")
+                logger.info(f"Promotions present: {bool(promotions)}")
                 #If there are no promotional offers, skip the game
-                if not game["promotions"] or not game["promotions"].get("promotionalOffers"):
+                if not promotions or not promotions.get("promotionalOffers"):
                     logger.info("No promotional offers found, skipping.")
                     continue
-                for offer in game["promotions"]["promotionalOffers"][0]["promotionalOffers"]:
+                for offer in promotions["promotionalOffers"][0]["promotionalOffers"]:
                     if offer["discountSetting"]["discountPercentage"] == 0:
                         end_date = offer["endDate"]
                         break
-                logger.info(f"End Date: {end_date}")
+                logger.info(f"Computed end_date: {end_date}")
 
                 description = game["description"]
                 logger.info(f"Description: {description}")
@@ -143,5 +146,6 @@ class EpicGamesScraper(BaseScraper):
                         description=description,
                     )
                 )
-        logger.info(f"Returning games: {games}")
+        logger.info(f"Returning {len(games)} games")
+        logger.debug(f"Returning game titles: {[game.title for game in games]}")
         return games
