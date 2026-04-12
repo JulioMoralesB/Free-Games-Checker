@@ -404,7 +404,7 @@ def check_e2e(body: Optional[WebhookOverrideRequest] = None):
     This endpoint runs the full flow even when the games already exist in the
     database so you can test the pipeline without deleting stored data.
     """
-    from modules.scrapper import fetch_free_games
+    from modules.scrapers import EpicGamesScraper
     from modules.storage import load_previous_games
     from modules.notifier import send_discord_message
 
@@ -412,7 +412,8 @@ def check_e2e(body: Optional[WebhookOverrideRequest] = None):
 
     # 1. Fetch current free games from Epic Games
     try:
-        current_games = fetch_free_games()
+        scraper = EpicGamesScraper()
+        current_games = scraper.fetch_free_games()
         increment_metric("games_processed", len(current_games))
     except Exception as e:
         logger.error("E2E check – failed to fetch games: %s", e)
