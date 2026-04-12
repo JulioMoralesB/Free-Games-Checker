@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from modules.notifier import send_discord_message
-from modules.scrapper import fetch_free_games
+from modules.scrapers import EpicGamesScraper
 from modules.storage import load_previous_games, save_games, save_last_notification
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
@@ -86,6 +86,17 @@ def _find_new_games(current_games, previous_games):
 
         return ends_at >= datetime.now(timezone.utc)
 
+    # A (url, end_date) pair that already appeared in previous games should not
+    # trigger a new notification, regardless of whether the promo is still active.
+    # This prevents re-notifying for the same expired promo while still allowing
+    # re-notification when the same game has a new promo (different end_date).
+    previous_seen = {
+        (game.url, game.end_date)
+        for game in previous_games
+        if game.url
+    }
+
+    # Also track active URLs to suppress games seen before whose promos are still running.
     previous_active_urls = {
         game.url
         for game in previous_games
@@ -96,7 +107,7 @@ def _find_new_games(current_games, previous_games):
     for game in current_games:
         url = game.url
         if url:
-            if url not in previous_active_urls:
+            if url not in previous_active_urls and (url, game.end_date) not in previous_seen:
                 new_games.append(game)
             continue
 
@@ -112,8 +123,9 @@ def check_games():
     logging.info("Checking for new free games...")
 
     try:
-        current_games = fetch_free_games()
-        logging.info(f"Games obtained from scrapper.py: {len(current_games)} game(s)")
+        scraper = EpicGamesScraper()
+        current_games = scraper.fetch_free_games()
+        logging.info(f"Games obtained from scraper: {len(current_games)} game(s)")
     except Exception as e:
         logging.error(f"Failed to fetch games from scraper: {str(e)}")
         return

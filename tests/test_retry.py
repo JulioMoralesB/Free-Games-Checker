@@ -2,7 +2,8 @@ import pytest
 from unittest.mock import patch, MagicMock, call
 import requests
 
-from modules import notifier, scrapper
+from modules.scrapers.epic import EpicGamesScraper
+from modules import notifier
 from modules.retry import with_retry
 
 
@@ -83,53 +84,58 @@ class TestFetchFreeGamesRetry:
 
     def test_retries_on_timeout_and_succeeds(self):
         good_response = self._make_response(200)
-        with patch("modules.scrapper.requests.get") as mock_get, \
+        with patch("modules.scrapers.epic.requests.get") as mock_get, \
              patch("modules.retry.time.sleep"):
             mock_get.side_effect = [
                 requests.exceptions.Timeout(),
                 good_response,
             ]
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert mock_get.call_count == 2
         assert games == []  # empty elements list → no games
 
     def test_retries_on_connection_error_and_succeeds(self):
         good_response = self._make_response(200)
-        with patch("modules.scrapper.requests.get") as mock_get, \
+        with patch("modules.scrapers.epic.requests.get") as mock_get, \
              patch("modules.retry.time.sleep"):
             mock_get.side_effect = [
                 requests.exceptions.ConnectionError(),
                 good_response,
             ]
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert mock_get.call_count == 2
 
     def test_returns_empty_after_max_retries_exhausted(self):
-        with patch("modules.scrapper.requests.get") as mock_get, \
+        with patch("modules.scrapers.epic.requests.get") as mock_get, \
              patch("modules.retry.time.sleep"):
             mock_get.side_effect = requests.exceptions.Timeout()
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games == []
         assert mock_get.call_count == 4
 
     def test_max_four_attempts_for_api(self):
-        with patch("modules.scrapper.requests.get") as mock_get, \
+        with patch("modules.scrapers.epic.requests.get") as mock_get, \
              patch("modules.retry.time.sleep") as mock_sleep:
             mock_get.side_effect = requests.exceptions.ConnectionError()
-            scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            scraper.fetch_free_games()
 
         assert mock_get.call_count == 4
         # Delays: 1s before attempt 2, 2s before attempt 3, 4s before attempt 4
         assert mock_sleep.call_args_list == [call(1), call(2), call(4)]
 
     def test_no_retry_on_non_200_status(self):
-        with patch("modules.scrapper.requests.get") as mock_get, \
+        with patch("modules.scrapers.epic.requests.get") as mock_get, \
              patch("modules.retry.time.sleep") as mock_sleep:
             mock_get.return_value = self._make_response(500)
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games == []
         assert mock_get.call_count == 1
@@ -137,8 +143,9 @@ class TestFetchFreeGamesRetry:
 
     def test_adds_timeout_to_api_request(self):
         good_response = self._make_response(200)
-        with patch("modules.scrapper.requests.get", return_value=good_response) as mock_get:
-            scrapper.fetch_free_games()
+        with patch("modules.scrapers.epic.requests.get", return_value=good_response) as mock_get:
+            scraper = EpicGamesScraper()
+            scraper.fetch_free_games()
 
         _, kwargs = mock_get.call_args
         assert kwargs.get("timeout") == 10
