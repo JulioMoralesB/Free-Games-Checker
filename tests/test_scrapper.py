@@ -1,6 +1,7 @@
 from unittest.mock import patch, MagicMock
 
-from modules import scrapper
+from modules.scrapers.epic import EpicGamesScraper
+from config import EPIC_GAMES_REGION
 
 
 # ---------------------------------------------------------------------------
@@ -81,45 +82,50 @@ def _mock_response(status_code=200, json_data=None):
 
 class TestFetchFreeGames:
     def test_returns_free_game(self, epic_api_response):
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, epic_api_response)
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert len(games) == 1
         assert games[0].title == "Test Free Game"
-        assert games[0].url == f"https://store.epicgames.com/{scrapper.EPIC_GAMES_REGION}/p/test-free-game"
+        assert games[0].url == f"https://store.epicgames.com/{EPIC_GAMES_REGION}/p/test-free-game"
         assert games[0].end_date == "2024-01-31T15:00:00.000Z"
         assert games[0].description == "A free game for testing"
         assert games[0].image_url == "https://example.com/thumbnail.jpg"
 
     def test_excludes_paid_games(self):
         paid = _make_element(discount_price=1999)
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([paid]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games == []
 
     def test_skips_mystery_games(self):
         mystery = _make_element(title="Mystery Game", discount_price=0)
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([mystery]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games == []
 
     def test_returns_empty_on_api_error(self):
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(500)
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games == []
 
     def test_uses_offer_slug_for_link(self):
         element = _make_element(discount_price=0, offer_slug="offer-slug-123")
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([element]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert "offer-slug-123" in games[0].url
 
@@ -129,9 +135,10 @@ class TestFetchFreeGames:
             offer_slug=None,
             catalog_slug="catalog-slug-456",
         )
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([element]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert "catalog-slug-456" in games[0].url
 
@@ -142,9 +149,10 @@ class TestFetchFreeGames:
             catalog_slug=None,
             product_slug="product-slug-789",
         )
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([element]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert "product-slug-789" in games[0].url
 
@@ -155,18 +163,20 @@ class TestFetchFreeGames:
             catalog_slug=None,
         )
         element.pop("productSlug", None)
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([element]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
-        expected_link = f"https://store.epicgames.com/{scrapper.EPIC_GAMES_REGION}/free-games"
+        expected_link = f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
         assert games[0].url == expected_link
 
     def test_skips_game_with_no_promotional_offers(self):
         element = _make_element(discount_price=0, has_promotions=False)
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([element]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games == []
 
@@ -176,16 +186,18 @@ class TestFetchFreeGames:
             thumbnail_type="OfferImageWide",
             thumbnail_url="https://example.com/wide.jpg",
         )
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([element]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games[0].image_url == "https://example.com/wide.jpg"
 
     def test_returns_empty_when_no_elements(self):
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response([]))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert games == []
 
@@ -194,9 +206,10 @@ class TestFetchFreeGames:
             _make_element(title="Game One", discount_price=0, offer_slug="game-one"),
             _make_element(title="Game Two", discount_price=0, offer_slug="game-two"),
         ]
-        with patch("modules.scrapper.requests.get") as mock_get:
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, _make_api_response(elements))
-            games = scrapper.fetch_free_games()
+            scraper = EpicGamesScraper()
+            games = scraper.fetch_free_games()
 
         assert len(games) == 2
         titles = [g.title for g in games]

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from modules.notifier import send_discord_message
-from modules.scrapper import fetch_free_games
+from modules.scrapers import EpicGamesScraper
 from modules.storage import load_previous_games, save_games, save_last_notification
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
@@ -112,8 +112,9 @@ def check_games():
     logging.info("Checking for new free games...")
 
     try:
-        current_games = fetch_free_games()
-        logging.info(f"Games obtained from scrapper.py: {len(current_games)} game(s)")
+        scraper = EpicGamesScraper()
+        current_games = scraper.fetch_free_games()
+        logging.info(f"Games obtained from scraper: {len(current_games)} game(s)")
     except Exception as e:
         logging.error(f"Failed to fetch games from scraper: {str(e)}")
         return
