@@ -266,6 +266,11 @@ class TestConfigEndpoint:
 # ---------------------------------------------------------------------------
 
 class TestCheckE2EEndpoint:
+    @pytest.fixture(autouse=True)
+    def epic_only_stores(self):
+        with patch("api.ENABLED_STORES", ["epic"]):
+            yield
+
     def test_full_flow_new_games(self, client, sample_games):
         with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=sample_games), \
              patch("modules.storage.load_previous_games", return_value=[]), \
