@@ -123,11 +123,13 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 "name": "Epic Games Store",
                 "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games",
                 "color": 0x2ECC71,
+                "icon_url": "https://images.icon-icons.com/2407/PNG/512/epic_games_icon_146062.png",
             },
             "steam": {
                 "name": "Steam",
                 "url": "https://store.steampowered.com/search/?maxprice=free&specials=1",
                 "color": 0x1B2838,
+                "icon_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/64px-Steam_icon_logo.svg.png",
             },
         }
 
@@ -175,30 +177,55 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                     footer_text = "Gratis de forma permanente"
                 else:
                     footer_text = "Fecha de fin no disponible"
-                embeds.append(
-                    {
-                        "author": {
-                            "name": store_meta["name"],
-                            "url": store_meta["url"],
-                        },
-                        "title": game.title,
-                        "url": game.url,
-                        "description": game.description.replace("'", ""),
-                        "color": store_meta["color"],
-                        "image": {
-                            "url": game.image_url
-                        },
-                        "footer": {
-                            "text": footer_text
-                        }
+
+                embed = {
+                    "author": {
+                        "name": store_meta["name"],
+                        "url": store_meta["url"],
+                        "icon_url": store_meta["icon_url"],
+                    },
+                    "title": game.title,
+                    "url": game.url,
+                    "description": game.description.replace("'", ""),
+                    "color": store_meta["color"],
+                    "image": {
+                        "url": game.image_url
+                    },
+                    "footer": {
+                        "text": footer_text
+                    },
+                }
+                if game.review_score:
+                    _REVIEW_EMOJIS = {
+                        "overwhelmingly positive": "🏆",
+                        "very positive": "⭐",
+                        "mostly positive": "👍",
+                        "positive": "✅",
+                        "mixed": "⚖️",
+                        "mostly negative": "👎",
+                        "negative": "❌",
+                        "very negative": "⛔",
+                        "overwhelmingly negative": "💀",
                     }
-                )
+                    emoji = _REVIEW_EMOJIS.get(game.review_score.lower(), "🎮")
+                    embed["fields"] = [
+                        {"name": "💬 User Reviews:", "value": f"{game.review_score} {emoji}", "inline": True}
+                    ]
+                embeds.append(embed)
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")
                 raise
             
+        stores_in_batch = {game.store for game in new_games}
+        if len(stores_in_batch) == 1:
+            store_key = next(iter(stores_in_batch))
+            store_name = _STORE_META.get(store_key, _STORE_META["epic"])["name"]
+            content = f"**¡Nuevo Juego Gratis en {store_name}! 🎮**\n"
+        else:
+            content = "**¡Nuevos Juegos Gratis! 🎮**\n"
+
         data = {
-            "content": "**Nuevo Juego Gratis en Epic Games Store! 🎮**\n",
+            "content": content,
             "embeds": embeds
         }
         logger.info(f"Sending Discord message with {len(embeds)} game(s)")
