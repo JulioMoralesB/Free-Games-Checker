@@ -209,7 +209,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                     }
                     emoji = _REVIEW_EMOJIS.get(game.review_score.lower(), "🎮")
                     embed["fields"] = [
-                        {"name": "⭐ User Reviews", "value": f"{emoji} **{game.review_score}**", "inline": True}
+                        {"name": "💬 User Reviews:", "value": f"{game.review_score} {emoji}", "inline": True}
                     ]
                 embeds.append(embed)
             except (AttributeError, ValueError) as e:

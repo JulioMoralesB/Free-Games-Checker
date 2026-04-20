@@ -170,7 +170,7 @@ class TestSendDiscordMessage:
         payload = kwargs["json"]
         fields = payload["embeds"][0].get("fields", [])
         assert any(
-            f["name"] == "User Reviews"
+            f["name"] == "💬 User Reviews:"
             and "Very Positive" in f["value"]
             and "⭐" in f["value"]
             for f in fields
