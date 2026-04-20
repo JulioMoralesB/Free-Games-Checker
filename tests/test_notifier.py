@@ -124,7 +124,8 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
         assert "icon_url" in payload["embeds"][0]["author"]
-        assert "epicgames.com" in payload["embeds"][0]["author"]["icon_url"]
+        assert "wikimedia.org" in payload["embeds"][0]["author"]["icon_url"]
+        assert "Epic_Games" in payload["embeds"][0]["author"]["icon_url"]
 
     def test_embed_author_has_steam_store_icon(self):
         game = FreeGame(
@@ -145,7 +146,8 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
         assert "icon_url" in payload["embeds"][0]["author"]
-        assert "steampowered.com" in payload["embeds"][0]["author"]["icon_url"]
+        assert "wikimedia.org" in payload["embeds"][0]["author"]["icon_url"]
+        assert "Steam_icon" in payload["embeds"][0]["author"]["icon_url"]
 
     def test_embed_includes_review_score_field_when_present(self):
         game = FreeGame(

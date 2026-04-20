@@ -123,13 +123,13 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 "name": "Epic Games Store",
                 "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games",
                 "color": 0x2ECC71,
-                "icon_url": "https://store.epicgames.com/favicon.ico",
+                "icon_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Epic_Games_logo.svg/64px-Epic_Games_logo.svg.png",
             },
             "steam": {
                 "name": "Steam",
                 "url": "https://store.steampowered.com/search/?maxprice=free&specials=1",
                 "color": 0x1B2838,
-                "icon_url": "https://store.steampowered.com/favicon.ico",
+                "icon_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/64px-Steam_icon_logo.svg.png",
             },
         }
 
