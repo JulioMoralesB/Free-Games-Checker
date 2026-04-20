@@ -9,10 +9,12 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from config import STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL
+from config import STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL, TIMEZONE
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
+
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,16 @@ _HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+# Cookies that bypass Steam's age-check interstitial. Without these, mature-rated
+# store pages redirect to /agecheck/app/<id>/ which doesn't contain the discount
+# expiration text, so end_date can't be parsed.
+_AGE_CHECK_COOKIES = {
+    "birthtime": "470707201",
+    "mature_content": "1",
+    "lastagecheckage": "1-January-1985",
+    "wants_mature_content": "1",
+}
+
 _SEARCH_PARAMS = {
     "maxprice": "free",
     "specials": 1,
@@ -51,6 +63,12 @@ _END_DATE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Defined at module level to avoid recreating the dict on every _parse_steam_end_date call.
+_MONTH_MAP = {
+    "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+    "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+}
+
 
 def _steam_get(url: str, **kwargs) -> requests.Response:
     """Sleep for STEAM_REQUEST_DELAY_MS, then GET url. Raises _RateLimitedError on HTTP 429."""
@@ -64,23 +82,44 @@ def _steam_get(url: str, **kwargs) -> requests.Response:
 
 def _parse_steam_end_date(text: str) -> str:
     """Parse 'before DD Mon @ HH:MMam/pm' into an ISO-8601 UTC string."""
+    # Normalize all whitespace (including tabs, non-breaking, thin, etc.) to a single space.
+    # re is already imported at module level — inline 'import re as _re' was redundant.
+    text = re.sub(r"\s+", " ", text, flags=re.UNICODE)
+    logger.debug("Parsing Steam end date from text: %r", text[:200])
     m = _END_DATE_RE.search(text)
+    # Per-parse diagnostic logs use DEBUG so they don't spam production output.
+    logger.debug("Regex match for end date: %r", m.groups() if m else None)
+
     if not m:
         return ""
     day, month_str, hour, minute, ampm = m.groups()
     try:
-        month = datetime.strptime(month_str, "%b").month
+        # _MONTH_MAP is a module-level constant; avoids recreating the dict each call.
+        month = _MONTH_MAP.get(month_str)
+        if not month:
+            raise ValueError(f"Unknown month abbreviation: {month_str}")
         hour = int(hour)
         if ampm.lower() == "pm" and hour != 12:
             hour += 12
         elif ampm.lower() == "am" and hour == 12:
             hour = 0
-        now = datetime.now(tz=timezone.utc)
-        dt = datetime(now.year, month, int(day), hour, int(minute), tzinfo=timezone.utc)
+        # ZoneInfoNotFoundError is a subclass of KeyError, not ValueError, so it would
+        # escape the outer except and crash the scraper. Catch it here and fall back to
+        # UTC so a misconfigured TIMEZONE env var degrades gracefully.
+        try:
+            local_tz = ZoneInfo(TIMEZONE)
+        except KeyError:
+            logger.warning("Unknown timezone %r in _parse_steam_end_date — falling back to UTC.", TIMEZONE)
+            local_tz = timezone.utc
+        now = datetime.now(tz=local_tz)
+        dt = datetime(now.year, month, int(day), hour, int(minute), tzinfo=local_tz).astimezone(timezone.utc)
         if dt < now:
             dt = dt.replace(year=now.year + 1)
-        return dt.isoformat()
+        formatted_dt = dt.isoformat().replace("+00:00", "Z")
+        logger.debug("Parsed end date: %s (UTC)", formatted_dt)
+        return formatted_dt
     except ValueError:
+        logger.error("Error parsing end date components: Day=%s, Month=%s, Hour=%s, Minute=%s, AM/PM=%s", day, month_str, hour, minute, ampm, exc_info=True)
         return ""
 
 
@@ -212,7 +251,7 @@ class SteamScraper(BaseScraper):
         """
         try:
             response = with_retry(
-                func=lambda: _steam_get(url, headers=_HEADERS, timeout=10),
+                func=lambda: _steam_get(url, headers=_HEADERS, cookies=_AGE_CHECK_COOKIES, timeout=10),
                 max_attempts=3,
                 base_delay=2,
                 retryable_exceptions=_RETRYABLE_ERRORS,
@@ -221,10 +260,28 @@ class SteamScraper(BaseScraper):
             if response.status_code != 200:
                 return ""
             soup = BeautifulSoup(response.text, "html.parser")
+
+            # Try the dedicated discount quantity element first
             el = soup.select_one(".game_purchase_discount_quantity")
-            if not el:
-                return ""
-            return _parse_steam_end_date(el.text)
+            if el:
+                result = _parse_steam_end_date(el.text)
+                if result:
+                    return result
+                logger.warning(
+                    "Found .game_purchase_discount_quantity but could not parse end date. "
+                    "Text: %r | URL: %s",
+                    el.text[:200],
+                    url,
+                )
+
+            # Fall back to searching the entire page text — handles cases where
+            # Steam renders the element via JS or uses a different CSS class.
+            result = _parse_steam_end_date(soup.get_text(" "))
+            if result:
+                return result
+
+            logger.warning("Could not find promotion end date on Steam page: %s", url)
+            return ""
         except Exception as e:
             logger.warning("Failed to fetch end date from %s: %s", url, e)
             return ""

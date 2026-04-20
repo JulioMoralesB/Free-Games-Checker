@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 import requests as requests_lib
 
 from modules import notifier
+from modules.models import FreeGame
 
 
 VALID_WEBHOOK = "https://discord.com/api/webhooks/123456789/token_abc"
@@ -219,6 +220,49 @@ class TestSendDiscordMessage:
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK):
             with pytest.raises(ValueError):
                 notifier.send_discord_message([bad_game])
+
+    def test_embed_footer_unknown_end_date_when_empty_and_not_permanent(self):
+        """Games with no end_date and is_permanent=False show a 'not available' message."""
+        # dataclasses.replace with no replacements is a no-op; use FreeGame() directly.
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="",
+            is_permanent=False,
+            description="",
+        )
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        footer = kwargs["json"]["embeds"][0]["footer"]["text"]
+        assert footer == "Fecha de fin no disponible"
+
+    def test_embed_footer_permanent_game(self):
+        """Games with is_permanent=True show the permanent promotion message."""
+        game = FreeGame(
+            title="Free Forever Game",
+            store="epic",
+            url="https://store.epicgames.com/p/free-forever",
+            image_url="https://example.com/img.jpg",
+            original_price=None,
+            end_date="",
+            is_permanent=True,
+            description="",
+        )
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        footer = kwargs["json"]["embeds"][0]["footer"]["text"]
+        assert footer == "Gratis de forma permanente"
 
 
 class TestSendDiscordMessageWebhookOverride:
