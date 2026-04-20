@@ -42,7 +42,8 @@ from config import (
 class GameItem(BaseModel):
     """A free game as returned by the scraper."""
     title: str = Field(..., description="Name of the free game", examples=["Celeste"])
-    link: str = Field(..., description="Epic Games Store URL for the game")
+    store: str = Field("epic", description="Store identifier where the game is offered for free", examples=["epic", "steam"])
+    link: str = Field(..., description="Store URL for the game")
     end_date: str = Field(..., description="ISO-8601 timestamp when the free promotion ends", examples=["2024-01-31T15:00:00.000Z"])
     description: str = Field(..., description="Short description of the game")
     thumbnail: str = Field(..., description="URL to the game's thumbnail image")
@@ -159,12 +160,15 @@ def _to_game_item_dict(game) -> dict:
     if isinstance(game, FreeGame):
         return {
             "title": game.title,
+            "store": game.store,
             "link": game.url,
             "end_date": game.end_date,
             "description": game.description,
             "thumbnail": game.image_url,
         }
-    # Legacy dict format – pass through as-is for backward compatibility.
+    # Legacy dict format – ensure store key is present with a safe default.
+    if isinstance(game, dict) and "store" not in game:
+        return {**game, "store": "epic"}
     return game
 
 
