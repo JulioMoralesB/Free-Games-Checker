@@ -164,6 +164,11 @@ class FreeGamesDatabase:
                     if isinstance(game, dict):
                         store = game.get("store", "epic")
                         url = game.get("link") or game.get("url") or ""
+                        if not url:
+                            logger.warning(
+                                f"Skipping game with missing url: {game.get('title')}"
+                            )
+                            return
                         game_id = self._make_game_id(store, url)
                         cursor.execute("""
                             INSERT INTO games (game_id, title, link, description, thumbnail,
@@ -281,10 +286,12 @@ class FreeGamesDatabase:
                     # Set schema for this connection
                     cursor.execute("SET search_path to free_games")
 
-                    # Build the prefixed key when needed.
+                    # Build the prefixed key when needed.  Check for the
+                    # store prefix explicitly — plain URLs already contain ":"
+                    # (https://...) so a bare colon test would always skip this.
                     lookup_id = (
                         self._make_game_id(store, game_id)
-                        if store and ":" not in game_id
+                        if store and not game_id.startswith(f"{store}:")
                         else game_id
                     )
                     cursor.execute("SELECT 1 FROM games WHERE game_id = %s", (lookup_id,))

@@ -30,30 +30,21 @@ def upgrade() -> None:
     """)
 
     # 2. Migrate existing game_id values that don't already carry a store
-    #    prefix.  The only store stored so far is Epic, so all bare IDs get
-    #    the ``epic:`` prefix.  IDs that already contain a colon (e.g. a
-    #    future re-run) are left untouched.
+    #    prefix.  The only store stored so far is Epic, so all un-prefixed IDs
+    #    get the ``epic:`` prefix.  Match against known store prefixes rather
+    #    than any colon so existing URL-based IDs (https://...) are migrated.
     op.execute("""
         UPDATE free_games.games
         SET game_id = 'epic:' || game_id,
             store   = 'epic'
-        WHERE game_id NOT LIKE '%:%'
+        WHERE game_id !~ '^(epic|steam|gog|humble):'
     """)
 
 
 def downgrade() -> None:
-    # Strip the store prefix from game_id values so they match the pre-0006
-    # format, then drop the store column.
-    op.execute("""
-        UPDATE free_games.games
-        SET game_id = SPLIT_PART(game_id, ':', 2) || ':' ||
-                      SPLIT_PART(game_id, ':', 3)
-        WHERE game_id LIKE 'epic:%'
-          AND LENGTH(SPLIT_PART(game_id, ':', 2)) > 0
-    """)
-
-    # Simpler fallback: strip everything before the first colon for known
-    # stores that were added as a single-segment prefix.
+    # Strip the single-segment store prefix so game_id values match the
+    # pre-0006 format.  REGEXP_REPLACE removes only the leading ``<store>:``
+    # token, leaving any further colons in the URL payload intact.
     op.execute("""
         UPDATE free_games.games
         SET game_id = REGEXP_REPLACE(game_id, '^(epic|steam|gog|humble):', '')
