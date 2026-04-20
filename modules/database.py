@@ -61,7 +61,7 @@ class FreeGamesDatabase:
                 with conn.cursor() as cursor:
                     cursor.execute("SET search_path TO free_games")
                     cursor.execute(
-                        "SELECT title, link, description, thumbnail, promotion_end_date FROM games"
+                        "SELECT title, link, description, thumbnail, promotion_end_date, review_score FROM games"
                     )
                     rows = cursor.fetchall()
                     games = [
@@ -74,8 +74,9 @@ class FreeGamesDatabase:
                             end_date=end_date or "",
                             is_permanent=False,
                             description=description or "",
+                            review_score=review_score,
                         )
-                        for title, link, description, thumbnail, end_date in rows
+                        for title, link, description, thumbnail, end_date, review_score in rows
                     ]
                     logger.debug(f"Retrieved {len(games)} games from database.")
                     return games
@@ -101,14 +102,15 @@ class FreeGamesDatabase:
                             continue
                         cursor.execute(
                             """
-                            INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date, review_score)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                             ON CONFLICT (game_id) DO UPDATE SET
                                 title = EXCLUDED.title,
                                 link = EXCLUDED.link,
                                 description = EXCLUDED.description,
                                 thumbnail = EXCLUDED.thumbnail,
-                                promotion_end_date = EXCLUDED.promotion_end_date
+                                promotion_end_date = EXCLUDED.promotion_end_date,
+                                review_score = EXCLUDED.review_score
                             """,
                             (
                                 game_id,
@@ -117,6 +119,7 @@ class FreeGamesDatabase:
                                 game.description,
                                 game.image_url,
                                 game.end_date or None,
+                                game.review_score,
                             ),
                         )
                     conn.commit()
