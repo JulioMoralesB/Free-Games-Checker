@@ -14,6 +14,13 @@ EPIC_GAMES_API_URL = os.getenv("EPIC_GAMES_API_URL", "https://store-site-backend
 # Steam Store search URL
 STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com/search/")
 
+# Minimum delay in milliseconds between Steam HTTP requests to avoid rate limiting
+_raw_steam_delay = os.getenv("STEAM_REQUEST_DELAY_MS")
+try:
+    STEAM_REQUEST_DELAY_MS = max(0, int(_raw_steam_delay)) if _raw_steam_delay not in (None, "") else 1500
+except ValueError:
+    STEAM_REQUEST_DELAY_MS = 1500
+
 # Discord Webhook URL (loaded from .env)
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 

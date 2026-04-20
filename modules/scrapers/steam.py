@@ -2,22 +2,29 @@
 
 import logging
 import re
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
 
-from config import STEAM_SEARCH_URL
+from config import STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+
+class _RateLimitedError(Exception):
+    pass
+
+
 _RETRYABLE_ERRORS = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
+    _RateLimitedError,
 )
 
 _HEADERS = {
@@ -43,6 +50,16 @@ _END_DATE_RE = re.compile(
     r"before\s+(\d{1,2})\s+(\w{3})\s+@\s+(\d{1,2}):(\d{2})(am|pm)",
     re.IGNORECASE,
 )
+
+
+def _steam_get(url: str, **kwargs) -> requests.Response:
+    """Sleep for STEAM_REQUEST_DELAY_MS, then GET url. Raises _RateLimitedError on HTTP 429."""
+    time.sleep(STEAM_REQUEST_DELAY_MS / 1000)
+    response = requests.get(url, **kwargs)
+    if response.status_code == 429:
+        response.close()
+        raise _RateLimitedError(f"Rate limited by Steam (429) for {url}")
+    return response
 
 
 def _parse_steam_end_date(text: str) -> str:
@@ -78,14 +95,14 @@ class SteamScraper(BaseScraper):
         logger.info("Fetching free games from Steam. URL: %s", STEAM_SEARCH_URL)
         try:
             response = with_retry(
-                func=lambda: requests.get(
+                func=lambda: _steam_get(
                     STEAM_SEARCH_URL,
                     params=_SEARCH_PARAMS,
                     headers=_HEADERS,
                     timeout=10,
                 ),
                 max_attempts=4,
-                base_delay=1,
+                base_delay=2,
                 retryable_exceptions=_RETRYABLE_ERRORS,
                 description="Steam search fetch",
             )
@@ -167,11 +184,17 @@ class SteamScraper(BaseScraper):
     def _fetch_appdetails(self, appid: str) -> dict:
         """Fetch short_description and header_image from the Steam appdetails API."""
         try:
-            response = requests.get(
-                _APPDETAILS_URL,
-                params={"appids": appid, "cc": "US", "l": "english"},
-                headers=_HEADERS,
-                timeout=10,
+            response = with_retry(
+                func=lambda: _steam_get(
+                    _APPDETAILS_URL,
+                    params={"appids": appid, "cc": "US", "l": "english"},
+                    headers=_HEADERS,
+                    timeout=10,
+                ),
+                max_attempts=4,
+                base_delay=2,
+                retryable_exceptions=_RETRYABLE_ERRORS,
+                description=f"Steam appdetails (appid={appid})",
             )
             if response.status_code == 200:
                 data = response.json()
@@ -188,7 +211,13 @@ class SteamScraper(BaseScraper):
         on the store page. The time is in UTC when scraped without session cookies.
         """
         try:
-            response = requests.get(url, headers=_HEADERS, timeout=10)
+            response = with_retry(
+                func=lambda: _steam_get(url, headers=_HEADERS, timeout=10),
+                max_attempts=3,
+                base_delay=2,
+                retryable_exceptions=_RETRYABLE_ERRORS,
+                description=f"Steam end date ({url})",
+            )
             if response.status_code != 200:
                 return ""
             soup = BeautifulSoup(response.text, "html.parser")
@@ -203,11 +232,17 @@ class SteamScraper(BaseScraper):
     def _fetch_review_score(self, appid: str) -> Optional[str]:
         """Fetch user review summary label from the Steam reviews API."""
         try:
-            response = requests.get(
-                f"{_APPREVIEWS_URL}/{appid}",
-                params={"json": 1, "language": "all", "purchase_type": "all"},
-                headers=_HEADERS,
-                timeout=10,
+            response = with_retry(
+                func=lambda: _steam_get(
+                    f"{_APPREVIEWS_URL}/{appid}",
+                    params={"json": 1, "language": "all", "purchase_type": "all"},
+                    headers=_HEADERS,
+                    timeout=10,
+                ),
+                max_attempts=3,
+                base_delay=2,
+                retryable_exceptions=_RETRYABLE_ERRORS,
+                description=f"Steam review score (appid={appid})",
             )
             if response.status_code == 200:
                 data = response.json()
