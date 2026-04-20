@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from modules.notifier import send_discord_message
-from modules.scrapers import EpicGamesScraper
+from modules.scrapers import get_enabled_scrapers
 from modules.storage import load_previous_games, save_games, save_last_notification
 from modules.healthcheck import healthcheck
 from modules.database import FreeGamesDatabase
@@ -11,6 +11,7 @@ from config import (
     DB_NAME,
     DB_USER,
     DB_PASSWORD,
+    ENABLED_STORES,
     SCHEDULE_TIME,
     HEALTHCHECK_INTERVAL,
     TIMEZONE,
@@ -118,17 +119,28 @@ def _find_new_games(current_games, previous_games):
     return new_games
 
 def check_games():
-    
+
     """Main execution function that checks for new free games and sends Discord notification."""
     logging.info("Checking for new free games...")
 
-    try:
-        scraper = EpicGamesScraper()
-        current_games = scraper.fetch_free_games()
-        logging.info(f"Games obtained from scraper: {len(current_games)} game(s)")
-    except Exception as e:
-        logging.error(f"Failed to fetch games from scraper: {str(e)}")
-        return
+    scrapers = get_enabled_scrapers(ENABLED_STORES)
+    logging.info(
+        "Running %d enabled scraper(s): %s",
+        len(scrapers),
+        [s.store_name for s in scrapers],
+    )
+
+    current_games = []
+    for scraper in scrapers:
+        store = scraper.store_name
+        try:
+            store_games = scraper.fetch_free_games()
+            logging.info(f"Games obtained from {store} scraper: {len(store_games)} game(s)")
+            current_games.extend(store_games)
+        except Exception as e:
+            # Isolate failures so one broken store does not prevent others from running.
+            logging.error(f"Failed to fetch games from {store} scraper: {str(e)}")
+            continue
 
     if current_games == []:
         logging.error("No free games found or failed to fetch.")

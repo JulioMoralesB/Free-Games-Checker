@@ -11,6 +11,11 @@ os.makedirs("data", exist_ok=True)
 # Epic Games API URL
 EPIC_GAMES_API_URL = os.getenv("EPIC_GAMES_API_URL", "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions")
 
+# Comma-separated list of store identifiers to fetch free games from (e.g. "epic,steam").
+# Defaults to "epic" for backwards compatibility. Unknown stores are ignored with a warning.
+_raw_enabled_stores = os.getenv("ENABLED_STORES", "epic")
+ENABLED_STORES = [s.strip().lower() for s in _raw_enabled_stores.split(",") if s.strip()]
+
 # Steam Store search URL
 STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com/search/")
 

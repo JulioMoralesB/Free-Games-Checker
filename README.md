@@ -172,6 +172,7 @@ docker run -d \
 |----------|----------|---------|-------------|
 | `DISCORD_WEBHOOK_URL` | ✅ Yes | - | Discord webhook URL for sending notifications |
 | `EPIC_GAMES_API_URL` | ❌ No | Official API | Epic Games Store API endpoint |
+| `ENABLED_STORES` | ❌ No | `epic` | Comma-separated list of stores to scrape. Supported: `epic`, `steam` (e.g. `epic,steam`) |
 | `HEALTHCHECK_URL` | ❌ No | - | Healthchecks.io or UptimeKuma ping URL |
 | `ENABLE_HEALTHCHECK` | ❌ No | `false` | Enable health check pings (`true`/`false`) |
 | `DB_HOST` | ❌ No | - | PostgreSQL host (leave empty to use file storage) |
