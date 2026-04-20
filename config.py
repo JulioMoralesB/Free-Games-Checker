@@ -11,6 +11,9 @@ os.makedirs("data", exist_ok=True)
 # Epic Games API URL
 EPIC_GAMES_API_URL = os.getenv("EPIC_GAMES_API_URL", "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions")
 
+# Steam Store search URL
+STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com/search/")
+
 # Discord Webhook URL (loaded from .env)
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
