@@ -223,18 +223,16 @@ class TestSendDiscordMessage:
 
     def test_embed_footer_unknown_end_date_when_empty_and_not_permanent(self):
         """Games with no end_date and is_permanent=False show a 'not available' message."""
-        import dataclasses
-        game = dataclasses.replace(
-            FreeGame(
-                title="Steam Game",
-                store="steam",
-                url="https://store.steampowered.com/app/123/",
-                image_url="https://example.com/img.jpg",
-                original_price="$9.99",
-                end_date="",
-                is_permanent=False,
-                description="",
-            )
+        # dataclasses.replace with no replacements is a no-op; use FreeGame() directly.
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="",
+            is_permanent=False,
+            description="",
         )
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
              patch("modules.notifier.requests.post") as mock_post:

@@ -1,9 +1,41 @@
 import pytest
 from unittest.mock import patch, MagicMock
+from datetime import datetime as _real_datetime, timezone as _utc_tz
 
 import requests as req
 
 from modules.scrapers.steam import SteamScraper, _parse_steam_end_date
+
+
+class _FakeDatetime(_real_datetime):
+    """Pins datetime.now() to 2026-01-01 UTC for deterministic year-rollover tests.
+
+    _parse_steam_end_date uses datetime.now() to decide whether the parsed promo
+    date has already passed and should roll over to next year. Without pinning 'now',
+    any test that asserts a specific year (e.g. "2026-04-23") breaks as soon as the
+    promo date passes in real time. _FakeDatetime is a subclass so the datetime()
+    constructor used in the same function still works normally.
+    """
+    @classmethod
+    def now(cls, tz=None):
+        return _real_datetime(2026, 1, 1, tzinfo=tz if tz is not None else _utc_tz)
+
+
+@pytest.fixture
+def freeze_steam_now():
+    """Pin datetime.now() and TIMEZONE for deterministic timestamp assertions.
+
+    Two patches are needed together:
+    - TIMEZONE → "UTC": _parse_steam_end_date converts local time to UTC using the
+      configured timezone. Without this pin, assertions on specific timestamps break
+      on any host not running in UTC.
+    - datetime → _FakeDatetime: the year-rollover logic uses datetime.now() to decide
+      whether to advance to next year. Without a pinned 'now', tests asserting a
+      specific year break as soon as the promo date passes in real time.
+    """
+    with patch("modules.scrapers.steam.datetime", _FakeDatetime), \
+         patch("modules.scrapers.steam.TIMEZONE", "UTC"):
+        yield
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +147,7 @@ class TestSteamScraper:
     def test_store_name(self):
         assert SteamScraper().store_name == "steam"
 
-    def test_returns_free_game(self):
+    def test_returns_free_game(self, freeze_steam_now):
         with patch("modules.scrapers.steam.requests.get", side_effect=_multi_url_mock()):
             games = SteamScraper().fetch_free_games()
 
@@ -301,7 +333,7 @@ class TestSteamScraper:
         assert len(games) == 1
         assert games[0].end_date == ""
 
-    def test_end_date_falls_back_to_full_page_text(self):
+    def test_end_date_falls_back_to_full_page_text(self, freeze_steam_now):
         """If .game_purchase_discount_quantity is absent, the date is found in the page body."""
         store_page_no_element = """<html><body>
             <div class="game_purchase_action">
@@ -328,22 +360,22 @@ class TestSteamScraper:
 
 
 class TestParseSteamEndDate:
-    def test_parses_am_time(self):
+    def test_parses_am_time(self, freeze_steam_now):
         text = "Free to keep when you get it before 23 Apr @ 10:00am. Some limitations apply."
         result = _parse_steam_end_date(text)
         assert result.startswith("2026-04-23T10:00:00")
 
-    def test_parses_pm_time(self):
+    def test_parses_pm_time(self, freeze_steam_now):
         text = "Free to keep when you get it before 5 Jun @ 2:00pm."
         result = _parse_steam_end_date(text)
         assert "T14:00:00" in result
 
-    def test_parses_noon(self):
+    def test_parses_noon(self, freeze_steam_now):
         text = "before 1 May @ 12:00pm"
         result = _parse_steam_end_date(text)
         assert "T12:00:00" in result
 
-    def test_parses_midnight(self):
+    def test_parses_midnight(self, freeze_steam_now):
         text = "before 1 May @ 12:00am"
         result = _parse_steam_end_date(text)
         assert "T00:00:00" in result
@@ -354,7 +386,7 @@ class TestParseSteamEndDate:
     def test_returns_empty_on_empty_string(self):
         assert _parse_steam_end_date("") == ""
 
-    def test_handles_non_breaking_spaces(self):
+    def test_handles_non_breaking_spaces(self, freeze_steam_now):
         """Steam HTML uses U+00A0 non-breaking spaces which look identical in logs."""
         text = "Free\u00a0to\u00a0keep\u00a0when\u00a0you\u00a0get\u00a0it\u00a0before\u00a023\u00a0Apr\u00a0@\u00a010:00am.\t\t\tSome limitations apply. (?)"
         result = _parse_steam_end_date(text)
