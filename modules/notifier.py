@@ -123,7 +123,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 "name": "Epic Games Store",
                 "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games",
                 "color": 0x2ECC71,
-                "icon_url": "https://img.icons8.com/ios-filled/64/2ECC71/epic-games.png",
+                "icon_url": "https://images.icon-icons.com/2407/PNG/512/epic_games_icon_146062.png",
             },
             "steam": {
                 "name": "Steam",
