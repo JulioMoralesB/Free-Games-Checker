@@ -23,8 +23,9 @@ def get_enabled_scrapers(enabled_stores: Iterable[str]) -> list[BaseScraper]:
     If none of the requested stores are recognized, the Epic scraper is
     returned as a safe default.
     """
+    stores = list(enabled_stores)
     scrapers: list[BaseScraper] = []
-    for name in enabled_stores:
+    for name in stores:
         scraper_cls = SCRAPER_REGISTRY.get(name)
         if scraper_cls is None:
             logger.warning(
@@ -38,7 +39,7 @@ def get_enabled_scrapers(enabled_stores: Iterable[str]) -> list[BaseScraper]:
     if not scrapers:
         logger.warning(
             "No valid stores resolved from ENABLED_STORES=%s; defaulting to 'epic'.",
-            list(enabled_stores),
+            stores,
         )
         scrapers.append(EpicGamesScraper())
 
