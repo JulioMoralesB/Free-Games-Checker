@@ -59,10 +59,14 @@ class FreeGamesDatabase:
         """Return a store-prefixed game ID to guarantee uniqueness across stores.
 
         Format: ``<store>:<url>``, e.g. ``epic:https://...`` or ``steam:https://...``.
-        If *url* is empty the raw store name is used as a fallback so the
-        NOT NULL constraint on game_id is never violated.
+        Raises :class:`ValueError` if either argument is empty so callers get a
+        loud failure instead of a non-unique or empty identifier.
         """
-        return f"{store}:{url}" if url else store
+        if not store or not url:
+            raise ValueError(
+                f"game_id requires non-empty store and url (got store={store!r}, url={url!r})"
+            )
+        return f"{store}:{url}"
 
     def get_games(self):
         """Retrieve all stored games from the database as a list of FreeGame objects."""
@@ -185,6 +189,11 @@ class FreeGamesDatabase:
                             store,
                         ))
                     else:
+                        if not game.url:
+                            logger.warning(
+                                f"Skipping game with missing url: {game.title}"
+                            )
+                            return
                         game_id = self._make_game_id(game.store, game.url)
                         cursor.execute("""
                             INSERT INTO games (game_id, title, link, description, thumbnail,

@@ -42,9 +42,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Strip the single-segment store prefix so game_id values match the
-    # pre-0006 format.  REGEXP_REPLACE removes only the leading ``<store>:``
-    # token, leaving any further colons in the URL payload intact.
+    # Stripping all store prefixes would collapse ``epic:<url>`` and
+    # ``steam:<url>`` to the same bare URL, violating the UNIQUE constraint.
+    # The pre-0006 schema only stored Epic games, so non-epic rows are
+    # removed first.  This is intentionally destructive: downgrade means
+    # reverting to single-store support.
+    op.execute("""
+        DELETE FROM free_games.games
+        WHERE game_id ~ '^(steam|gog|humble):'
+    """)
+
+    # Strip the single-segment store prefix so remaining game_id values match
+    # the pre-0006 format.  REGEXP_REPLACE removes only the leading
+    # ``<store>:`` token, leaving any further colons in the URL intact.
     op.execute("""
         UPDATE free_games.games
         SET game_id = REGEXP_REPLACE(game_id, '^(epic|steam|gog|humble):', '')
