@@ -11,7 +11,7 @@ class TestScraperRegistry:
         assert SCRAPER_REGISTRY["epic"] is EpicGamesScraper
         assert SCRAPER_REGISTRY["steam"] is SteamScraper
 
-    def test_returns_only_epic_by_default(self):
+    def test_returns_only_epic_when_only_epic_enabled(self):
         scrapers = get_enabled_scrapers(["epic"])
 
         assert len(scrapers) == 1
