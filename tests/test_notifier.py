@@ -124,8 +124,8 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
         assert "icon_url" in payload["embeds"][0]["author"]
-        assert "icons8.com" in payload["embeds"][0]["author"]["icon_url"]
-        assert "epic-games" in payload["embeds"][0]["author"]["icon_url"]
+        assert "icon-icons.com" in payload["embeds"][0]["author"]["icon_url"]
+        assert "epic_games_icon" in payload["embeds"][0]["author"]["icon_url"]
 
     def test_embed_author_has_steam_store_icon(self):
         game = FreeGame(
