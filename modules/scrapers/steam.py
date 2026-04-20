@@ -57,6 +57,7 @@ def _steam_get(url: str, **kwargs) -> requests.Response:
     time.sleep(STEAM_REQUEST_DELAY_MS / 1000)
     response = requests.get(url, **kwargs)
     if response.status_code == 429:
+        response.close()
         raise _RateLimitedError(f"Rate limited by Steam (429) for {url}")
     return response
 
