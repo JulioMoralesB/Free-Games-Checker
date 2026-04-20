@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import patch, MagicMock
 
 import requests as req
@@ -106,6 +107,11 @@ def _multi_url_mock(appid="978520"):
 # ---------------------------------------------------------------------------
 
 class TestSteamScraper:
+    @pytest.fixture(autouse=True)
+    def no_sleep(self):
+        with patch("modules.scrapers.steam.time.sleep"):
+            yield
+
     def test_store_name(self):
         assert SteamScraper().store_name == "steam"
 
@@ -167,6 +173,24 @@ class TestSteamScraper:
                 games = SteamScraper().fetch_free_games()
 
         assert games == []
+
+    def test_returns_empty_on_rate_limit(self):
+        """HTTP 429 on search should retry then give up and return empty list."""
+        with patch("modules.scrapers.steam.requests.get") as mock_get:
+            mock_get.return_value = _mock_response(429)
+            with patch("modules.retry.time.sleep"):
+                games = SteamScraper().fetch_free_games()
+
+        assert games == []
+        assert mock_get.call_count == 4  # max_attempts=4
+
+    def test_request_delay_is_applied(self):
+        """Each Steam HTTP call must be preceded by a sleep."""
+        with patch("modules.scrapers.steam.requests.get", side_effect=_multi_url_mock()):
+            with patch("modules.scrapers.steam.time.sleep") as mock_sleep:
+                SteamScraper().fetch_free_games()
+
+        assert mock_sleep.call_count >= 4  # search + appdetails + reviews + end_date
 
     def test_gracefully_handles_failed_appdetails(self):
         """Game is still returned even if the appdetails call fails."""
