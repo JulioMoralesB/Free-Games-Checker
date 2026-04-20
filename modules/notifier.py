@@ -118,50 +118,78 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
         validate_discord_webhook_url(effective_webhook_url)
     
     try:
+        _STORE_META = {
+            "epic": {
+                "name": "Epic Games Store",
+                "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games",
+                "color": 0x2ECC71,
+            },
+            "steam": {
+                "name": "Steam",
+                "url": "https://store.steampowered.com/search/?maxprice=free&specials=1",
+                "color": 0x1B2838,
+            },
+        }
+
         embeds = []
         for game in new_games:
             try:
-                end_date = datetime.strptime(game.end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
-
-                dt_obj = pytz.utc.localize(end_date)
-                try:
-                    configured_tz = pytz.timezone(TIMEZONE)
-                except pytz.exceptions.UnknownTimeZoneError:
-                    logger.warning(
-                        "Unknown timezone %r — falling back to UTC. "
-                        "Set a valid IANA timezone in the TIMEZONE environment variable.",
-                        TIMEZONE,
-                    )
-                    configured_tz = pytz.utc
-                localized_end_date = dt_obj.astimezone(configured_tz)
-
-                # Compute UTC offset dynamically from the localized date (e.g. "UTC+05:30")
-                tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0530"
-                if tz_offset_str and len(tz_offset_str) == 5:
-                    sign = "+" if tz_offset_str[0] == "+" else "-"
-                    hours = tz_offset_str[1:3]
-                    minutes = tz_offset_str[3:5]
-                    utc_label = f"UTC{sign}{hours}:{minutes}"
+                if game.is_permanent or not game.end_date:
+                    formatted_end_date = None
                 else:
-                    utc_label = "UTC"
+                    try:
+                        end_date = datetime.strptime(game.end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+                    except ValueError:
+                        # Try without microseconds (e.g. Steam ISO strings)
+                        end_date = datetime.strptime(game.end_date, "%Y-%m-%dT%H:%M:%SZ")
 
-                # Format the final string, including the timezone name for context
-                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {utc_label} ({TIMEZONE})"
+                    dt_obj = pytz.utc.localize(end_date)
+                    try:
+                        configured_tz = pytz.timezone(TIMEZONE)
+                    except pytz.exceptions.UnknownTimeZoneError:
+                        logger.warning(
+                            "Unknown timezone %r — falling back to UTC. "
+                            "Set a valid IANA timezone in the TIMEZONE environment variable.",
+                            TIMEZONE,
+                        )
+                        configured_tz = pytz.utc
+                    localized_end_date = dt_obj.astimezone(configured_tz)
+
+                    # Compute UTC offset dynamically from the localized date (e.g. "UTC+05:30")
+                    tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0530"
+                    if tz_offset_str and len(tz_offset_str) == 5:
+                        sign = "+" if tz_offset_str[0] == "+" else "-"
+                        hours = tz_offset_str[1:3]
+                        minutes = tz_offset_str[3:5]
+                        utc_label = f"UTC{sign}{hours}:{minutes}"
+                    else:
+                        utc_label = "UTC"
+
+                    # Format the final string, including the timezone name for context
+                    formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {utc_label} ({TIMEZONE})"
+
+                store_meta = _STORE_META.get(game.store, _STORE_META["epic"])
+                if formatted_end_date:
+                    footer_text = f"Finaliza el {formatted_end_date}"
+                elif game.is_permanent:
+                    footer_text = "Gratis de forma permanente"
+                else:
+                    footer_text = "Fecha de fin no disponible"
                 embeds.append(
                     {
                         "author": {
-                            "name": "Epic Games Store",
-                            "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
+                            "name": store_meta["name"],
+                            "url": store_meta["url"],
                         },
                         "title": game.title,
                         "url": game.url,
                         "description": game.description.replace("'", ""),
-                        "color": 0x2ECC71,
+                        "color": store_meta["color"],
                         "image": {
                             "url": game.image_url
                         },
                         "footer": {
-                            "text": f"Finaliza el {formatted_end_date}"
+                            "text": footer_text
                         }
                     }
                 )

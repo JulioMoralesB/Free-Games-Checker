@@ -301,6 +301,31 @@ class TestSteamScraper:
         assert len(games) == 1
         assert games[0].end_date == ""
 
+    def test_end_date_falls_back_to_full_page_text(self):
+        """If .game_purchase_discount_quantity is absent, the date is found in the page body."""
+        store_page_no_element = """<html><body>
+            <div class="game_purchase_action">
+              <p>Free to keep when you get it before 23 Apr @ 10:00am. Some limitations apply.</p>
+            </div>
+        </body></html>"""
+
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appdetails" in url:
+                return _mock_response(200, json_data=_make_appdetails_response("978520"))
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            if "store.steampowered.com/app/" in url:
+                return _mock_response(200, text=store_page_no_element)
+            return _mock_response(404)
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert "2026-04-23T10:00:00" in games[0].end_date
+
 
 class TestParseSteamEndDate:
     def test_parses_am_time(self):
@@ -328,3 +353,9 @@ class TestParseSteamEndDate:
 
     def test_returns_empty_on_empty_string(self):
         assert _parse_steam_end_date("") == ""
+
+    def test_handles_non_breaking_spaces(self):
+        """Steam HTML uses U+00A0 non-breaking spaces which look identical in logs."""
+        text = "Free\u00a0to\u00a0keep\u00a0when\u00a0you\u00a0get\u00a0it\u00a0before\u00a023\u00a0Apr\u00a0@\u00a010:00am.\t\t\tSome limitations apply. (?)"
+        result = _parse_steam_end_date(text)
+        assert result.startswith("2026-04-23T10:00:00")
