@@ -123,7 +123,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 "name": "Epic Games Store",
                 "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games",
                 "color": 0x2ECC71,
-                "icon_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Epic_Games_logo.svg/64px-Epic_Games_logo.svg.png",
+                "icon_url": "https://img.icons8.com/ios-filled/64/2ECC71/epic-games.png",
             },
             "steam": {
                 "name": "Steam",
@@ -196,8 +196,20 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                     },
                 }
                 if game.review_score:
+                    _REVIEW_EMOJIS = {
+                        "overwhelmingly positive": "🏆",
+                        "very positive": "⭐",
+                        "mostly positive": "👍",
+                        "positive": "✅",
+                        "mixed": "⚖️",
+                        "mostly negative": "👎",
+                        "negative": "❌",
+                        "very negative": "⛔",
+                        "overwhelmingly negative": "💀",
+                    }
+                    emoji = _REVIEW_EMOJIS.get(game.review_score.lower(), "🎮")
                     embed["fields"] = [
-                        {"name": "Review Score", "value": game.review_score, "inline": True}
+                        {"name": "⭐ User Reviews", "value": f"{emoji} **{game.review_score}**", "inline": True}
                     ]
                 embeds.append(embed)
             except (AttributeError, ValueError) as e:

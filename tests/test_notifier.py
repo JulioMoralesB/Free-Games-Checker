@@ -124,8 +124,8 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
         assert "icon_url" in payload["embeds"][0]["author"]
-        assert "wikimedia.org" in payload["embeds"][0]["author"]["icon_url"]
-        assert "Epic_Games" in payload["embeds"][0]["author"]["icon_url"]
+        assert "icons8.com" in payload["embeds"][0]["author"]["icon_url"]
+        assert "epic-games" in payload["embeds"][0]["author"]["icon_url"]
 
     def test_embed_author_has_steam_store_icon(self):
         game = FreeGame(
@@ -147,7 +147,7 @@ class TestSendDiscordMessage:
         payload = kwargs["json"]
         assert "icon_url" in payload["embeds"][0]["author"]
         assert "wikimedia.org" in payload["embeds"][0]["author"]["icon_url"]
-        assert "Steam_icon" in payload["embeds"][0]["author"]["icon_url"]
+        assert "Steam_icon_logo" in payload["embeds"][0]["author"]["icon_url"]
 
     def test_embed_includes_review_score_field_when_present(self):
         game = FreeGame(
@@ -169,7 +169,12 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
         fields = payload["embeds"][0].get("fields", [])
-        assert any(f["name"] == "Review Score" and f["value"] == "Very Positive" for f in fields)
+        assert any(
+            f["name"] == "⭐ User Reviews"
+            and "Very Positive" in f["value"]
+            and "⭐" in f["value"]
+            for f in fields
+        )
 
     def test_embed_no_review_score_field_when_absent(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
