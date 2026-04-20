@@ -2,7 +2,7 @@ name: Sync Issue Status with Project Board
 
 on:
   pull_request:
-    types: [opened, ready_for_review, closed]
+    types: [opened, edited, ready_for_review, reopened, closed]
   issues:
     types: [labeled]
 
@@ -23,6 +23,8 @@ env:
 jobs:
   update-status:
     runs-on: ubuntu-latest
+    # Skip fork PRs: GITHUB_TOKEN is read-only for forks and cannot write to the project board
+    if: github.event_name == 'issues' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - name: Move issue to In Progress (label added)
         if: github.event_name == 'issues' && github.event.label.name == 'in-progress'
@@ -31,6 +33,7 @@ jobs:
         run: |
           PROJECT_ID=$(gh project list --owner $PROJECT_OWNER --format json \
             | jq -r --argjson n $PROJECT_NUMBER '.projects[] | select(.number == $n) | .id')
+          [ -z "$PROJECT_ID" ] && echo "ERROR: Project ID not found" && exit 1
           ITEM_ID=$(gh project item-add $PROJECT_NUMBER --owner $PROJECT_OWNER \
             --url "${{ github.event.issue.html_url }}" --format json | jq -r '.id')
           gh project item-edit --id "$ITEM_ID" \
@@ -48,6 +51,7 @@ jobs:
         run: |
           PROJECT_ID=$(gh project list --owner $PROJECT_OWNER --format json \
             | jq -r --argjson n $PROJECT_NUMBER '.projects[] | select(.number == $n) | .id')
+          [ -z "$PROJECT_ID" ] && echo "ERROR: Project ID not found" && exit 1
           echo "$PR_BODY" \
             | grep -oiE '(closes?|fixes?|resolves?)\s+#[0-9]+' \
             | grep -oE '[0-9]+' \
@@ -72,6 +76,7 @@ jobs:
         run: |
           PROJECT_ID=$(gh project list --owner $PROJECT_OWNER --format json \
             | jq -r --argjson n $PROJECT_NUMBER '.projects[] | select(.number == $n) | .id')
+          [ -z "$PROJECT_ID" ] && echo "ERROR: Project ID not found" && exit 1
           echo "$PR_BODY" \
             | grep -oiE '(closes?|fixes?|resolves?)\s+#[0-9]+' \
             | grep -oE '[0-9]+' \
