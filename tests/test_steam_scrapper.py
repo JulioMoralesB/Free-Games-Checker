@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 import requests as req
 
-from modules.scrapers.steam import SteamScraper
+from modules.scrapers.steam import SteamScraper, _parse_steam_end_date
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +78,15 @@ def _make_appreviews_response(review_score_desc="Mostly Positive"):
     }
 
 
+_STORE_PAGE_HTML = """<html><body>
+    <div class="game_purchase_action">
+      <p class="game_purchase_discount_quantity">
+        Free to keep when you get it before 23 Apr @ 10:00am. Some limitations apply.
+      </p>
+    </div>
+</body></html>"""
+
+
 def _multi_url_mock(appid="978520"):
     """Return a side_effect function that dispatches by URL."""
     def side_effect(url, **kwargs):
@@ -87,6 +96,8 @@ def _multi_url_mock(appid="978520"):
             return _mock_response(200, json_data=_make_appdetails_response(appid))
         if "appreviews" in url:
             return _mock_response(200, json_data=_make_appreviews_response())
+        if "store.steampowered.com/app/" in url:
+            return _mock_response(200, text=_STORE_PAGE_HTML)
         return _mock_response(404)
     return side_effect
 
@@ -113,6 +124,7 @@ class TestSteamScraper:
         assert g.image_url == "https://example.com/header.jpg"
         assert g.review_score == "Mostly Positive"
         assert g.is_permanent is False
+        assert "2026-04-23T10:00:00" in g.end_date
 
     def test_excludes_paid_games(self):
         paid = [{"appid": "111", "title": "Paid Game", "original_price": "$9.99", "price_final": 999}]
@@ -228,3 +240,49 @@ class TestSteamScraper:
         html = "<html><body><div id='search_resultsRows'></div></body></html>"
         candidates = SteamScraper()._parse_search_page(html)
         assert candidates == []
+
+    def test_gracefully_handles_failed_end_date_fetch(self):
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appdetails" in url:
+                return _mock_response(200, json_data=_make_appdetails_response("978520"))
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            if "store.steampowered.com/app/" in url:
+                return _mock_response(500)
+            return _mock_response(404)
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].end_date == ""
+
+
+class TestParseSteamEndDate:
+    def test_parses_am_time(self):
+        text = "Free to keep when you get it before 23 Apr @ 10:00am. Some limitations apply."
+        result = _parse_steam_end_date(text)
+        assert result.startswith("2026-04-23T10:00:00")
+
+    def test_parses_pm_time(self):
+        text = "Free to keep when you get it before 5 Jun @ 2:00pm."
+        result = _parse_steam_end_date(text)
+        assert "T14:00:00" in result
+
+    def test_parses_noon(self):
+        text = "before 1 May @ 12:00pm"
+        result = _parse_steam_end_date(text)
+        assert "T12:00:00" in result
+
+    def test_parses_midnight(self):
+        text = "before 1 May @ 12:00am"
+        result = _parse_steam_end_date(text)
+        assert "T00:00:00" in result
+
+    def test_returns_empty_when_no_match(self):
+        assert _parse_steam_end_date("No discount info here.") == ""
+
+    def test_returns_empty_on_empty_string(self):
+        assert _parse_steam_end_date("") == ""

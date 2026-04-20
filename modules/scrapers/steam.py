@@ -1,6 +1,8 @@
 """Steam store scraper implementation."""
 
 import logging
+import re
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
@@ -36,6 +38,33 @@ _SEARCH_PARAMS = {
 
 _APPDETAILS_URL = "https://store.steampowered.com/api/appdetails"
 _APPREVIEWS_URL = "https://store.steampowered.com/appreviews"
+
+_END_DATE_RE = re.compile(
+    r"before\s+(\d{1,2})\s+(\w{3})\s+@\s+(\d{1,2}):(\d{2})(am|pm)",
+    re.IGNORECASE,
+)
+
+
+def _parse_steam_end_date(text: str) -> str:
+    """Parse 'before DD Mon @ HH:MMam/pm' into an ISO-8601 UTC string."""
+    m = _END_DATE_RE.search(text)
+    if not m:
+        return ""
+    day, month_str, hour, minute, ampm = m.groups()
+    try:
+        month = datetime.strptime(month_str, "%b").month
+        hour = int(hour)
+        if ampm.lower() == "pm" and hour != 12:
+            hour += 12
+        elif ampm.lower() == "am" and hour == 12:
+            hour = 0
+        now = datetime.now(tz=timezone.utc)
+        dt = datetime(now.year, month, int(day), hour, int(minute), tzinfo=timezone.utc)
+        if dt < now:
+            dt = dt.replace(year=now.year + 1)
+        return dt.isoformat()
+    except ValueError:
+        return ""
 
 
 class SteamScraper(BaseScraper):
@@ -116,6 +145,7 @@ class SteamScraper(BaseScraper):
             f"https://shared.akamai.steamstatic.com/store_item_assets"
             f"/steam/apps/{appid}/capsule_sm_120.jpg"
         )
+        end_date = self._fetch_end_date(candidate["url"])
 
         logger.info("Built free game: %s (appid=%s, review=%s)", candidate["title"], appid, review_score)
         return FreeGame(
@@ -124,7 +154,7 @@ class SteamScraper(BaseScraper):
             url=candidate["url"],
             image_url=image_url,
             original_price=candidate["original_price"],
-            end_date="",
+            end_date=end_date,
             is_permanent=False,
             description=details.get("short_description", ""),
             review_score=review_score,
@@ -146,6 +176,25 @@ class SteamScraper(BaseScraper):
         except Exception as e:
             logger.warning("Failed to fetch appdetails for appid=%s: %s", appid, e)
         return {}
+
+    def _fetch_end_date(self, url: str) -> str:
+        """Scrape the discount expiration from the game's store page.
+
+        Steam shows 'Free to keep when you get it before DD Mon @ HH:MMam/pm'
+        on the store page. The time is in UTC when scraped without session cookies.
+        """
+        try:
+            response = requests.get(url, headers=_HEADERS, timeout=10)
+            if response.status_code != 200:
+                return ""
+            soup = BeautifulSoup(response.text, "html.parser")
+            el = soup.select_one(".game_purchase_discount_quantity")
+            if not el:
+                return ""
+            return _parse_steam_end_date(el.text)
+        except Exception as e:
+            logger.warning("Failed to fetch end date from %s: %s", url, e)
+            return ""
 
     def _fetch_review_score(self, appid: str) -> Optional[str]:
         """Fetch user review summary label from the Steam reviews API."""
