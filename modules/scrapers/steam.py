@@ -125,6 +125,10 @@ class SteamScraper(BaseScraper):
                 continue
 
             appid = row.get("data-ds-appid", "")
+            if not appid or "," in appid:
+                logger.debug("Skipping row with invalid or multi-appid: %r", appid)
+                continue
+
             title_el = row.select_one(".title")
             candidates.append({
                 "appid": appid,

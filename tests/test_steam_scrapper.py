@@ -1,6 +1,5 @@
 from unittest.mock import patch, MagicMock
 
-import pytest
 import requests as req
 
 from modules.scrapers.steam import SteamScraper, _parse_steam_end_date
@@ -235,6 +234,25 @@ class TestSteamScraper:
         candidates = SteamScraper()._parse_search_page(html)
         assert candidates[0]["url"] == "https://store.steampowered.com/app/978520/Game_Title/"
         assert "?" not in candidates[0]["url"]
+
+    def test_skips_bundle_rows_with_multiple_appids(self):
+        """Rows with comma-separated appids are bundles — skip them."""
+        html = """<html><body><div id="search_resultsRows">
+            <a class="search_result_row"
+               href="https://store.steampowered.com/bundle/999/"
+               data-ds-appid="111,222">
+              <span class="title">Some Bundle</span>
+              <div data-price-final="0">
+                <div class="discount_original_price">$29.99</div>
+              </div>
+            </a>
+        </div></body></html>"""
+
+        with patch("modules.scrapers.steam.requests.get") as mock_get:
+            mock_get.return_value = _mock_response(200, text=html)
+            games = SteamScraper().fetch_free_games()
+
+        assert games == []
 
     def test_parse_search_page_empty_results(self):
         html = "<html><body><div id='search_resultsRows'></div></body></html>"
