@@ -10,6 +10,66 @@ from modules.retry import with_retry
 import logging
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Locale-aware strings
+# ---------------------------------------------------------------------------
+
+_TRANSLATIONS = {
+    "en": {
+        "ends_on": "Ends on",
+        "permanently_free": "Permanently free",
+        "end_date_unavailable": "End date unavailable",
+        "user_reviews": "💬 User Reviews:",
+        "new_free_game": "**New Free Game on {store}! 🎮**\n",
+        "new_free_games": "**New Free Games! 🎮**\n",
+        "review_labels": {
+            "overwhelmingly positive": "Overwhelmingly Positive",
+            "very positive": "Very Positive",
+            "mostly positive": "Mostly Positive",
+            "positive": "Positive",
+            "mixed": "Mixed",
+            "mostly negative": "Mostly Negative",
+            "negative": "Negative",
+            "very negative": "Very Negative",
+            "overwhelmingly negative": "Overwhelmingly Negative",
+            "no user reviews": "No user reviews",
+        },
+    },
+    "es": {
+        "ends_on": "Finaliza el",
+        "permanently_free": "Gratis de forma permanente",
+        "end_date_unavailable": "Fecha de fin no disponible",
+        "user_reviews": "💬 Opiniones de usuarios:",
+        "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
+        "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
+        "review_labels": {
+            "overwhelmingly positive": "Extremadamente Positivo",
+            "very positive": "Muy Positivo",
+            "mostly positive": "Mayormente Positivo",
+            "positive": "Positivo",
+            "mixed": "Mixto",
+            "mostly negative": "Mayormente Negativo",
+            "negative": "Negativo",
+            "very negative": "Muy Negativo",
+            "overwhelmingly negative": "Extremadamente Negativo",
+            "no user reviews": "Sin opiniones de usuarios",
+        },
+    },
+}
+
+
+def _get_lang(locale_str: str) -> str:
+    """Derive a two-letter language code from a LOCALE string (e.g. 'es_MX.UTF-8' → 'es')."""
+    if locale_str:
+        lang = locale_str.split("_")[0].split("-")[0].lower()
+        if lang in _TRANSLATIONS:
+            return lang
+    return "en"
+
+
+_LANG = _get_lang(LOCALE)
+_T = _TRANSLATIONS[_LANG]
+
 _DISCORD_RETRYABLE = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
@@ -172,11 +232,11 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
 
                 store_meta = _STORE_META.get(game.store, _STORE_META["epic"])
                 if formatted_end_date:
-                    footer_text = f"Finaliza el {formatted_end_date}"
+                    footer_text = f"{_T['ends_on']} {formatted_end_date}"
                 elif game.is_permanent:
-                    footer_text = "Gratis de forma permanente"
+                    footer_text = _T["permanently_free"]
                 else:
-                    footer_text = "Fecha de fin no disponible"
+                    footer_text = _T["end_date_unavailable"]
 
                 embed = {
                     "author": {
@@ -207,10 +267,10 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                         "very negative": "⛔",
                         "overwhelmingly negative": "💀",
                     }
-                    emoji = _REVIEW_EMOJIS.get(game.review_score.lower(), "🎮")
-                    embed["fields"] = [
-                        {"name": "💬 User Reviews:", "value": f"{game.review_score} {emoji}", "inline": True}
-                    ]
+                    key = game.review_score.lower()
+                    emoji = _REVIEW_EMOJIS.get(key, "🎮")
+                    label = _T["review_labels"].get(key, game.review_score)
+                    embed["description"] += f"\n\n{_T['user_reviews']}\n{label} {emoji}\n\n"
                 embeds.append(embed)
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")
@@ -220,9 +280,9 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
         if len(stores_in_batch) == 1:
             store_key = next(iter(stores_in_batch))
             store_name = _STORE_META.get(store_key, _STORE_META["epic"])["name"]
-            content = f"**¡Nuevo Juego Gratis en {store_name}! 🎮**\n"
+            content = _T["new_free_game"].format(store=store_name)
         else:
-            content = "**¡Nuevos Juegos Gratis! 🎮**\n"
+            content = _T["new_free_games"]
 
         data = {
             "content": content,
