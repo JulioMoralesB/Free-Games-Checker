@@ -173,6 +173,7 @@ docker run -d \
 | `DISCORD_WEBHOOK_URL` | ✅ Yes | - | Discord webhook URL for sending notifications |
 | `EPIC_GAMES_API_URL` | ❌ No | Official API | Epic Games Store API endpoint |
 | `ENABLED_STORES` | ❌ No | `epic` | Comma-separated list of stores to scrape. Supported: `epic`, `steam` (e.g. `epic,steam`) |
+| `STEAM_REQUEST_DELAY_MS` | ❌ No | `1500` | Milliseconds to wait between Steam HTTP requests to avoid rate limiting |
 | `HEALTHCHECK_URL` | ❌ No | - | Healthchecks.io or UptimeKuma ping URL |
 | `ENABLE_HEALTHCHECK` | ❌ No | `false` | Enable health check pings (`true`/`false`) |
 | `DB_HOST` | ❌ No | - | PostgreSQL host (leave empty to use file storage) |
@@ -190,6 +191,11 @@ docker run -d \
 | `API_PORT` | ❌ No | `8000` | Port the REST API and dashboard server listens on |
 | `API_KEY` | ❌ No | _(empty)_ | Secret key for mutating API endpoints; leave empty to disable auth |
 
+### Steam notes
+
+- Free game promotions on Steam are infrequent. When only Steam is enabled (or when Steam returns no results), the scheduler will log "No free games found" more often than with Epic — this is expected.
+- Steam requests are throttled by `STEAM_REQUEST_DELAY_MS` (default 1 500 ms) to avoid hitting rate limits. Lowering this value may cause HTTP 429 errors; raising it is safe.
+
 ## Project Structure
 
 ```
@@ -204,10 +210,11 @@ docker run -d \
 ├── dashboard/              # React/TypeScript web dashboard (Vite)
 ├── alembic/versions/       # Versioned migration scripts
 ├── modules/
-│   ├── scrapper.py         # Epic Games API fetch logic
+│   ├── scrapers/           # Store scraper implementations (Epic, Steam, …)
 │   ├── notifier.py         # Discord webhook sender
 │   ├── storage.py          # Storage dispatcher (PostgreSQL or JSON file)
 │   ├── database.py         # PostgreSQL database operations
+│   ├── models.py           # Shared FreeGame dataclass
 │   └── healthcheck.py      # Health check monitoring
 └── data/
     ├── free_games.json     # Local game history (file-based storage only)
@@ -254,5 +261,5 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [x] Production end-to-end test suite (#49)
 - [ ] Add support for multiple notification channels (Discord, Slack, Telegram, etc.) (#55)
 - [ ] UI/UX Enhancements (#71)
-- [ ] Support for additional game stores (Steam, GOG, etc.) (#56)
+- [x] Support for additional game stores — Steam (#56)
 
