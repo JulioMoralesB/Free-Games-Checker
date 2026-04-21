@@ -4,6 +4,15 @@ import { useTranslation } from '../i18n'
 import type { Locale } from '../i18n/translations'
 import { localeBcp47 } from '../i18n/translations'
 
+const STORE_META: Record<string, { label: string; icon: string }> = {
+  epic:  { label: 'Epic Games', icon: '🏪' },
+  steam: { label: 'Steam',      icon: '🎮' },
+}
+
+function getStoreMeta(store: string) {
+  return STORE_META[store] ?? { label: store, icon: '🏪' }
+}
+
 interface Props {
   game: GameItem
 }
@@ -28,6 +37,7 @@ export default function GameCard({ game }: Props) {
   const [imgError, setImgError] = useState(false)
 
   const isPastPromotion = new Date(game.end_date) < new Date()
+  const storeMeta = getStoreMeta(game.store)
 
   return (
     <article className="card">
@@ -66,7 +76,7 @@ export default function GameCard({ game }: Props) {
               {formatDate(game.end_date, locale)}
             </span>
           </div>
-          <span className="card-store">{t.epicGamesStore}</span>
+          <span className="card-store">{storeMeta.icon} {storeMeta.label}</span>
         </div>
       </div>
 
@@ -77,7 +87,7 @@ export default function GameCard({ game }: Props) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          {t.viewOnEpicGames}
+          {t.viewOnStore(storeMeta.label)}
         </a>
       </div>
     </article>

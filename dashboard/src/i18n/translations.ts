@@ -23,8 +23,7 @@ export interface Translations {
   // GameCard
   wasFreeUntil: string
   freeUntil: string
-  epicGamesStore: string
-  viewOnEpicGames: string
+  viewOnStore: (storeName: string) => string
 
   // Pagination
   paginationNavAriaLabel: string
@@ -34,7 +33,6 @@ export interface Translations {
 
   // Footer
   footerText: string
-  footerEpicGamesLink: string
 
   // Language selector
   languageLabel: string
@@ -63,8 +61,7 @@ const en: Translations = {
   // GameCard
   wasFreeUntil: 'Was free until',
   freeUntil: 'Free until',
-  epicGamesStore: '🏪 Epic Games',
-  viewOnEpicGames: 'View on Epic Games →',
+  viewOnStore: (storeName) => `View on ${storeName} →`,
 
   // Pagination
   paginationNavAriaLabel: 'Pagination',
@@ -73,8 +70,7 @@ const en: Translations = {
   pageN: (n) => `Page ${n}`,
 
   // Footer
-  footerText: 'Free Games Notifier — Game history dashboard · Data from',
-  footerEpicGamesLink: 'Epic Games',
+  footerText: 'Free Games Notifier — Game history dashboard',
 
   // Language selector
   languageLabel: 'Language',
@@ -103,8 +99,7 @@ const es: Translations = {
   // GameCard
   wasFreeUntil: 'Estuvo gratis hasta el',
   freeUntil: 'Gratis hasta el',
-  epicGamesStore: '🏪 Epic Games',
-  viewOnEpicGames: 'Ver en Epic Games →',
+  viewOnStore: (storeName) => `Ver en ${storeName} →`,
 
   // Pagination
   paginationNavAriaLabel: 'Paginación',
@@ -113,8 +108,7 @@ const es: Translations = {
   pageN: (n) => `Página ${n}`,
 
   // Footer
-  footerText: 'Free Games Notifier — Panel de historial de juegos · Datos de',
-  footerEpicGamesLink: 'Epic Games',
+  footerText: 'Free Games Notifier — Panel de historial de juegos',
 
   // Language selector
   languageLabel: 'Idioma',

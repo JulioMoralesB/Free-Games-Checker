@@ -4,6 +4,7 @@ export interface GameItem {
   end_date: string;
   description: string;
   thumbnail: string;
+  store: string;
 }
 
 export interface GamesHistoryResponse {

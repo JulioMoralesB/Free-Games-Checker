@@ -191,16 +191,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <p>
-          {t.footerText}{' '}
-          <a
-            href="https://www.epicgames.com/store/free-games"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {t.footerEpicGamesLink}
-          </a>
-        </p>
+        <p>{t.footerText}</p>
       </footer>
     </div>
   )
