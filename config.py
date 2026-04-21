@@ -19,6 +19,11 @@ ENABLED_STORES = [s.strip().lower() for s in _raw_enabled_stores.split(",") if s
 # Steam Store search URL
 STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com/search/")
 
+# Language passed to the Steam appdetails API for game descriptions.
+# Supported values: english, spanish, french, german, portuguese, russian, etc.
+# Full list: https://partner.steamgames.com/doc/store/localization/languages
+STEAM_LANGUAGE = os.getenv("STEAM_LANGUAGE", "english")
+
 # Minimum delay in milliseconds between Steam HTTP requests to avoid rate limiting
 _raw_steam_delay = os.getenv("STEAM_REQUEST_DELAY_MS")
 try:

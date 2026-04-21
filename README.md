@@ -174,6 +174,7 @@ docker run -d \
 | `EPIC_GAMES_API_URL` | ❌ No | Official API | Epic Games Store API endpoint |
 | `ENABLED_STORES` | ❌ No | `epic` | Comma-separated list of stores to scrape. Supported: `epic`, `steam` (e.g. `epic,steam`) |
 | `STEAM_REQUEST_DELAY_MS` | ❌ No | `1500` | Milliseconds to wait between Steam HTTP requests to avoid rate limiting |
+| `STEAM_LANGUAGE` | ❌ No | `english` | Language for Steam game descriptions (e.g. `spanish`, `french`, `german`). Falls back to English if no translation exists. Full list: [Steam localization languages](https://partner.steamgames.com/doc/store/localization/languages) |
 | `HEALTHCHECK_URL` | ❌ No | - | Healthchecks.io or UptimeKuma ping URL |
 | `ENABLE_HEALTHCHECK` | ❌ No | `false` | Enable health check pings (`true`/`false`) |
 | `DB_HOST` | ❌ No | - | PostgreSQL host (leave empty to use file storage) |

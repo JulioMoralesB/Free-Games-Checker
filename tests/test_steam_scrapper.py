@@ -358,6 +358,46 @@ class TestSteamScraper:
         assert len(games) == 1
         assert "2026-04-23T10:00:00" in games[0].end_date
 
+    def test_appdetails_uses_configured_language(self):
+        """_fetch_appdetails passes STEAM_LANGUAGE as the l= param to the API."""
+        captured = {}
+
+        def side_effect(url, **kwargs):
+            if "appdetails" in url:
+                captured["params"] = kwargs.get("params", {})
+                return _mock_response(200, json_data=_make_appdetails_response("978520"))
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            return _mock_response(200, text="<html></html>")
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect), \
+             patch("modules.scrapers.steam.STEAM_LANGUAGE", "spanish"):
+            SteamScraper().fetch_free_games()
+
+        assert captured.get("params", {}).get("l") == "spanish"
+
+    def test_appdetails_defaults_to_english(self):
+        """Without STEAM_LANGUAGE override, the API is called with l=english."""
+        captured = {}
+
+        def side_effect(url, **kwargs):
+            if "appdetails" in url:
+                captured["params"] = kwargs.get("params", {})
+                return _mock_response(200, json_data=_make_appdetails_response("978520"))
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            return _mock_response(200, text="<html></html>")
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect), \
+             patch("modules.scrapers.steam.STEAM_LANGUAGE", "english"):
+            SteamScraper().fetch_free_games()
+
+        assert captured.get("params", {}).get("l") == "english"
+
 
 class TestParseSteamEndDate:
     def test_parses_am_time(self, freeze_steam_now):

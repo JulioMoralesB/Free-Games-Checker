@@ -9,7 +9,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from config import STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL, TIMEZONE
+from config import STEAM_LANGUAGE, STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL, TIMEZONE
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
@@ -226,7 +226,7 @@ class SteamScraper(BaseScraper):
             response = with_retry(
                 func=lambda: _steam_get(
                     _APPDETAILS_URL,
-                    params={"appids": appid, "cc": "US", "l": "english"},
+                    params={"appids": appid, "cc": "US", "l": STEAM_LANGUAGE},
                     headers=_HEADERS,
                     timeout=10,
                 ),
