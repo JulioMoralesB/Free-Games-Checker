@@ -270,7 +270,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                     key = game.review_score.lower()
                     emoji = _REVIEW_EMOJIS.get(key, "🎮")
                     label = _T["review_labels"].get(key, game.review_score)
-                    embed["description"] += f"\n\n{_T['user_reviews']} {label} {emoji}"
+                    embed["description"] += f"\n\n{_T['user_reviews']}\n{label} {emoji}\n\n"
                 embeds.append(embed)
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")
