@@ -412,7 +412,9 @@ class TestSendDiscordMessage:
             is_permanent=False,
             description="",
         )
+        es_t = notifier._TRANSLATIONS["es"]
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
              patch("modules.notifier.requests.post") as mock_post:
             mock_post.return_value = self._make_response(204)
             notifier.send_discord_message([game])
@@ -433,7 +435,9 @@ class TestSendDiscordMessage:
             is_permanent=True,
             description="",
         )
+        es_t = notifier._TRANSLATIONS["es"]
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
              patch("modules.notifier.requests.post") as mock_post:
             mock_post.return_value = self._make_response(204)
             notifier.send_discord_message([game])
