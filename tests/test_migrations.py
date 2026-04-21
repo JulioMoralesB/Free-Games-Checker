@@ -182,7 +182,8 @@ class TestCheckGamesDedupe:
             )
         ]
 
-        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
+        with patch("main.ENABLED_STORES", ["epic"]), \
+             patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
              patch("main.load_previous_games", return_value=previous_games), \
              patch("main.send_discord_message") as mock_send_discord, \
              patch("main.save_last_notification") as mock_save_last_notification, \
@@ -218,7 +219,8 @@ class TestCheckGamesDedupe:
             ),
         ]
 
-        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
+        with patch("main.ENABLED_STORES", ["epic"]), \
+             patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
              patch("main.load_previous_games", return_value=previous_games), \
              patch("main.send_discord_message") as mock_send_discord, \
              patch("main.save_last_notification") as mock_save_last_notification, \
@@ -248,7 +250,8 @@ class TestCheckGamesDedupe:
             )
         ]
 
-        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
+        with patch("main.ENABLED_STORES", ["epic"]), \
+             patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
              patch("main.load_previous_games", return_value=previous_games), \
              patch("main.send_discord_message") as mock_send_discord, \
              patch("main.save_last_notification") as mock_save_last_notification, \
@@ -278,7 +281,8 @@ class TestCheckGamesDedupe:
             )
         ]
 
-        with patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
+        with patch("main.ENABLED_STORES", ["epic"]), \
+             patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=current_games), \
              patch("main.load_previous_games", return_value=previous_games), \
              patch("main.send_discord_message") as mock_send_discord, \
              patch("main.save_last_notification") as mock_save_last_notification, \
