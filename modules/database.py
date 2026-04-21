@@ -54,6 +54,20 @@ class FreeGamesDatabase:
             logger.error(f"Failed to initialize database: {e}")
             raise
 
+    @staticmethod
+    def _make_game_id(store: str, url: str) -> str:
+        """Return a store-prefixed game ID to guarantee uniqueness across stores.
+
+        Format: ``<store>:<url>``, e.g. ``epic:https://...`` or ``steam:https://...``.
+        Raises :class:`ValueError` if either argument is empty so callers get a
+        loud failure instead of a non-unique or empty identifier.
+        """
+        if not store or not url:
+            raise ValueError(
+                f"game_id requires non-empty store and url (got store={store!r}, url={url!r})"
+            )
+        return f"{store}:{url}"
+
     def get_games(self):
         """Retrieve all stored games from the database as a list of FreeGame objects."""
         try:
@@ -61,21 +75,23 @@ class FreeGamesDatabase:
                 with conn.cursor() as cursor:
                     cursor.execute("SET search_path TO free_games")
                     cursor.execute(
-                        "SELECT title, link, description, thumbnail, promotion_end_date FROM games"
+                        "SELECT title, link, description, thumbnail, "
+                        "promotion_end_date, review_score, store FROM games"
                     )
                     rows = cursor.fetchall()
                     games = [
                         FreeGame(
                             title=title,
-                            store="epic",
+                            store=store or "epic",
                             url=link,
                             image_url=thumbnail or "",
                             original_price=None,
                             end_date=end_date or "",
                             is_permanent=False,
                             description=description or "",
+                            review_score=review_score,
                         )
-                        for title, link, description, thumbnail, end_date in rows
+                        for title, link, description, thumbnail, end_date, review_score, store in rows
                     ]
                     logger.debug(f"Retrieved {len(games)} games from database.")
                     return games
@@ -84,7 +100,11 @@ class FreeGamesDatabase:
             raise
 
     def save_games(self, games):
-        """Save games to the database, upserting records on conflict by game_id (url)."""
+        """Save games to the database, upserting records on conflict by game_id.
+
+        ``game_id`` uses the ``<store>:<url>`` prefixed format so that records
+        from different stores never collide even if they share similar URLs.
+        """
         if not games:
             logger.warning("Attempted to save empty games list to database")
             return
@@ -93,22 +113,25 @@ class FreeGamesDatabase:
                 with conn.cursor() as cursor:
                     cursor.execute("SET search_path TO free_games")
                     for game in games:
-                        game_id = game.url
-                        if not game_id:
+                        if not game.url:
                             logger.warning(
                                 f"Skipping game with missing url: {game.title}"
                             )
                             continue
+                        game_id = self._make_game_id(game.store, game.url)
                         cursor.execute(
                             """
-                            INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO games (game_id, title, link, description, thumbnail,
+                                               promotion_end_date, review_score, store)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                             ON CONFLICT (game_id) DO UPDATE SET
                                 title = EXCLUDED.title,
                                 link = EXCLUDED.link,
                                 description = EXCLUDED.description,
                                 thumbnail = EXCLUDED.thumbnail,
-                                promotion_end_date = EXCLUDED.promotion_end_date
+                                promotion_end_date = EXCLUDED.promotion_end_date,
+                                review_score = EXCLUDED.review_score,
+                                store = EXCLUDED.store
                             """,
                             (
                                 game_id,
@@ -117,6 +140,8 @@ class FreeGamesDatabase:
                                 game.description,
                                 game.image_url,
                                 game.end_date or None,
+                                game.review_score,
+                                game.store,
                             ),
                         )
                     conn.commit()
@@ -126,30 +151,70 @@ class FreeGamesDatabase:
             raise
     
     def insert_game(self, game):
-        """Insert a game record into the database."""
+        """Insert a game record into the database.
+
+        *game* may be a dict with legacy keys or a :class:`FreeGame` instance.
+        The ``game_id`` is derived using the ``<store>:<url>`` prefix format so
+        that records remain unique across stores.
+        """
         try:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
-                    
+
                     # Set schema for this connection
                     cursor.execute("SET search_path to free_games")
 
-                    cursor.execute("""
-                        INSERT INTO games (game_id, title, link, description, thumbnail, promotion_end_date)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (game_id) DO NOTHING
-                    """, (
-                        game['game_id'],
-                        game['title'],
-                        game['link'],
-                        game['description'],
-                        game['thumbnail'],
-                        game['end_date']
-                    ))
+                    # Accept both dict (legacy) and FreeGame object.
+                    if isinstance(game, dict):
+                        store = game.get("store", "epic")
+                        url = game.get("link") or game.get("url") or ""
+                        if not url:
+                            logger.warning(
+                                f"Skipping game with missing url: {game.get('title')}"
+                            )
+                            return
+                        game_id = self._make_game_id(store, url)
+                        cursor.execute("""
+                            INSERT INTO games (game_id, title, link, description, thumbnail,
+                                               promotion_end_date, store)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (game_id) DO NOTHING
+                        """, (
+                            game_id,
+                            game.get("title"),
+                            url,
+                            game.get("description"),
+                            game.get("thumbnail"),
+                            game.get("end_date"),
+                            store,
+                        ))
+                    else:
+                        if not game.url:
+                            logger.warning(
+                                f"Skipping game with missing url: {game.title}"
+                            )
+                            return
+                        game_id = self._make_game_id(game.store, game.url)
+                        cursor.execute("""
+                            INSERT INTO games (game_id, title, link, description, thumbnail,
+                                               promotion_end_date, store)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (game_id) DO NOTHING
+                        """, (
+                            game_id,
+                            game.title,
+                            game.url,
+                            game.description,
+                            game.image_url,
+                            game.end_date or None,
+                            game.store,
+                        ))
                     conn.commit()
-                    logger.info(f"Game '{game['title']}' inserted successfully.")
+                    title = game.get("title") if isinstance(game, dict) else game.title
+                    logger.info(f"Game '{title}' inserted successfully.")
         except Exception as e:
-            logger.error(f"Failed to insert game '{game['title']}': {e}")
+            title = game.get("title") if isinstance(game, dict) else getattr(game, "title", repr(game))
+            logger.error(f"Failed to insert game '{title}': {e}")
 
     def get_all_games(self):
         """Retrieve all game records from the database."""
@@ -216,18 +281,31 @@ class FreeGamesDatabase:
             logger.error(f"Failed to retrieve last notification from database: {e}")
             raise
 
-    def game_exists(self, game_id):
-        """Check if a game with the given game_id already exists in the database."""
+    def game_exists(self, game_id: str, store: str = "") -> bool:
+        """Check if a game with the given game_id already exists in the database.
+
+        *game_id* may be a plain URL **or** an already-prefixed ID
+        (``<store>:<url>``).  When *store* is provided and *game_id* does not
+        already carry a prefix the lookup is performed against the prefixed form.
+        """
         try:
             with psycopg2.connect(**self.conn_params) as conn:
                 with conn.cursor() as cursor:
-                    
+
                     # Set schema for this connection
                     cursor.execute("SET search_path to free_games")
 
-                    cursor.execute("SELECT 1 FROM games WHERE game_id = %s", (game_id,))
+                    # Build the prefixed key when needed.  Check for the
+                    # store prefix explicitly — plain URLs already contain ":"
+                    # (https://...) so a bare colon test would always skip this.
+                    lookup_id = (
+                        self._make_game_id(store, game_id)
+                        if store and not game_id.startswith(f"{store}:")
+                        else game_id
+                    )
+                    cursor.execute("SELECT 1 FROM games WHERE game_id = %s", (lookup_id,))
                     exists = cursor.fetchone() is not None
-                    logger.debug(f"Game with ID '{game_id}' exists: {exists}")
+                    logger.debug(f"Game with ID '{lookup_id}' exists: {exists}")
                     return exists
         except Exception as e:
             logger.error(f"Failed to check if game exists: {e}")

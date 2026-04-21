@@ -10,6 +10,66 @@ from modules.retry import with_retry
 import logging
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Locale-aware strings
+# ---------------------------------------------------------------------------
+
+_TRANSLATIONS = {
+    "en": {
+        "ends_on": "Ends on",
+        "permanently_free": "Permanently free",
+        "end_date_unavailable": "End date unavailable",
+        "user_reviews": "💬 User Reviews:",
+        "new_free_game": "**New Free Game on {store}! 🎮**\n",
+        "new_free_games": "**New Free Games! 🎮**\n",
+        "review_labels": {
+            "overwhelmingly positive": "Overwhelmingly Positive",
+            "very positive": "Very Positive",
+            "mostly positive": "Mostly Positive",
+            "positive": "Positive",
+            "mixed": "Mixed",
+            "mostly negative": "Mostly Negative",
+            "negative": "Negative",
+            "very negative": "Very Negative",
+            "overwhelmingly negative": "Overwhelmingly Negative",
+            "no user reviews": "No user reviews",
+        },
+    },
+    "es": {
+        "ends_on": "Finaliza el",
+        "permanently_free": "Gratis de forma permanente",
+        "end_date_unavailable": "Fecha de fin no disponible",
+        "user_reviews": "💬 Opiniones de usuarios:",
+        "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
+        "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
+        "review_labels": {
+            "overwhelmingly positive": "Extremadamente Positivo",
+            "very positive": "Muy Positivo",
+            "mostly positive": "Mayormente Positivo",
+            "positive": "Positivo",
+            "mixed": "Mixto",
+            "mostly negative": "Mayormente Negativo",
+            "negative": "Negativo",
+            "very negative": "Muy Negativo",
+            "overwhelmingly negative": "Extremadamente Negativo",
+            "no user reviews": "Sin opiniones de usuarios",
+        },
+    },
+}
+
+
+def _get_lang(locale_str: str) -> str:
+    """Derive a two-letter language code from a LOCALE string (e.g. 'es_MX.UTF-8' → 'es')."""
+    if locale_str:
+        lang = locale_str.split("_")[0].split("-")[0].lower()
+        if lang in _TRANSLATIONS:
+            return lang
+    return "en"
+
+
+_LANG = _get_lang(LOCALE)
+_T = _TRANSLATIONS[_LANG]
+
 _DISCORD_RETRYABLE = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
@@ -118,59 +178,114 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
         validate_discord_webhook_url(effective_webhook_url)
     
     try:
+        _STORE_META = {
+            "epic": {
+                "name": "Epic Games Store",
+                "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games",
+                "color": 0x2ECC71,
+                "icon_url": "https://images.icon-icons.com/2407/PNG/512/epic_games_icon_146062.png",
+            },
+            "steam": {
+                "name": "Steam",
+                "url": "https://store.steampowered.com/search/?maxprice=free&specials=1",
+                "color": 0x1B2838,
+                "icon_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/64px-Steam_icon_logo.svg.png",
+            },
+        }
+
         embeds = []
         for game in new_games:
             try:
-                end_date = datetime.strptime(game.end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
-
-                dt_obj = pytz.utc.localize(end_date)
-                try:
-                    configured_tz = pytz.timezone(TIMEZONE)
-                except pytz.exceptions.UnknownTimeZoneError:
-                    logger.warning(
-                        "Unknown timezone %r — falling back to UTC. "
-                        "Set a valid IANA timezone in the TIMEZONE environment variable.",
-                        TIMEZONE,
-                    )
-                    configured_tz = pytz.utc
-                localized_end_date = dt_obj.astimezone(configured_tz)
-
-                # Compute UTC offset dynamically from the localized date (e.g. "UTC+05:30")
-                tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0530"
-                if tz_offset_str and len(tz_offset_str) == 5:
-                    sign = "+" if tz_offset_str[0] == "+" else "-"
-                    hours = tz_offset_str[1:3]
-                    minutes = tz_offset_str[3:5]
-                    utc_label = f"UTC{sign}{hours}:{minutes}"
+                if game.is_permanent or not game.end_date:
+                    formatted_end_date = None
                 else:
-                    utc_label = "UTC"
+                    try:
+                        end_date = datetime.strptime(game.end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+                    except ValueError:
+                        # Try without microseconds (e.g. Steam ISO strings)
+                        end_date = datetime.strptime(game.end_date, "%Y-%m-%dT%H:%M:%SZ")
 
-                # Format the final string, including the timezone name for context
-                formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {utc_label} ({TIMEZONE})"
-                embeds.append(
-                    {
-                        "author": {
-                            "name": "Epic Games Store",
-                            "url": f"https://store.epicgames.com/{EPIC_GAMES_REGION}/free-games"
-                        },
-                        "title": game.title,
-                        "url": game.url,
-                        "description": game.description.replace("'", ""),
-                        "color": 0x2ECC71,
-                        "image": {
-                            "url": game.image_url
-                        },
-                        "footer": {
-                            "text": f"Finaliza el {formatted_end_date}"
-                        }
+                    dt_obj = pytz.utc.localize(end_date)
+                    try:
+                        configured_tz = pytz.timezone(TIMEZONE)
+                    except pytz.exceptions.UnknownTimeZoneError:
+                        logger.warning(
+                            "Unknown timezone %r — falling back to UTC. "
+                            "Set a valid IANA timezone in the TIMEZONE environment variable.",
+                            TIMEZONE,
+                        )
+                        configured_tz = pytz.utc
+                    localized_end_date = dt_obj.astimezone(configured_tz)
+
+                    # Compute UTC offset dynamically from the localized date (e.g. "UTC+05:30")
+                    tz_offset_str = localized_end_date.strftime("%z")  # e.g. "-0600" or "+0530"
+                    if tz_offset_str and len(tz_offset_str) == 5:
+                        sign = "+" if tz_offset_str[0] == "+" else "-"
+                        hours = tz_offset_str[1:3]
+                        minutes = tz_offset_str[3:5]
+                        utc_label = f"UTC{sign}{hours}:{minutes}"
+                    else:
+                        utc_label = "UTC"
+
+                    # Format the final string, including the timezone name for context
+                    formatted_end_date = f"{localized_end_date.strftime(DATE_FORMAT)} {utc_label} ({TIMEZONE})"
+
+                store_meta = _STORE_META.get(game.store, _STORE_META["epic"])
+                if formatted_end_date:
+                    footer_text = f"{_T['ends_on']} {formatted_end_date}"
+                elif game.is_permanent:
+                    footer_text = _T["permanently_free"]
+                else:
+                    footer_text = _T["end_date_unavailable"]
+
+                embed = {
+                    "author": {
+                        "name": store_meta["name"],
+                        "url": store_meta["url"],
+                        "icon_url": store_meta["icon_url"],
+                    },
+                    "title": game.title,
+                    "url": game.url,
+                    "description": game.description.replace("'", ""),
+                    "color": store_meta["color"],
+                    "image": {
+                        "url": game.image_url
+                    },
+                    "footer": {
+                        "text": footer_text
+                    },
+                }
+                if game.review_score:
+                    _REVIEW_EMOJIS = {
+                        "overwhelmingly positive": "🏆",
+                        "very positive": "⭐",
+                        "mostly positive": "👍",
+                        "positive": "✅",
+                        "mixed": "⚖️",
+                        "mostly negative": "👎",
+                        "negative": "❌",
+                        "very negative": "⛔",
+                        "overwhelmingly negative": "💀",
                     }
-                )
+                    key = game.review_score.lower()
+                    emoji = _REVIEW_EMOJIS.get(key, "🎮")
+                    label = _T["review_labels"].get(key, game.review_score)
+                    embed["description"] += f"\n\n{_T['user_reviews']}\n{label} {emoji}\n\n"
+                embeds.append(embed)
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")
                 raise
             
+        stores_in_batch = {game.store for game in new_games}
+        if len(stores_in_batch) == 1:
+            store_key = next(iter(stores_in_batch))
+            store_name = _STORE_META.get(store_key, _STORE_META["epic"])["name"]
+            content = _T["new_free_game"].format(store=store_name)
+        else:
+            content = _T["new_free_games"]
+
         data = {
-            "content": "**Nuevo Juego Gratis en Epic Games Store! 🎮**\n",
+            "content": content,
             "embeds": embeds
         }
         logger.info(f"Sending Discord message with {len(embeds)} game(s)")

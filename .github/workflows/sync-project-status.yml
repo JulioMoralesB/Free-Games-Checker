@@ -1,0 +1,91 @@
+name: Sync Issue Status with Project Board
+
+on:
+  pull_request:
+    types: [opened, edited, ready_for_review, reopened, closed]
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  projects: write
+
+env:
+  PROJECT_NUMBER: 2
+  PROJECT_OWNER: JulioMoralesB
+  STATUS_FIELD_ID: PVTSSF_lAHOBgvcQc4BR2svzg_jvuU
+  STATUS_IN_PROGRESS: 47fc9ee4
+  STATUS_IN_REVIEW: df73e18b
+  STATUS_DONE: 98236657
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    # Skip fork PRs: GITHUB_TOKEN is read-only for forks and cannot write to the project board
+    if: github.event_name == 'issues' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Move issue to In Progress (label added)
+        if: github.event_name == 'issues' && github.event.label.name == 'in-progress'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PROJECT_ID=$(gh project list --owner $PROJECT_OWNER --format json \
+            | jq -r --argjson n $PROJECT_NUMBER '.projects[] | select(.number == $n) | .id')
+          [ -z "$PROJECT_ID" ] && echo "ERROR: Project ID not found" && exit 1
+          ITEM_ID=$(gh project item-add $PROJECT_NUMBER --owner $PROJECT_OWNER \
+            --url "${{ github.event.issue.html_url }}" --format json | jq -r '.id')
+          gh project item-edit --id "$ITEM_ID" \
+            --field-id $STATUS_FIELD_ID \
+            --project-id "$PROJECT_ID" \
+            --single-select-option-id $STATUS_IN_PROGRESS
+
+      - name: Move linked issue to In Review (PR opened)
+        if: >
+          github.event_name == 'pull_request' &&
+          (github.event.action == 'opened' || github.event.action == 'ready_for_review')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          PROJECT_ID=$(gh project list --owner $PROJECT_OWNER --format json \
+            | jq -r --argjson n $PROJECT_NUMBER '.projects[] | select(.number == $n) | .id')
+          [ -z "$PROJECT_ID" ] && echo "ERROR: Project ID not found" && exit 1
+          echo "$PR_BODY" \
+            | grep -oiE '(closes?|fixes?|resolves?)\s+#[0-9]+' \
+            | grep -oE '[0-9]+' \
+            | while read ISSUE_NUM; do
+                ISSUE_URL="https://github.com/${{ github.repository }}/issues/$ISSUE_NUM"
+                ITEM_ID=$(gh project item-add $PROJECT_NUMBER --owner $PROJECT_OWNER \
+                  --url "$ISSUE_URL" --format json | jq -r '.id')
+                gh project item-edit --id "$ITEM_ID" \
+                  --field-id $STATUS_FIELD_ID \
+                  --project-id "$PROJECT_ID" \
+                  --single-select-option-id $STATUS_IN_REVIEW
+              done
+
+      - name: Move linked issue to Done (PR merged)
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.action == 'closed' &&
+          github.event.pull_request.merged == true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          PROJECT_ID=$(gh project list --owner $PROJECT_OWNER --format json \
+            | jq -r --argjson n $PROJECT_NUMBER '.projects[] | select(.number == $n) | .id')
+          [ -z "$PROJECT_ID" ] && echo "ERROR: Project ID not found" && exit 1
+          echo "$PR_BODY" \
+            | grep -oiE '(closes?|fixes?|resolves?)\s+#[0-9]+' \
+            | grep -oE '[0-9]+' \
+            | while read ISSUE_NUM; do
+                ISSUE_URL="https://github.com/${{ github.repository }}/issues/$ISSUE_NUM"
+                ITEM_ID=$(gh project item-add $PROJECT_NUMBER --owner $PROJECT_OWNER \
+                  --url "$ISSUE_URL" --format json | jq -r '.id')
+                gh project item-edit --id "$ITEM_ID" \
+                  --field-id $STATUS_FIELD_ID \
+                  --project-id "$PROJECT_ID" \
+                  --single-select-option-id $STATUS_DONE
+              done

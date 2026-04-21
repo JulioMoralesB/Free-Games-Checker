@@ -29,6 +29,7 @@ class FreeGame:
     end_date: str
     is_permanent: bool
     description: str = ""
+    review_score: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Return a plain dict representation of this FreeGame."""
@@ -46,5 +47,6 @@ class FreeGame:
             end_date=data.get("end_date", ""),
             is_permanent=data.get("is_permanent", False),
             description=data.get("description", ""),
+            review_score=data.get("review_score"),
         )
  

@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 import requests as requests_lib
 
 from modules import notifier
+from modules.models import FreeGame
 
 
 VALID_WEBHOOK = "https://discord.com/api/webhooks/123456789/token_abc"
@@ -11,6 +12,23 @@ VALID_WEBHOOK = "https://discord.com/api/webhooks/123456789/token_abc"
 # ---------------------------------------------------------------------------
 # Tests for _get_safe_webhook_identifier
 # ---------------------------------------------------------------------------
+
+class TestGetLang:
+    def test_returns_en_for_english_locale(self):
+        assert notifier._get_lang("en_US.UTF-8") == "en"
+
+    def test_returns_es_for_spanish_locale(self):
+        assert notifier._get_lang("es_MX.UTF-8") == "es"
+
+    def test_returns_es_for_spain_locale(self):
+        assert notifier._get_lang("es_ES.UTF-8") == "es"
+
+    def test_falls_back_to_en_for_unsupported_locale(self):
+        assert notifier._get_lang("de_DE.UTF-8") == "en"
+
+    def test_falls_back_to_en_for_empty_string(self):
+        assert notifier._get_lang("") == "en"
+
 
 class TestGetSafeWebhookIdentifier:
     def test_redacts_token_from_discord_url(self):
@@ -95,14 +113,16 @@ class TestSendDiscordMessage:
         assert payload["embeds"][0]["image"]["url"] == sample_games[0].image_url
 
     def test_embed_footer_contains_end_date_prefix(self, sample_games):
+        en_t = notifier._TRANSLATIONS["en"]
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
              patch("modules.notifier.requests.post") as mock_post:
             mock_post.return_value = self._make_response(204)
             notifier.send_discord_message(sample_games)
 
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
-        assert payload["embeds"][0]["footer"]["text"].startswith("Finaliza el ")
+        assert payload["embeds"][0]["footer"]["text"].startswith("Ends on ")
 
     def test_embed_author_is_epic_games_store(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -113,6 +133,165 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         payload = kwargs["json"]
         assert payload["embeds"][0]["author"]["name"] == "Epic Games Store"
+
+    def test_embed_author_has_epic_store_icon(self, sample_games):
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        payload = kwargs["json"]
+        assert "icon_url" in payload["embeds"][0]["author"]
+        assert "icon-icons.com" in payload["embeds"][0]["author"]["icon_url"]
+        assert "epic_games_icon" in payload["embeds"][0]["author"]["icon_url"]
+
+    def test_embed_author_has_steam_store_icon(self):
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+        )
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        payload = kwargs["json"]
+        assert "icon_url" in payload["embeds"][0]["author"]
+        assert "wikimedia.org" in payload["embeds"][0]["author"]["icon_url"]
+        assert "Steam_icon_logo" in payload["embeds"][0]["author"]["icon_url"]
+
+    def test_embed_includes_review_score_field_when_present(self):
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+            review_score="Very Positive",
+        )
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        payload = kwargs["json"]
+        description = payload["embeds"][0]["description"]
+        assert "💬 User Reviews:" in description
+        assert "Very Positive" in description
+        assert "⭐" in description
+
+    def test_review_label_is_translated_when_locale_is_spanish(self):
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+            review_score="Very Positive",
+        )
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        description = kwargs["json"]["embeds"][0]["description"]
+        assert "💬 Opiniones de usuarios:" in description
+        assert "Muy Positivo" in description
+        assert "⭐" in description
+
+    def test_footer_is_translated_when_locale_is_spanish(self, sample_games):
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        footer = kwargs["json"]["embeds"][0]["footer"]["text"]
+        assert footer.startswith("Finaliza el ")
+
+    def test_content_message_is_translated_when_locale_is_spanish(self, sample_games):
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        assert "¡Nuevo Juego Gratis" in kwargs["json"]["content"]
+
+    def test_embed_no_review_score_when_absent(self, sample_games):
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        description = kwargs["json"]["embeds"][0]["description"]
+        assert "User Reviews" not in description
+
+    def test_content_message_uses_epic_store_name(self, sample_games):
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        assert "Epic Games Store" in kwargs["json"]["content"]
+
+    def test_content_message_uses_steam_store_name(self):
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+        )
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        assert "Steam" in kwargs["json"]["content"]
+
+    def test_content_message_is_generic_for_multi_store_batch(self, sample_game):
+        import dataclasses
+        steam_game = dataclasses.replace(sample_game, store="steam", title="Steam Game")
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([sample_game, steam_game])
+
+        _, kwargs = mock_post.call_args
+        content = kwargs["json"]["content"]
+        assert "Epic Games Store" not in content
+        assert "Steam" not in content
 
     def test_embed_author_url_uses_epic_games_region(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -219,6 +398,53 @@ class TestSendDiscordMessage:
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK):
             with pytest.raises(ValueError):
                 notifier.send_discord_message([bad_game])
+
+    def test_embed_footer_unknown_end_date_when_empty_and_not_permanent(self):
+        """Games with no end_date and is_permanent=False show a 'not available' message."""
+        # dataclasses.replace with no replacements is a no-op; use FreeGame() directly.
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="",
+            is_permanent=False,
+            description="",
+        )
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        footer = kwargs["json"]["embeds"][0]["footer"]["text"]
+        assert footer == "Fecha de fin no disponible"
+
+    def test_embed_footer_permanent_game(self):
+        """Games with is_permanent=True show the permanent promotion message."""
+        game = FreeGame(
+            title="Free Forever Game",
+            store="epic",
+            url="https://store.epicgames.com/p/free-forever",
+            image_url="https://example.com/img.jpg",
+            original_price=None,
+            end_date="",
+            is_permanent=True,
+            description="",
+        )
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        footer = kwargs["json"]["embeds"][0]["footer"]["text"]
+        assert footer == "Gratis de forma permanente"
 
 
 class TestSendDiscordMessageWebhookOverride:

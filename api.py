@@ -24,6 +24,7 @@ from config import (
     DATA_FILE_PATH,
     DATE_FORMAT,
     ENABLE_HEALTHCHECK,
+    ENABLED_STORES,
     EPIC_GAMES_API_URL,
     EPIC_GAMES_REGION,
     HEALTHCHECK_INTERVAL,
@@ -42,7 +43,8 @@ from config import (
 class GameItem(BaseModel):
     """A free game as returned by the scraper."""
     title: str = Field(..., description="Name of the free game", examples=["Celeste"])
-    link: str = Field(..., description="Epic Games Store URL for the game")
+    store: str = Field("epic", description="Store identifier where the game is offered for free", examples=["epic", "steam"])
+    link: str = Field(..., description="Store URL for the game")
     end_date: str = Field(..., description="ISO-8601 timestamp when the free promotion ends", examples=["2024-01-31T15:00:00.000Z"])
     description: str = Field(..., description="Short description of the game")
     thumbnail: str = Field(..., description="URL to the game's thumbnail image")
@@ -104,7 +106,7 @@ class ConfigResponse(BaseModel):
 
 class CheckE2EResponse(BaseModel):
     """Response from the end-to-end check endpoint."""
-    games_fetched: int = Field(..., description="Number of free games fetched from Epic Games", examples=[2])
+    games_fetched: int = Field(..., description="Number of free games fetched from all enabled stores", examples=[2])
     games: List[GameItem] = Field(..., description="Full list of fetched game objects")
     already_in_storage: List[str] = Field(..., description="Titles of games that were already saved in storage")
     new_games: List[str] = Field(..., description="Titles of games not yet in storage")
@@ -159,12 +161,15 @@ def _to_game_item_dict(game) -> dict:
     if isinstance(game, FreeGame):
         return {
             "title": game.title,
+            "store": game.store,
             "link": game.url,
             "end_date": game.end_date,
             "description": game.description,
             "thumbnail": game.image_url,
         }
-    # Legacy dict format – pass through as-is for backward compatibility.
+    # Legacy dict format – ensure store key is present with a safe default.
+    if isinstance(game, dict) and "store" not in game:
+        return {**game, "store": "epic"}
     return game
 
 
@@ -394,34 +399,40 @@ def config_endpoint():
     dependencies=[Security(_verify_api_key)],
     responses={
         401: {"model": ErrorResponse, "description": "Invalid or missing API key"},
-        404: {"model": ErrorResponse, "description": "No free games found from Epic Games API"},
-        500: {"model": ErrorResponse, "description": "Failed to fetch games from Epic Games API"},
+        404: {"model": ErrorResponse, "description": "No free games found from any enabled store"},
+        500: {"model": ErrorResponse, "description": "Failed to fetch games from all enabled stores"},
     },
 )
 def check_e2e(body: Optional[WebhookOverrideRequest] = None):
-    """End-to-end test: fetch games, check DB presence, and send Discord notification regardless.
+    """End-to-end test: fetch games from all enabled stores, check DB presence, and send Discord notification regardless.
 
     This endpoint runs the full flow even when the games already exist in the
     database so you can test the pipeline without deleting stored data.
     """
-    from modules.scrapers import EpicGamesScraper
+    from modules.scrapers import get_enabled_scrapers
     from modules.storage import load_previous_games
     from modules.notifier import send_discord_message
 
     webhook_url = body.webhook_url if body else None
 
-    # 1. Fetch current free games from Epic Games
-    try:
-        scraper = EpicGamesScraper()
-        current_games = scraper.fetch_free_games()
-        increment_metric("games_processed", len(current_games))
-    except Exception as e:
-        logger.error("E2E check – failed to fetch games: %s", e)
-        increment_metric("errors")
+    # 1. Fetch current free games from all enabled stores
+    current_games = []
+    fetch_failed = False
+    for scraper in get_enabled_scrapers(ENABLED_STORES):
+        try:
+            games = scraper.fetch_free_games()
+            current_games.extend(games)
+            increment_metric("games_processed", len(games))
+        except Exception as e:
+            logger.error("E2E check – failed to fetch from %s: %s", scraper.store_name, e)
+            fetch_failed = True
+            increment_metric("errors")
+
+    if not current_games and fetch_failed:
         raise HTTPException(status_code=500, detail="Failed to fetch games")
 
     if not current_games:
-        raise HTTPException(status_code=404, detail="No free games found from Epic Games API")
+        raise HTTPException(status_code=404, detail="No free games found")
 
     # 2. Check which games already exist in storage
     try:
