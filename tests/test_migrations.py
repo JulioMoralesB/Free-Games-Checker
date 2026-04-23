@@ -2,7 +2,7 @@
 
 import sys
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
 from modules.models import FreeGame
 
@@ -148,6 +148,80 @@ class TestMainDbBranch:
         mock_db_cls.assert_not_called()
         mock_migrate.assert_not_called()
         mock_verify_tables.assert_not_called()
+
+
+class TestScheduling:
+    """Tests for the check_games scheduling logic (interval vs daily mode)."""
+
+    def _run_main_with_patches(self, main, extra_patches):
+        """Run main.main() with common patches applied, stopping after one scheduler tick."""
+        base = {
+            "main.DB_HOST": None,
+            "main._start_api_server": MagicMock(),
+            "main.check_games": MagicMock(),
+            "main.healthcheck": MagicMock(),
+            "main.time.sleep": MagicMock(side_effect=KeyboardInterrupt),
+        }
+        base.update(extra_patches)
+        patchers = [patch(k, v) for k, v in base.items()]
+        mock_schedule = MagicMock()
+        # schedule.every(...) returns a job mock; chain .hours/.day/.at().do() on it
+        mock_schedule.every.return_value = mock_schedule
+        mock_schedule.day = mock_schedule
+        mock_schedule.at.return_value = mock_schedule
+
+        with patch("main.schedule", mock_schedule):
+            for p in patchers:
+                p.start()
+            try:
+                main.main()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                for p in patchers:
+                    p.stop()
+
+        return mock_schedule
+
+    def test_interval_mode_when_check_interval_hours_is_set(self):
+        """When CHECK_INTERVAL_HOURS is set, schedule.every(N).hours should be used."""
+        main = _import_main()
+
+        mock_schedule = self._run_main_with_patches(
+            main, {"main.CHECK_INTERVAL_HOURS": 6.0}
+        )
+
+        # schedule.every(6.0) should have been called
+        calls = [str(c) for c in mock_schedule.every.call_args_list]
+        assert any("6.0" in c or "6" in c for c in calls), (
+            f"Expected schedule.every(6.0) for interval mode, got: {calls}"
+        )
+        mock_schedule.hours.do.assert_called()
+
+    def test_daily_mode_when_check_interval_hours_is_none(self):
+        """When CHECK_INTERVAL_HOURS is None, schedule.every().day.at() should be used."""
+        main = _import_main()
+
+        mock_schedule = self._run_main_with_patches(
+            main, {"main.CHECK_INTERVAL_HOURS": None, "main.SCHEDULE_TIME": "08:00"}
+        )
+
+        # schedule.every() (no args) should have been called for the daily job
+        no_arg_calls = [c for c in mock_schedule.every.call_args_list if c == call()]
+        assert no_arg_calls, (
+            "Expected schedule.every() (no args) for daily mode."
+        )
+        mock_schedule.at.assert_called()
+
+    def test_interval_mode_does_not_use_schedule_time(self):
+        """In interval mode, .day.at() must NOT be called for the game-check job."""
+        main = _import_main()
+
+        mock_schedule = self._run_main_with_patches(
+            main, {"main.CHECK_INTERVAL_HOURS": 3.0}
+        )
+
+        mock_schedule.at.assert_not_called()
 
 
 def _make_game(title, link, description="desc", thumbnail="https://example.com/img.png", end_date="2026-04-16T15:00:00.000Z"):

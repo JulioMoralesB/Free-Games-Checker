@@ -12,6 +12,7 @@ from config import (
     DB_USER,
     DB_PASSWORD,
     ENABLED_STORES,
+    CHECK_INTERVAL_HOURS,
     SCHEDULE_TIME,
     HEALTHCHECK_INTERVAL,
     TIMEZONE,
@@ -312,7 +313,25 @@ def main():
 
     logging.debug("Starting scheduler...")
 
-    schedule.every().day.at(SCHEDULE_TIME, tz=TIMEZONE).do(check_games)
+    if CHECK_INTERVAL_HOURS is not None:
+        # Interval mode: check every N hours regardless of time of day.
+        # Ideal for multi-store setups where Steam games can appear at any time.
+        logging.info(
+            "Scheduling game checks every %.4g hour(s) (CHECK_INTERVAL_HOURS=%s).",
+            CHECK_INTERVAL_HOURS,
+            CHECK_INTERVAL_HOURS,
+        )
+        schedule.every(CHECK_INTERVAL_HOURS).hours.do(check_games)
+    else:
+        # Daily mode: check once per day at the configured time (legacy default).
+        logging.info(
+            "Scheduling game checks once daily at %s %s (SCHEDULE_TIME=%s).",
+            SCHEDULE_TIME,
+            TIMEZONE,
+            SCHEDULE_TIME,
+        )
+        schedule.every().day.at(SCHEDULE_TIME, tz=TIMEZONE).do(check_games)
+
     schedule.every(HEALTHCHECK_INTERVAL).minutes.do(healthcheck)
 
     while True:
