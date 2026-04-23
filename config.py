@@ -63,7 +63,34 @@ LOCALE = os.getenv("LOCALE", "en_US.UTF-8")
 # Epic Games region used in store links (e.g. "en-US", "es-MX", "de-DE")
 EPIC_GAMES_REGION = os.getenv("EPIC_GAMES_REGION", "en-US")
 
+# How often to check for new free games, in hours.
+# When set, the service runs on a repeating interval (e.g. every 6 hours).
+# When left empty, the service falls back to SCHEDULE_TIME and runs once per day.
+# Recommended for multi-store setups (Steam games can appear at any time).
+# Minimum value is 1 hour.
+_raw_check_interval = os.getenv("CHECK_INTERVAL_HOURS")
+try:
+    if _raw_check_interval in (None, ""):
+        CHECK_INTERVAL_HOURS = None
+    else:
+        _parsed = float(_raw_check_interval)
+        if _parsed < 1:
+            logging.warning(
+                "CHECK_INTERVAL_HOURS value %r is below the 1-hour minimum; defaulting to 1 hour.",
+                _raw_check_interval,
+            )
+            CHECK_INTERVAL_HOURS = 1.0
+        else:
+            CHECK_INTERVAL_HOURS = _parsed
+except ValueError:
+    logging.error(
+        "Invalid CHECK_INTERVAL_HOURS value %r (not a number); falling back to SCHEDULE_TIME.",
+        _raw_check_interval,
+    )
+    CHECK_INTERVAL_HOURS = None
+
 # Daily schedule time in HH:MM format at which free games are checked.
+# Used only when CHECK_INTERVAL_HOURS is not set.
 # NOTE: This time is interpreted in the configured TIMEZONE (see TIMEZONE above), not fixed to UTC.
 SCHEDULE_TIME = os.getenv("SCHEDULE_TIME", "12:00")
 

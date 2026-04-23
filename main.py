@@ -12,6 +12,7 @@ from config import (
     DB_USER,
     DB_PASSWORD,
     ENABLED_STORES,
+    CHECK_INTERVAL_HOURS,
     SCHEDULE_TIME,
     HEALTHCHECK_INTERVAL,
     TIMEZONE,
@@ -63,30 +64,51 @@ console_handler.setFormatter(TimezoneFormatter('%(asctime)s - %(name)s - %(level
 logging.basicConfig(level=logging.INFO, handlers=[log_handler, console_handler])
 
 
+def _is_still_active(game) -> bool:
+    """Return True if *game*'s promotion has not yet expired.
+
+    Games with an empty or un-parseable end_date are treated as still-active to
+    avoid false "new game" alerts caused by transient scraping failures.
+    """
+    end_date = game.end_date
+    if not end_date:
+        # Treat unknown end dates as active to avoid duplicate notifications.
+        return True
+
+    normalized = end_date.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+
+    try:
+        ends_at = datetime.fromisoformat(normalized)
+    except ValueError:
+        # Keep legacy/malformed records from causing false "new" alerts.
+        return True
+
+    if ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=timezone.utc)
+
+    return ends_at >= datetime.now(timezone.utc)
+
+
 def _find_new_games(current_games, previous_games):
-    """Return games that are newly free compared to still-active previous promos."""
+    """Return games that are newly free compared to still-active previous promos.
 
-    def _is_still_active(previous_game):
-        end_date = previous_game.end_date
-        if not end_date:
-            # Treat unknown end dates as active to avoid duplicate notifications.
-            return True
+    Two checks prevent duplicate notifications:
 
-        normalized = end_date.strip()
-        if normalized.endswith("Z"):
-            normalized = normalized[:-1] + "+00:00"
+    1. ``previous_active_urls`` — URLs whose promos are still running.  A game
+       whose URL is already active is suppressed regardless of its end_date.
+    2. ``previous_seen`` — (url, end_date) pairs ever persisted.  Prevents
+       re-notification for an expired promo even if the URL no longer appears
+       in the active set.
 
-        try:
-            ends_at = datetime.fromisoformat(normalized)
-        except ValueError:
-            # Keep legacy/malformed records from causing false "new" alerts.
-            return True
+    A game that passes *both* checks is genuinely new or has started a fresh
+    promo with a different end_date.
 
-        if ends_at.tzinfo is None:
-            ends_at = ends_at.replace(tzinfo=timezone.utc)
-
-        return ends_at >= datetime.now(timezone.utc)
-
+    Same-run deduplication: ``notified_urls`` tracks URLs already added to
+    ``new_games`` in this loop so that a URL appearing twice in ``current_games``
+    (e.g. duplicate search-result rows) is only notified once.
+    """
     # A (url, end_date) pair that already appeared in previous games should not
     # trigger a new notification, regardless of whether the promo is still active.
     # This prevents re-notifying for the same expired promo while still allowing
@@ -105,11 +127,17 @@ def _find_new_games(current_games, previous_games):
     }
 
     new_games = []
+    notified_urls: set[str] = set()
     for game in current_games:
         url = game.url
         if url:
-            if url not in previous_active_urls and (url, game.end_date) not in previous_seen:
+            if (
+                url not in previous_active_urls
+                and (url, game.end_date) not in previous_seen
+                and url not in notified_urls
+            ):
                 new_games.append(game)
+                notified_urls.add(url)
             continue
 
         # Fallback for malformed records that do not have a url.
@@ -188,10 +216,31 @@ def check_games():
     else:
         logging.warning("No new free games detected.")
 
-    # Always persist current_games so that the DB upsert keeps end_date values
-    # fresh, preventing stale promos from triggering false re-notifications.
+    # Always persist so that the DB upsert keeps end_date values fresh, preventing
+    # stale promos from triggering false re-notifications.
+    #
+    # Guard against scraper failures causing re-notifications: if an enabled store
+    # returned no games this run (network error, rate-limit, or a genuinely empty
+    # day), its previously-stored still-active games would be erased from storage.
+    # The next run that does return those games would then treat them as new and
+    # send a duplicate Discord notification.  To prevent this, we carry forward
+    # still-active previous games from any store that produced no results.
+    stores_with_results = {g.store for g in current_games}
+    preserved = [
+        g for g in previous_games
+        if g.store not in stores_with_results and _is_still_active(g)
+    ]
+    if preserved:
+        logging.info(
+            "Carrying forward %d still-active game(s) from store(s) with no results "
+            "this run to prevent duplicate notifications: %s",
+            len(preserved),
+            [g.title for g in preserved],
+        )
+    games_to_save = current_games + preserved
+
     try:
-        save_games(current_games)
+        save_games(games_to_save)
         logging.info("Games saved successfully to storage")
     except IOError as e:
         logging.error(f"Failed to save games to storage: {str(e)}")
@@ -264,7 +313,25 @@ def main():
 
     logging.debug("Starting scheduler...")
 
-    schedule.every().day.at(SCHEDULE_TIME, tz=TIMEZONE).do(check_games)
+    if CHECK_INTERVAL_HOURS is not None:
+        # Interval mode: check every N hours regardless of time of day.
+        # Ideal for multi-store setups where Steam games can appear at any time.
+        logging.info(
+            "Scheduling game checks every %.4g hour(s) (CHECK_INTERVAL_HOURS=%s).",
+            CHECK_INTERVAL_HOURS,
+            CHECK_INTERVAL_HOURS,
+        )
+        schedule.every(CHECK_INTERVAL_HOURS).hours.do(check_games)
+    else:
+        # Daily mode: check once per day at the configured time (legacy default).
+        logging.info(
+            "Scheduling game checks once daily at %s %s (SCHEDULE_TIME=%s).",
+            SCHEDULE_TIME,
+            TIMEZONE,
+            SCHEDULE_TIME,
+        )
+        schedule.every().day.at(SCHEDULE_TIME, tz=TIMEZONE).do(check_games)
+
     schedule.every(HEALTHCHECK_INTERVAL).minutes.do(healthcheck)
 
     while True:

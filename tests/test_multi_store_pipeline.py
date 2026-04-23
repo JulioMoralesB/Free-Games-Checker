@@ -13,6 +13,13 @@ from modules.models import FreeGame
 
 
 def _import_main():
+    # Stub out heavy optional deps that may be absent in the local dev environment.
+    # setdefault is a no-op when the real package is already installed (e.g. in CI),
+    # so this does not affect the production import path.
+    sys.modules.setdefault("alembic", MagicMock())
+    sys.modules.setdefault("alembic.config", MagicMock())
+    sys.modules.setdefault("alembic.command", MagicMock())
+
     sys.modules.pop("main", None)
     with patch("logging.handlers.TimedRotatingFileHandler"):
         import main as _main
@@ -172,3 +179,84 @@ class TestMultiStorePipeline:
         saved = mock_save.call_args[0][0]
         assert len(saved) == 2
         assert {g.store for g in saved} == {"epic", "steam"}
+
+    def test_active_steam_game_preserved_in_storage_when_steam_scraper_returns_empty(self):
+        """If Steam scraper returns [] but a still-active Steam game was in previous storage,
+        that game must be carried forward in save_games to prevent a duplicate notification
+        on the next successful Steam scrape."""
+        main = _import_main()
+
+        epic_game = _epic_game("Epic Game", "https://store.epicgames.com/p/epic-game")
+        # A Steam game that was previously stored and whose promo is still active.
+        active_steam = _steam_game(
+            "Active Steam Game",
+            "https://store.steampowered.com/app/6/active-steam",
+            end_date="2099-01-01T00:00:00.000Z",
+        )
+
+        with patch("main.ENABLED_STORES", ["epic", "steam"]), \
+             patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=[epic_game]), \
+             patch("modules.scrapers.steam.SteamScraper.fetch_free_games", return_value=[]), \
+             patch("main.load_previous_games", return_value=[epic_game, active_steam]), \
+             patch("main.send_discord_message"), \
+             patch("main.save_last_notification"), \
+             patch("main.save_games") as mock_save:
+            main.check_games()
+
+        mock_save.assert_called_once()
+        saved = mock_save.call_args[0][0]
+        saved_urls = {g.url for g in saved}
+        assert active_steam.url in saved_urls, (
+            "Still-active Steam game must be preserved in storage when Steam scraper "
+            "returns no results, to prevent a duplicate notification next run."
+        )
+
+    def test_expired_steam_game_not_preserved_when_steam_scraper_returns_empty(self):
+        """An expired Steam game should NOT be carried forward even if Steam scraper
+        returns empty — its promo is over so there is no re-notification risk."""
+        main = _import_main()
+
+        epic_game = _epic_game("Epic Game", "https://store.epicgames.com/p/epic-game")
+        expired_steam = _steam_game(
+            "Expired Steam Game",
+            "https://store.steampowered.com/app/7/expired-steam",
+            end_date="2000-01-01T00:00:00.000Z",  # long expired
+        )
+
+        with patch("main.ENABLED_STORES", ["epic", "steam"]), \
+             patch("modules.scrapers.epic.EpicGamesScraper.fetch_free_games", return_value=[epic_game]), \
+             patch("modules.scrapers.steam.SteamScraper.fetch_free_games", return_value=[]), \
+             patch("main.load_previous_games", return_value=[epic_game, expired_steam]), \
+             patch("main.send_discord_message"), \
+             patch("main.save_last_notification"), \
+             patch("main.save_games") as mock_save:
+            main.check_games()
+
+        mock_save.assert_called_once()
+        saved = mock_save.call_args[0][0]
+        saved_urls = {g.url for g in saved}
+        assert expired_steam.url not in saved_urls, (
+            "Expired Steam game must not be carried forward — its promo is over."
+        )
+
+    def test_duplicate_url_in_current_games_notified_only_once(self):
+        """If the same URL appears twice in current_games (e.g. duplicate search rows),
+        only one Discord embed should be generated for it."""
+        main = _import_main()
+
+        game_a = _steam_game("Dup Game", "https://store.steampowered.com/app/8/dup-game")
+        game_b = _steam_game("Dup Game", "https://store.steampowered.com/app/8/dup-game")
+
+        with patch("main.ENABLED_STORES", ["steam"]), \
+             patch("modules.scrapers.steam.SteamScraper.fetch_free_games", return_value=[game_a, game_b]), \
+             patch("main.load_previous_games", return_value=[]), \
+             patch("main.send_discord_message") as mock_send, \
+             patch("main.save_last_notification"), \
+             patch("main.save_games"):
+            main.check_games()
+
+        mock_send.assert_called_once()
+        notified = mock_send.call_args[0][0]
+        assert len(notified) == 1, (
+            "Same URL appearing twice in current_games must only produce one notification embed."
+        )
