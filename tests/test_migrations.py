@@ -13,7 +13,13 @@ def _import_main():
     main.py creates a TimedRotatingFileHandler at module level which requires
     /mnt/logs/notifier.log to exist.  In the test environment this path is not
     available, so we mock the handler class before the module is loaded.
+
+    alembic may also be absent in the local dev environment; setdefault inserts
+    a stub only when the real package is not installed (no-op in CI).
     """
+    sys.modules.setdefault("alembic", MagicMock())
+    sys.modules.setdefault("alembic.config", MagicMock())
+    sys.modules.setdefault("alembic.command", MagicMock())
     # Remove cached module so it is re-executed under the mock.
     sys.modules.pop("main", None)
     with patch("logging.handlers.TimedRotatingFileHandler"):
@@ -38,6 +44,8 @@ class TestRunDbMigrations:
 
     def test_passes_alembic_config_object(self):
         """_run_db_migrations should pass an AlembicConfig instance to upgrade."""
+        if isinstance(sys.modules.get("alembic"), MagicMock):
+            pytest.skip("alembic not installed; skipping AlembicConfig isinstance check")
         from alembic.config import Config as AlembicConfig
         main = _import_main()
 
