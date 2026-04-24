@@ -40,7 +40,8 @@ import pytz
 class _HealthEndpointFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         # uvicorn formats access entries as: '<ip> - "GET /health HTTP/1.1" <status>'
-        return '"/health ' not in record.getMessage()
+        # Match on ' /health ' (space + path + space) to cover any HTTP method.
+        return ' /health ' not in record.getMessage()
 
 
 # Custom formatter to display log timestamps in the configured timezone instead of UTC
