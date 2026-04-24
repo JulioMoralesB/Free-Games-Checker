@@ -34,6 +34,15 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import pytz
 
+# Filter that drops uvicorn access-log entries for the /health endpoint.
+# The health endpoint is polled every minute by the scheduler and would otherwise
+# flood the logs with noise that makes real entries harder to find.
+class _HealthEndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # uvicorn formats access entries as: '<ip> - "GET /health HTTP/1.1" <status>'
+        return '"/health ' not in record.getMessage()
+
+
 # Custom formatter to display log timestamps in the configured timezone instead of UTC
 class TimezoneFormatter(logging.Formatter):
     def __init__(self, fmt, tz):
@@ -289,6 +298,10 @@ def _start_api_server():
     """Start the FastAPI server in a background daemon thread."""
     import uvicorn
     from api import app
+
+    # Silence /health access-log noise before uvicorn starts so the filter
+    # is already registered on the logger object uvicorn will use.
+    logging.getLogger("uvicorn.access").addFilter(_HealthEndpointFilter())
 
     logging.info("Starting REST API server on %s:%s...", API_HOST, API_PORT)
     uvicorn.run(app, host=API_HOST, port=API_PORT, log_level="info")
