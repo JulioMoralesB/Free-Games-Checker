@@ -447,6 +447,73 @@ class TestSendDiscordMessage:
         assert footer == "Gratis de forma permanente"
 
 
+    def test_embed_shows_original_price_when_present(self):
+        """When original_price is set, the embed includes a field with its value."""
+        game = FreeGame(
+            title="Priced Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$19.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="A great game.",
+        )
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert any(f["value"] == "$19.99" for f in fields)
+        assert any("Price" in f["name"] or "Precio" in f["name"] for f in fields)
+
+    def test_embed_omits_original_price_when_none(self):
+        """When original_price is None, no price field appears in the embed."""
+        game = FreeGame(
+            title="Free Forever",
+            store="epic",
+            url="https://store.epicgames.com/p/free",
+            image_url="https://example.com/img.jpg",
+            original_price=None,
+            end_date="",
+            is_permanent=True,
+            description="",
+        )
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert not any("price" in f["name"].lower() or "precio" in f["name"].lower() for f in fields)
+
+    def test_embed_shows_original_price_label_in_spanish(self):
+        """When the locale is Spanish, the price field uses the Spanish label."""
+        game = FreeGame(
+            title="Juego con precio",
+            store="epic",
+            url="https://store.epicgames.com/p/juego",
+            image_url="https://example.com/img.jpg",
+            original_price="$14.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+        )
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert any(f["name"] == "Precio original" for f in fields)
+
+
 class TestSendDiscordMessageWebhookOverride:
     """Tests for the optional webhook_url override in send_discord_message."""
 
