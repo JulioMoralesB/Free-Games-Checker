@@ -2,7 +2,7 @@ name: Sync Issue Status with Project Board
 
 on:
   pull_request:
-    types: [opened, edited, ready_for_review, reopened, closed]
+    types: [opened, ready_for_review, closed]
   issues:
     types: [labeled]
 
