@@ -1,5 +1,6 @@
 """Steam store scraper implementation."""
 
+import html
 import logging
 import re
 import time
@@ -214,7 +215,7 @@ class SteamScraper(BaseScraper):
             original_price=candidate["original_price"],
             end_date=end_date,
             is_permanent=False,
-            description=details.get("short_description", ""),
+            description=html.unescape(details.get("short_description", "")),
             review_score=review_score,
         )
 
