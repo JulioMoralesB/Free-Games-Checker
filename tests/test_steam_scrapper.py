@@ -130,6 +130,21 @@ def _multi_url_mock(appid="978520"):
     return side_effect
 
 
+def _multi_url_mock_with_desc(description: str, appid="978520"):
+    """Like _multi_url_mock but injects a custom short_description."""
+    def side_effect(url, **kwargs):
+        if "search" in url:
+            return _mock_response(200, text=_make_search_html())
+        if "appdetails" in url:
+            return _mock_response(200, json_data=_make_appdetails_response(appid, short_description=description))
+        if "appreviews" in url:
+            return _mock_response(200, json_data=_make_appreviews_response())
+        if "store.steampowered.com/app/" in url:
+            return _mock_response(200, text=_STORE_PAGE_HTML)
+        return _mock_response(404)
+    return side_effect
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -355,6 +370,16 @@ class TestSteamScraper:
         assert len(games) == 1
         # "23 Apr @ 10:00am" Pacific = 10:00 PDT (UTC-7) = 17:00 UTC
         assert "2026-04-23T17:00:00" in games[0].end_date
+
+    def test_html_entities_in_description_are_decoded(self, freeze_steam_now):
+        """HTML entities in short_description (e.g. &quot;) are unescaped before use."""
+        with patch("modules.scrapers.steam.requests.get",
+                   side_effect=_multi_url_mock_with_desc('&quot;8AM&quot; is a suspense game.')):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].description == '"8AM" is a suspense game.'
+        assert "&quot;" not in games[0].description
 
     def test_appdetails_uses_configured_language(self):
         """_fetch_appdetails passes STEAM_LANGUAGE as the l= param to the API."""
