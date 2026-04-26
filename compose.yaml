@@ -15,7 +15,7 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
-      - LANGUAGE=${LANGUAGE:-}
+      - REGION=${REGION:-}
       - TIMEZONE=${TIMEZONE:-}
       - LOCALE=${LOCALE:-}
       - "DATE_FORMAT=${DATE_FORMAT:-%B %d, %Y at %I:%M %p}"

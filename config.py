@@ -20,208 +20,193 @@ ENABLED_STORES = [s.strip().lower() for s in _raw_enabled_stores.split(",") if s
 STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com/search/")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Unified language / region config
+# Unified region config
 #
-# Set LANGUAGE to a BCP 47 tag (e.g. "es-MX", "de-DE", "pt-BR") and the app
-# derives LOCALE, EPIC_GAMES_REGION, STEAM_LANGUAGE, STEAM_COUNTRY, and
-# TIMEZONE automatically.  Any of those five vars can still be set
-# individually to override the derived value (individual var always wins).
+# Set REGION to an IANA timezone string (e.g. "America/Mexico_City").
+# This simultaneously sets your timezone AND derives LOCALE, EPIC_GAMES_REGION,
+# STEAM_LANGUAGE, and STEAM_COUNTRY from the profile table below.
+# Any of those four vars can still be set individually to override the derived
+# value (individual var always wins).
+#
+# Supported values — use exactly as written:
+#   America/Mexico_City · America/New_York · America/Chicago
+#   America/Los_Angeles · America/Toronto · America/Sao_Paulo
+#   America/Argentina/Buenos_Aires · Europe/Madrid · Europe/London
+#   Europe/Berlin · Europe/Paris · Europe/Rome · Europe/Warsaw
+#   Europe/Moscow · Europe/Istanbul · Asia/Tokyo · Asia/Seoul
+#   Asia/Shanghai · Australia/Sydney · Europe/Lisbon · Europe/Amsterdam
 # ─────────────────────────────────────────────────────────────────────────────
-LANGUAGE = os.getenv("LANGUAGE", "")
+REGION = os.getenv("REGION", "")
 
-# ISO 639-1 code → Steam API language name.
-# Reference: https://partner.steamgames.com/doc/store/localization/languages
-_STEAM_LANGUAGE_MAP: dict[str, str] = {
-    "af": "afrikaans",
-    "ar": "arabic",
-    "bg": "bulgarian",
-    "cs": "czech",
-    "da": "danish",
-    "de": "german",
-    "el": "greek",
-    "en": "english",
-    "es": "spanish",
-    "fi": "finnish",
-    "fr": "french",
-    "hu": "hungarian",
-    "it": "italian",
-    "ja": "japanese",
-    "ko": "koreana",
-    "nl": "dutch",
-    "no": "norwegian",
-    "pl": "polish",
-    "pt": "portuguese",
-    "ro": "romanian",
-    "ru": "russian",
-    "sv": "swedish",
-    "th": "thai",
-    "tr": "turkish",
-    "uk": "ukrainian",
-    "vi": "vietnamese",
-    "zh": "schinese",  # default Simplified; zh-TW handled in _language_to_steam_language
+# Each key is an IANA timezone string. The value defines the locale/store
+# profile for that timezone. TIMEZONE is derived directly from REGION itself.
+# To add a new entry: copy an existing profile and fill in the four fields.
+_REGION_PROFILES: dict[str, dict[str, str]] = {
+    # ── Americas ──────────────────────────────────────────────────────────────
+    "America/Mexico_City": {
+        "locale":         "es_MX.UTF-8",
+        "epic_region":    "es-MX",
+        "steam_language": "spanish",
+        "steam_country":  "MX",
+    },
+    "America/New_York": {
+        "locale":         "en_US.UTF-8",
+        "epic_region":    "en-US",
+        "steam_language": "english",
+        "steam_country":  "US",
+    },
+    "America/Chicago": {
+        "locale":         "en_US.UTF-8",
+        "epic_region":    "en-US",
+        "steam_language": "english",
+        "steam_country":  "US",
+    },
+    "America/Denver": {
+        "locale":         "en_US.UTF-8",
+        "epic_region":    "en-US",
+        "steam_language": "english",
+        "steam_country":  "US",
+    },
+    "America/Los_Angeles": {
+        "locale":         "en_US.UTF-8",
+        "epic_region":    "en-US",
+        "steam_language": "english",
+        "steam_country":  "US",
+    },
+    "America/Toronto": {
+        "locale":         "en_CA.UTF-8",
+        "epic_region":    "en-CA",
+        "steam_language": "english",
+        "steam_country":  "CA",
+    },
+    "America/Sao_Paulo": {
+        "locale":         "pt_BR.UTF-8",
+        "epic_region":    "pt-BR",
+        "steam_language": "portuguese",
+        "steam_country":  "BR",
+    },
+    "America/Argentina/Buenos_Aires": {
+        "locale":         "es_AR.UTF-8",
+        "epic_region":    "es-AR",
+        "steam_language": "spanish",
+        "steam_country":  "AR",
+    },
+    # ── Europe ────────────────────────────────────────────────────────────────
+    "Europe/Madrid": {
+        "locale":         "es_ES.UTF-8",
+        "epic_region":    "es-ES",
+        "steam_language": "spanish",
+        "steam_country":  "ES",
+    },
+    "Europe/London": {
+        "locale":         "en_GB.UTF-8",
+        "epic_region":    "en-GB",
+        "steam_language": "english",
+        "steam_country":  "GB",
+    },
+    "Europe/Berlin": {
+        "locale":         "de_DE.UTF-8",
+        "epic_region":    "de-DE",
+        "steam_language": "german",
+        "steam_country":  "DE",
+    },
+    "Europe/Paris": {
+        "locale":         "fr_FR.UTF-8",
+        "epic_region":    "fr-FR",
+        "steam_language": "french",
+        "steam_country":  "FR",
+    },
+    "Europe/Rome": {
+        "locale":         "it_IT.UTF-8",
+        "epic_region":    "it-IT",
+        "steam_language": "italian",
+        "steam_country":  "IT",
+    },
+    "Europe/Warsaw": {
+        "locale":         "pl_PL.UTF-8",
+        "epic_region":    "pl-PL",
+        "steam_language": "polish",
+        "steam_country":  "PL",
+    },
+    "Europe/Moscow": {
+        "locale":         "ru_RU.UTF-8",
+        "epic_region":    "ru-RU",
+        "steam_language": "russian",
+        "steam_country":  "RU",
+    },
+    "Europe/Istanbul": {
+        "locale":         "tr_TR.UTF-8",
+        "epic_region":    "tr-TR",
+        "steam_language": "turkish",
+        "steam_country":  "TR",
+    },
+    "Europe/Lisbon": {
+        "locale":         "pt_PT.UTF-8",
+        "epic_region":    "pt-PT",
+        "steam_language": "portuguese",
+        "steam_country":  "PT",
+    },
+    "Europe/Amsterdam": {
+        "locale":         "nl_NL.UTF-8",
+        "epic_region":    "nl-NL",
+        "steam_language": "dutch",
+        "steam_country":  "NL",
+    },
+    # ── Asia / Pacific ────────────────────────────────────────────────────────
+    "Asia/Tokyo": {
+        "locale":         "ja_JP.UTF-8",
+        "epic_region":    "ja-JP",
+        "steam_language": "japanese",
+        "steam_country":  "JP",
+    },
+    "Asia/Seoul": {
+        "locale":         "ko_KR.UTF-8",
+        "epic_region":    "ko-KR",
+        "steam_language": "koreana",
+        "steam_country":  "KR",
+    },
+    "Asia/Shanghai": {
+        "locale":         "zh_CN.UTF-8",
+        "epic_region":    "zh-CN",
+        "steam_language": "schinese",
+        "steam_country":  "CN",
+    },
+    "Australia/Sydney": {
+        "locale":         "en_AU.UTF-8",
+        "epic_region":    "en-AU",
+        "steam_language": "english",
+        "steam_country":  "AU",
+    },
 }
 
 
-def _language_to_locale(language: str) -> str:
-    """Map BCP 47 tag to POSIX locale: 'es-MX' → 'es_MX.UTF-8'. Returns '' if unresolvable."""
-    if not language or "-" not in language:
-        return ""
-    lang, region = language.split("-", 1)
-    return f"{lang}_{region}.UTF-8"
+def _region_get(region: str, key: str) -> str:
+    """Look up one derived value for a region/timezone. Returns '' when not in the table."""
+    return _REGION_PROFILES.get(region, {}).get(key, "")
 
 
-def _language_to_steam_language(language: str) -> str:
-    """Map BCP 47 tag to Steam language name: 'es-MX' → 'spanish'. Returns '' when unknown."""
-    if not language:
-        return ""
-    parts = language.split("-", 1)
-    lang_code = parts[0].lower()
-    region = parts[1].upper() if len(parts) > 1 else ""
-    if lang_code == "zh" and region == "TW":
-        return "tchinese"
-    return _STEAM_LANGUAGE_MAP.get(lang_code, "")
-
-
-def _language_to_steam_country(language: str) -> str:
-    """Extract ISO country code from BCP 47 tag: 'es-MX' → 'MX'. Returns '' when absent."""
-    if not language or "-" not in language:
-        return ""
-    return language.split("-", 1)[1].upper()
-
-
-# ISO 3166-1 alpha-2 country code → representative IANA timezone.
-# For countries with multiple timezones the most-populated zone is used.
-_TIMEZONE_MAP: dict[str, str] = {
-    # Americas
-    "AR": "America/Argentina/Buenos_Aires",
-    "BO": "America/La_Paz",
-    "BR": "America/Sao_Paulo",
-    "CA": "America/Toronto",
-    "CL": "America/Santiago",
-    "CO": "America/Bogota",
-    "CR": "America/Costa_Rica",
-    "CU": "America/Havana",
-    "DO": "America/Santo_Domingo",
-    "EC": "America/Guayaquil",
-    "GT": "America/Guatemala",
-    "HN": "America/Tegucigalpa",
-    "MX": "America/Mexico_City",
-    "NI": "America/Managua",
-    "PA": "America/Panama",
-    "PE": "America/Lima",
-    "PR": "America/Puerto_Rico",
-    "PY": "America/Asuncion",
-    "SV": "America/El_Salvador",
-    "US": "America/New_York",
-    "UY": "America/Montevideo",
-    "VE": "America/Caracas",
-    # Europe
-    "AT": "Europe/Vienna",
-    "BE": "Europe/Brussels",
-    "BG": "Europe/Sofia",
-    "BY": "Europe/Minsk",
-    "CH": "Europe/Zurich",
-    "CZ": "Europe/Prague",
-    "DE": "Europe/Berlin",
-    "DK": "Europe/Copenhagen",
-    "EE": "Europe/Tallinn",
-    "ES": "Europe/Madrid",
-    "FI": "Europe/Helsinki",
-    "FR": "Europe/Paris",
-    "GB": "Europe/London",
-    "GR": "Europe/Athens",
-    "HR": "Europe/Zagreb",
-    "HU": "Europe/Budapest",
-    "IE": "Europe/Dublin",
-    "IT": "Europe/Rome",
-    "LT": "Europe/Vilnius",
-    "LV": "Europe/Riga",
-    "NL": "Europe/Amsterdam",
-    "NO": "Europe/Oslo",
-    "PL": "Europe/Warsaw",
-    "PT": "Europe/Lisbon",
-    "RO": "Europe/Bucharest",
-    "RS": "Europe/Belgrade",
-    "RU": "Europe/Moscow",
-    "SE": "Europe/Stockholm",
-    "SI": "Europe/Ljubljana",
-    "SK": "Europe/Bratislava",
-    "TR": "Europe/Istanbul",
-    "UA": "Europe/Kyiv",
-    # Asia / Pacific
-    "AE": "Asia/Dubai",
-    "AF": "Asia/Kabul",
-    "AU": "Australia/Sydney",
-    "CN": "Asia/Shanghai",
-    "HK": "Asia/Hong_Kong",
-    "ID": "Asia/Jakarta",
-    "IL": "Asia/Jerusalem",
-    "IN": "Asia/Kolkata",
-    "IQ": "Asia/Baghdad",
-    "IR": "Asia/Tehran",
-    "JP": "Asia/Tokyo",
-    "KR": "Asia/Seoul",
-    "KZ": "Asia/Almaty",
-    "MY": "Asia/Kuala_Lumpur",
-    "NZ": "Pacific/Auckland",
-    "PH": "Asia/Manila",
-    "PK": "Asia/Karachi",
-    "SA": "Asia/Riyadh",
-    "SG": "Asia/Singapore",
-    "TH": "Asia/Bangkok",
-    "TW": "Asia/Taipei",
-    "UA": "Europe/Kyiv",
-    "VN": "Asia/Ho_Chi_Minh",
-    # Africa
-    "DZ": "Africa/Algiers",
-    "EG": "Africa/Cairo",
-    "ET": "Africa/Addis_Ababa",
-    "GH": "Africa/Accra",
-    "KE": "Africa/Nairobi",
-    "MA": "Africa/Casablanca",
-    "NG": "Africa/Lagos",
-    "TN": "Africa/Tunis",
-    "TZ": "Africa/Dar_es_Salaam",
-    "ZA": "Africa/Johannesburg",
-}
-
-
-def _language_to_timezone(language: str) -> str:
-    """Map BCP 47 country subtag to an IANA timezone: 'es-MX' → 'America/Mexico_City'.
-
-    Returns '' when the country code is absent or not in the map.
-    For countries with multiple timezones the most-populated zone is used.
-    Use TIMEZONE directly to override with a specific zone.
-    """
-    if not language or "-" not in language:
-        return ""
-    country = language.split("-", 1)[1].upper()
-    return _TIMEZONE_MAP.get(country, "")
-
-
-def _resolve(env_var: str, language_derived: str, default: str) -> str:
-    """Resolve a config value: explicit env var (non-empty) > LANGUAGE derivation > hardcoded default.
+def _resolve(env_var: str, region_derived: str, default: str) -> str:
+    """Resolve a config value: explicit env var (non-empty) > REGION derivation > hardcoded default.
 
     An empty string is treated the same as "not set", so that compose.yaml can
-    forward ``${VAR}`` (which expands to '' when unset) without blocking LANGUAGE
-    derivation.  To override with an explicit empty value, set the var directly
-    in config — this edge case is not expected in normal usage.
+    forward ``${VAR}`` (which expands to '' when unset) without blocking REGION
+    derivation.
     """
     explicit = os.getenv(env_var)
     if explicit:  # non-None and non-empty
         return explicit
-    if language_derived:
-        return language_derived
+    if region_derived:
+        return region_derived
     return default
 
 
 # Language for Steam appdetails API (e.g. "english", "spanish").
-# Derived from LANGUAGE when not set explicitly; falls back to "english".
-STEAM_LANGUAGE = _resolve("STEAM_LANGUAGE", _language_to_steam_language(LANGUAGE), "english")
+# Derived from REGION when not set explicitly; falls back to "english".
+STEAM_LANGUAGE = _resolve("STEAM_LANGUAGE", _region_get(REGION, "steam_language"), "english")
 
 # Country code for Steam store requests — controls price currency (e.g. "US", "MX").
-# Derived from LANGUAGE when not set explicitly; falls back to "US".
-STEAM_COUNTRY = _resolve("STEAM_COUNTRY", _language_to_steam_country(LANGUAGE), "US")
+# Derived from REGION when not set explicitly; falls back to "US".
+STEAM_COUNTRY = _resolve("STEAM_COUNTRY", _region_get(REGION, "steam_country"), "US")
 
 # Minimum delay in milliseconds between Steam HTTP requests to avoid rate limiting
 _raw_steam_delay = os.getenv("STEAM_REQUEST_DELAY_MS")
@@ -253,17 +238,18 @@ DB_NAME = os.getenv("DB_NAME") or None
 DB_USER = os.getenv("DB_USER") or None
 DB_PASSWORD = os.getenv("DB_PASSWORD") or None
 
-# Timezone for date display in notifications (e.g. "America/New_York", "Europe/London").
-# Derived from LANGUAGE when not set explicitly; falls back to "UTC".
-TIMEZONE = _resolve("TIMEZONE", _language_to_timezone(LANGUAGE), "UTC")
+# Timezone for date display in notifications.
+# REGION itself is an IANA timezone string, so it's used directly.
+# Falls back to "UTC" if REGION is not set or not recognised.
+TIMEZONE = _resolve("TIMEZONE", REGION, "UTC")
 
 # Locale for date formatting (e.g. "en_US.UTF-8", "es_MX.UTF-8").
-# Derived from LANGUAGE when not set explicitly; falls back to "en_US.UTF-8".
-LOCALE = _resolve("LOCALE", _language_to_locale(LANGUAGE), "en_US.UTF-8")
+# Derived from REGION when not set explicitly; falls back to "en_US.UTF-8".
+LOCALE = _resolve("LOCALE", _region_get(REGION, "locale"), "en_US.UTF-8")
 
 # Epic Games region used in store links (e.g. "en-US", "es-MX", "de-DE").
-# Defaults to LANGUAGE when not set explicitly; falls back to "en-US".
-EPIC_GAMES_REGION = _resolve("EPIC_GAMES_REGION", LANGUAGE, "en-US")
+# Derived from REGION when not set explicitly; falls back to "en-US".
+EPIC_GAMES_REGION = _resolve("EPIC_GAMES_REGION", _region_get(REGION, "epic_region"), "en-US")
 
 # How often to check for new free games, in hours.
 # When set, the service runs on a repeating interval (e.g. every 6 hours).
