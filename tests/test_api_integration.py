@@ -100,8 +100,13 @@ class TestConfigEndpointMatchesEnv:
             f"Expected DATE_FORMAT '{expected_date_format}' but got '{config['date_format']}'"
 
     def test_timezone_matches_env(self):
-        """Verify TIMEZONE in /config matches the env variable."""
-        expected_timezone = os.getenv("TIMEZONE", "UTC")
+        """Verify TIMEZONE in /config matches the resolved config value.
+
+        TIMEZONE may be derived from REGION rather than set explicitly, so we
+        compare against the already-resolved config.TIMEZONE instead of a raw
+        os.getenv() call.
+        """
+        from config import TIMEZONE as expected_timezone
 
         config = get_json("/config")
 
@@ -109,8 +114,8 @@ class TestConfigEndpointMatchesEnv:
             f"Expected TIMEZONE '{expected_timezone}' but got '{config['timezone']}'"
 
     def test_locale_matches_env(self):
-        """Verify LOCALE in /config matches the env variable."""
-        expected_locale = os.getenv("LOCALE", "en_US.UTF-8")
+        """Verify LOCALE in /config matches the resolved config value."""
+        from config import LOCALE as expected_locale
 
         config = get_json("/config")
 
@@ -127,8 +132,8 @@ class TestConfigEndpointMatchesEnv:
             f"Expected SCHEDULE_TIME '{expected_schedule}' but got '{config['schedule_time']}'"
 
     def test_epic_games_region_matches_env(self):
-        """Verify EPIC_GAMES_REGION in /config matches the env variable."""
-        expected_region = os.getenv("EPIC_GAMES_REGION", "en-US")
+        """Verify EPIC_GAMES_REGION in /config matches the resolved config value."""
+        from config import EPIC_GAMES_REGION as expected_region
 
         config = get_json("/config")
 
