@@ -19,6 +19,7 @@ _TRANSLATIONS = {
         "ends_on": "Ends on",
         "permanently_free": "Permanently free",
         "end_date_unavailable": "End date unavailable",
+        "original_price": "💰 Original Price",
         "user_reviews": "💬 User Reviews:",
         "new_free_game": "**New Free Game on {store}! 🎮**\n",
         "new_free_games": "**New Free Games! 🎮**\n",
@@ -39,6 +40,7 @@ _TRANSLATIONS = {
         "ends_on": "Finaliza el",
         "permanently_free": "Gratis de forma permanente",
         "end_date_unavailable": "Fecha de fin no disponible",
+        "original_price": "💰 Precio original",
         "user_reviews": "💬 Opiniones de usuarios:",
         "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
@@ -238,6 +240,14 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 else:
                     footer_text = _T["end_date_unavailable"]
 
+                fields = []
+                if game.original_price:
+                    fields.append({
+                        "name": _T["original_price"],
+                        "value": game.original_price,
+                        "inline": True,
+                    })
+
                 embed = {
                     "author": {
                         "name": store_meta["name"],
@@ -255,6 +265,8 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                         "text": footer_text
                     },
                 }
+                if fields:
+                    embed["fields"] = fields
                 if game.review_score:
                     _REVIEW_EMOJIS = {
                         "overwhelmingly positive": "🏆",

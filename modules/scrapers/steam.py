@@ -9,7 +9,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from config import STEAM_LANGUAGE, STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL, TIMEZONE
+from config import STEAM_COUNTRY, STEAM_LANGUAGE, STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
@@ -51,7 +51,6 @@ _AGE_CHECK_COOKIES = {
 _SEARCH_PARAMS = {
     "maxprice": "free",
     "specials": 1,
-    "cc": "US",
     "l": "english",
 }
 
@@ -81,13 +80,18 @@ def _steam_get(url: str, **kwargs) -> requests.Response:
 
 
 def _parse_steam_end_date(text: str) -> str:
-    """Parse 'before DD Mon @ HH:MMam/pm' into an ISO-8601 UTC string."""
+    """Parse 'before DD Mon @ HH:MMam/pm' into an ISO-8601 UTC string.
+
+    Steam's server-side HTML always renders promotion end times in Pacific Time
+    (America/Los_Angeles — PDT in summer, PST in winter), regardless of the
+    viewer's locale or the cc= parameter.  We therefore always interpret the
+    scraped time as Pacific, convert to UTC for storage, and let the notifier
+    convert from UTC to the user's configured TIMEZONE for display.
+    """
     # Normalize all whitespace (including tabs, non-breaking, thin, etc.) to a single space.
-    # re is already imported at module level — inline 'import re as _re' was redundant.
     text = re.sub(r"\s+", " ", text, flags=re.UNICODE)
     logger.debug("Parsing Steam end date from text: %r", text[:200])
     m = _END_DATE_RE.search(text)
-    # Per-parse diagnostic logs use DEBUG so they don't spam production output.
     logger.debug("Regex match for end date: %r", m.groups() if m else None)
 
     if not m:
@@ -103,16 +107,10 @@ def _parse_steam_end_date(text: str) -> str:
             hour += 12
         elif ampm.lower() == "am" and hour == 12:
             hour = 0
-        # ZoneInfoNotFoundError is a subclass of KeyError, not ValueError, so it would
-        # escape the outer except and crash the scraper. Catch it here and fall back to
-        # UTC so a misconfigured TIMEZONE env var degrades gracefully.
-        try:
-            local_tz = ZoneInfo(TIMEZONE)
-        except KeyError:
-            logger.warning("Unknown timezone %r in _parse_steam_end_date — falling back to UTC.", TIMEZONE)
-            local_tz = timezone.utc
-        now = datetime.now(tz=local_tz)
-        dt = datetime(now.year, month, int(day), hour, int(minute), tzinfo=local_tz).astimezone(timezone.utc)
+        # Steam always shows Pacific Time — use it as the source timezone.
+        pacific_tz = ZoneInfo("America/Los_Angeles")
+        now = datetime.now(tz=timezone.utc)
+        dt = datetime(now.year, month, int(day), hour, int(minute), tzinfo=pacific_tz).astimezone(timezone.utc)
         if dt < now:
             dt = dt.replace(year=now.year + 1)
         formatted_dt = dt.isoformat().replace("+00:00", "Z")
@@ -136,7 +134,7 @@ class SteamScraper(BaseScraper):
             response = with_retry(
                 func=lambda: _steam_get(
                     STEAM_SEARCH_URL,
-                    params=_SEARCH_PARAMS,
+                    params={**_SEARCH_PARAMS, "cc": STEAM_COUNTRY},
                     headers=_HEADERS,
                     timeout=10,
                 ),
@@ -226,7 +224,7 @@ class SteamScraper(BaseScraper):
             response = with_retry(
                 func=lambda: _steam_get(
                     _APPDETAILS_URL,
-                    params={"appids": appid, "cc": "US", "l": STEAM_LANGUAGE},
+                    params={"appids": appid, "cc": STEAM_COUNTRY, "l": STEAM_LANGUAGE},
                     headers=_HEADERS,
                     timeout=10,
                 ),

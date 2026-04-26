@@ -28,6 +28,10 @@ def _make_element(
             "totalPrice": {
                 "discountPrice": discount_price,
                 "originalPrice": 1999,
+                "fmtPrice": {
+                    "originalPrice": "$19.99",
+                    "discountPrice": "$0.00",
+                },
             }
         },
         "offerMappings": [{"pageSlug": offer_slug}] if offer_slug else [],
@@ -93,6 +97,7 @@ class TestFetchFreeGames:
         assert games[0].end_date == "2024-01-31T15:00:00.000Z"
         assert games[0].description == "A free game for testing"
         assert games[0].image_url == "https://example.com/thumbnail.jpg"
+        assert games[0].original_price == "$19.99"
 
     def test_excludes_paid_games(self):
         paid = _make_element(discount_price=1999)
@@ -200,6 +205,33 @@ class TestFetchFreeGames:
             games = scraper.fetch_free_games()
 
         assert games == []
+
+    def test_original_price_populated_from_fmt_price(self):
+        element = _make_element(discount_price=0, offer_slug="game-one")
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
+            mock_get.return_value = _mock_response(200, _make_api_response([element]))
+            games = EpicGamesScraper().fetch_free_games()
+
+        assert games[0].original_price == "$19.99"
+
+    def test_original_price_is_none_when_int_price_is_zero(self):
+        element = _make_element(discount_price=0, offer_slug="always-free")
+        element["price"]["totalPrice"]["originalPrice"] = 0
+        element["price"]["totalPrice"]["fmtPrice"]["originalPrice"] = "0"
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
+            mock_get.return_value = _mock_response(200, _make_api_response([element]))
+            games = EpicGamesScraper().fetch_free_games()
+
+        assert games[0].original_price is None
+
+    def test_original_price_is_none_when_fmt_price_missing(self):
+        element = _make_element(discount_price=0, offer_slug="game-one")
+        del element["price"]["totalPrice"]["fmtPrice"]
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
+            mock_get.return_value = _mock_response(200, _make_api_response([element]))
+            games = EpicGamesScraper().fetch_free_games()
+
+        assert games[0].original_price is None
 
     def test_multiple_free_games_returned(self):
         elements = [

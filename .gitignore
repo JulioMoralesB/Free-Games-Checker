@@ -11,3 +11,6 @@ free_games.json
 .DS_Store
 dashboard/node_modules
 dashboard/dist
+
+CLAUDE.md
+AGENTS.md

@@ -494,3 +494,83 @@ class TestFindNewGamesEdgeCases:
         result = main._find_new_games(current_games, previous_games)
 
         assert result == current_games, "Naive past end_date should be treated as expired; game should appear as new"
+
+    def test_recently_expired_with_different_end_date_not_renotified(self):
+        """A game whose promo expired within the grace period must not trigger a
+        re-notification even when the store returns a different end_date.
+
+        Reproduces the SurrounDead bug: Steam returned end_date with the wrong
+        year (2027 instead of 2026) minutes after the original promo ended,
+        causing _find_new_games to treat it as a brand-new game.
+        """
+        from datetime import datetime, timedelta, timezone
+        main = _import_main()
+
+        # Simulate an end_date that expired 30 minutes ago.
+        expired_recently = (
+            datetime.now(timezone.utc) - timedelta(minutes=30)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # The store now returns the same URL but with a wrong end_date (a year later).
+        wrong_end_date = (
+            datetime.now(timezone.utc) + timedelta(days=365)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        previous_games = [
+            _make_game(
+                "SurrounDead Poly Construction",
+                "https://store.steampowered.com/app/4148570/SurrounDead_Poly_Construction/",
+                end_date=expired_recently,
+            )
+        ]
+        current_games = [
+            _make_game(
+                "SurrounDead Poly Construction",
+                "https://store.steampowered.com/app/4148570/SurrounDead_Poly_Construction/",
+                end_date=wrong_end_date,
+            )
+        ]
+
+        result = main._find_new_games(current_games, previous_games)
+
+        assert result == [], (
+            "A recently-expired game returning a different end_date should not "
+            "trigger a re-notification within the grace period"
+        )
+
+    def test_long_expired_game_with_new_end_date_is_renotified(self):
+        """A game whose promo expired well beyond the grace period IS allowed to
+        re-notify if the store shows it free again with a new end_date.
+        """
+        from datetime import datetime, timedelta, timezone
+        main = _import_main()
+
+        old_end_date = (
+            datetime.now(timezone.utc) - timedelta(days=30)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        new_end_date = (
+            datetime.now(timezone.utc) + timedelta(days=7)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        previous_games = [
+            _make_game(
+                "Recurring Game",
+                "https://store.steampowered.com/app/99999/Recurring_Game/",
+                end_date=old_end_date,
+            )
+        ]
+        current_games = [
+            _make_game(
+                "Recurring Game",
+                "https://store.steampowered.com/app/99999/Recurring_Game/",
+                end_date=new_end_date,
+            )
+        ]
+
+        result = main._find_new_games(current_games, previous_games)
+
+        assert result == current_games, (
+            "A game that was free long ago and is now free again should trigger "
+            "a new notification"
+        )
