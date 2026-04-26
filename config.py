@@ -19,15 +19,99 @@ ENABLED_STORES = [s.strip().lower() for s in _raw_enabled_stores.split(",") if s
 # Steam Store search URL
 STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com/search/")
 
-# Language passed to the Steam appdetails API for game descriptions.
-# Supported values: english, spanish, french, german, portuguese, russian, etc.
-# Full list: https://partner.steamgames.com/doc/store/localization/languages
-STEAM_LANGUAGE = os.getenv("STEAM_LANGUAGE", "english")
+# ─────────────────────────────────────────────────────────────────────────────
+# Unified language / region config
+#
+# Set LANGUAGE to a BCP 47 tag (e.g. "es-MX", "de-DE", "pt-BR") and the app
+# derives LOCALE, EPIC_GAMES_REGION, STEAM_LANGUAGE, and STEAM_COUNTRY
+# automatically.  Any of those four vars can still be set individually to
+# override the derived value (individual var always wins).
+# ─────────────────────────────────────────────────────────────────────────────
+LANGUAGE = os.getenv("LANGUAGE", "")
 
-# Country code passed to the Steam store API to get region-correct prices.
-# Uses ISO 3166-1 alpha-2 codes (e.g. "US", "MX", "DE", "GB").
-# Defaults to "US". Set to match your region to get prices in your local currency.
-STEAM_COUNTRY = os.getenv("STEAM_COUNTRY", "US")
+# ISO 639-1 code → Steam API language name.
+# Reference: https://partner.steamgames.com/doc/store/localization/languages
+_STEAM_LANGUAGE_MAP: dict[str, str] = {
+    "af": "afrikaans",
+    "ar": "arabic",
+    "bg": "bulgarian",
+    "cs": "czech",
+    "da": "danish",
+    "de": "german",
+    "el": "greek",
+    "en": "english",
+    "es": "spanish",
+    "fi": "finnish",
+    "fr": "french",
+    "hu": "hungarian",
+    "it": "italian",
+    "ja": "japanese",
+    "ko": "koreana",
+    "nl": "dutch",
+    "no": "norwegian",
+    "pl": "polish",
+    "pt": "portuguese",
+    "ro": "romanian",
+    "ru": "russian",
+    "sv": "swedish",
+    "th": "thai",
+    "tr": "turkish",
+    "uk": "ukrainian",
+    "vi": "vietnamese",
+    "zh": "schinese",  # default Simplified; zh-TW handled in _language_to_steam_language
+}
+
+
+def _language_to_locale(language: str) -> str:
+    """Map BCP 47 tag to POSIX locale: 'es-MX' → 'es_MX.UTF-8'. Returns '' if unresolvable."""
+    if not language or "-" not in language:
+        return ""
+    lang, region = language.split("-", 1)
+    return f"{lang}_{region}.UTF-8"
+
+
+def _language_to_steam_language(language: str) -> str:
+    """Map BCP 47 tag to Steam language name: 'es-MX' → 'spanish'. Returns '' when unknown."""
+    if not language:
+        return ""
+    parts = language.split("-", 1)
+    lang_code = parts[0].lower()
+    region = parts[1].upper() if len(parts) > 1 else ""
+    if lang_code == "zh" and region == "TW":
+        return "tchinese"
+    return _STEAM_LANGUAGE_MAP.get(lang_code, "")
+
+
+def _language_to_steam_country(language: str) -> str:
+    """Extract ISO country code from BCP 47 tag: 'es-MX' → 'MX'. Returns '' when absent."""
+    if not language or "-" not in language:
+        return ""
+    return language.split("-", 1)[1].upper()
+
+
+def _resolve(env_var: str, language_derived: str, default: str) -> str:
+    """Resolve a config value: explicit env var (non-empty) > LANGUAGE derivation > hardcoded default.
+
+    An empty string is treated the same as "not set", so that compose.yaml can
+    forward ``${VAR}`` (which expands to '' when unset) without blocking LANGUAGE
+    derivation.  To override with an explicit empty value, set the var directly
+    in config — this edge case is not expected in normal usage.
+    """
+    explicit = os.getenv(env_var)
+    if explicit:  # non-None and non-empty
+        return explicit
+    if language_derived:
+        return language_derived
+    return default
+
+
+# Language for Steam appdetails API (e.g. "english", "spanish").
+# Derived from LANGUAGE when not set explicitly; falls back to "english".
+STEAM_LANGUAGE = _resolve("STEAM_LANGUAGE", _language_to_steam_language(LANGUAGE), "english")
+
+# Country code for Steam store requests — controls price currency (e.g. "US", "MX").
+# Derived from LANGUAGE when not set explicitly; falls back to "US".
+STEAM_COUNTRY = _resolve("STEAM_COUNTRY", _language_to_steam_country(LANGUAGE), "US")
 
 # Minimum delay in milliseconds between Steam HTTP requests to avoid rate limiting
 _raw_steam_delay = os.getenv("STEAM_REQUEST_DELAY_MS")
@@ -62,11 +146,13 @@ DB_PASSWORD = os.getenv("DB_PASSWORD") or None
 # Timezone for date display in notifications (e.g. "America/New_York", "Europe/London")
 TIMEZONE = os.getenv("TIMEZONE", "UTC")
 
-# Locale for date formatting (e.g. "en_US.UTF-8", "es_ES.UTF-8"). Defaults to "en_US.UTF-8"; set LOCALE to an empty string to use the system locale.
-LOCALE = os.getenv("LOCALE", "en_US.UTF-8")
+# Locale for date formatting (e.g. "en_US.UTF-8", "es_MX.UTF-8").
+# Derived from LANGUAGE when not set explicitly; falls back to "en_US.UTF-8".
+LOCALE = _resolve("LOCALE", _language_to_locale(LANGUAGE), "en_US.UTF-8")
 
-# Epic Games region used in store links (e.g. "en-US", "es-MX", "de-DE")
-EPIC_GAMES_REGION = os.getenv("EPIC_GAMES_REGION", "en-US")
+# Epic Games region used in store links (e.g. "en-US", "es-MX", "de-DE").
+# Defaults to LANGUAGE when not set explicitly; falls back to "en-US".
+EPIC_GAMES_REGION = _resolve("EPIC_GAMES_REGION", LANGUAGE, "en-US")
 
 # How often to check for new free games, in hours.
 # When set, the service runs on a repeating interval (e.g. every 6 hours).
