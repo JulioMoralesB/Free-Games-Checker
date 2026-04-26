@@ -24,6 +24,11 @@ STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com
 # Full list: https://partner.steamgames.com/doc/store/localization/languages
 STEAM_LANGUAGE = os.getenv("STEAM_LANGUAGE", "english")
 
+# Country code passed to the Steam store API to get region-correct prices.
+# Uses ISO 3166-1 alpha-2 codes (e.g. "US", "MX", "DE", "GB").
+# Defaults to "US". Set to match your region to get prices in your local currency.
+STEAM_COUNTRY = os.getenv("STEAM_COUNTRY", "US")
+
 # Minimum delay in milliseconds between Steam HTTP requests to avoid rate limiting
 _raw_steam_delay = os.getenv("STEAM_REQUEST_DELAY_MS")
 try:

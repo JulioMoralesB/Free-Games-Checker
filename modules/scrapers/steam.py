@@ -9,7 +9,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from config import STEAM_LANGUAGE, STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL, TIMEZONE
+from config import STEAM_COUNTRY, STEAM_LANGUAGE, STEAM_REQUEST_DELAY_MS, STEAM_SEARCH_URL, TIMEZONE
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
@@ -51,7 +51,6 @@ _AGE_CHECK_COOKIES = {
 _SEARCH_PARAMS = {
     "maxprice": "free",
     "specials": 1,
-    "cc": "US",
     "l": "english",
 }
 
@@ -136,7 +135,7 @@ class SteamScraper(BaseScraper):
             response = with_retry(
                 func=lambda: _steam_get(
                     STEAM_SEARCH_URL,
-                    params=_SEARCH_PARAMS,
+                    params={**_SEARCH_PARAMS, "cc": STEAM_COUNTRY},
                     headers=_HEADERS,
                     timeout=10,
                 ),
@@ -226,7 +225,7 @@ class SteamScraper(BaseScraper):
             response = with_retry(
                 func=lambda: _steam_get(
                     _APPDETAILS_URL,
-                    params={"appids": appid, "cc": "US", "l": STEAM_LANGUAGE},
+                    params={"appids": appid, "cc": STEAM_COUNTRY, "l": STEAM_LANGUAGE},
                     headers=_HEADERS,
                     timeout=10,
                 ),

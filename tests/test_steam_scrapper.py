@@ -398,6 +398,66 @@ class TestSteamScraper:
 
         assert captured.get("params", {}).get("l") == "english"
 
+    def test_search_uses_configured_country(self):
+        """fetch_free_games passes STEAM_COUNTRY as the cc= param in the search request."""
+        captured = {}
+
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                captured["params"] = kwargs.get("params", {})
+                return _mock_response(200, text=_make_search_html())
+            if "appdetails" in url:
+                return _mock_response(200, json_data=_make_appdetails_response("978520"))
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            return _mock_response(200, text="<html></html>")
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect), \
+             patch("modules.scrapers.steam.STEAM_COUNTRY", "MX"):
+            SteamScraper().fetch_free_games()
+
+        assert captured.get("params", {}).get("cc") == "MX"
+
+    def test_search_defaults_to_us_country(self):
+        """Without a STEAM_COUNTRY override, the search uses cc=US."""
+        captured = {}
+
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                captured["params"] = kwargs.get("params", {})
+                return _mock_response(200, text=_make_search_html())
+            if "appdetails" in url:
+                return _mock_response(200, json_data=_make_appdetails_response("978520"))
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            return _mock_response(200, text="<html></html>")
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect), \
+             patch("modules.scrapers.steam.STEAM_COUNTRY", "US"):
+            SteamScraper().fetch_free_games()
+
+        assert captured.get("params", {}).get("cc") == "US"
+
+    def test_appdetails_uses_configured_country(self):
+        """_fetch_appdetails passes STEAM_COUNTRY as the cc= param to the appdetails API."""
+        captured = {}
+
+        def side_effect(url, **kwargs):
+            if "appdetails" in url:
+                captured["params"] = kwargs.get("params", {})
+                return _mock_response(200, json_data=_make_appdetails_response("978520"))
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            return _mock_response(200, text="<html></html>")
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect), \
+             patch("modules.scrapers.steam.STEAM_COUNTRY", "MX"):
+            SteamScraper().fetch_free_games()
+
+        assert captured.get("params", {}).get("cc") == "MX"
+
 
 class TestParseSteamEndDate:
     def test_parses_am_time(self, freeze_steam_now):
