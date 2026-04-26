@@ -23,18 +23,14 @@ class _FakeDatetime(_real_datetime):
 
 @pytest.fixture
 def freeze_steam_now():
-    """Pin datetime.now() and TIMEZONE for deterministic timestamp assertions.
+    """Pin datetime.now() for deterministic timestamp assertions.
 
-    Two patches are needed together:
-    - TIMEZONE → "UTC": _parse_steam_end_date converts local time to UTC using the
-      configured timezone. Without this pin, assertions on specific timestamps break
-      on any host not running in UTC.
-    - datetime → _FakeDatetime: the year-rollover logic uses datetime.now() to decide
-      whether to advance to next year. Without a pinned 'now', tests asserting a
-      specific year break as soon as the promo date passes in real time.
+    _parse_steam_end_date always treats scraped times as Pacific Time
+    (America/Los_Angeles) regardless of the user's TIMEZONE setting, so we no
+    longer need to patch TIMEZONE here.  The only remaining patch is to pin
+    datetime.now() so the year-rollover logic gives a stable result.
     """
-    with patch("modules.scrapers.steam.datetime", _FakeDatetime), \
-         patch("modules.scrapers.steam.TIMEZONE", "UTC"):
+    with patch("modules.scrapers.steam.datetime", _FakeDatetime):
         yield
 
 
@@ -161,7 +157,8 @@ class TestSteamScraper:
         assert g.image_url == "https://example.com/header.jpg"
         assert g.review_score == "Mostly Positive"
         assert g.is_permanent is False
-        assert "2026-04-23T10:00:00" in g.end_date
+        # "23 Apr @ 10:00am" Pacific = 10:00 PDT (UTC-7) = 17:00 UTC
+        assert "2026-04-23T17:00:00" in g.end_date
 
     def test_excludes_paid_games(self):
         paid = [{"appid": "111", "title": "Paid Game", "original_price": "$9.99", "price_final": 999}]
@@ -356,7 +353,8 @@ class TestSteamScraper:
             games = SteamScraper().fetch_free_games()
 
         assert len(games) == 1
-        assert "2026-04-23T10:00:00" in games[0].end_date
+        # "23 Apr @ 10:00am" Pacific = 10:00 PDT (UTC-7) = 17:00 UTC
+        assert "2026-04-23T17:00:00" in games[0].end_date
 
     def test_appdetails_uses_configured_language(self):
         """_fetch_appdetails passes STEAM_LANGUAGE as the l= param to the API."""
@@ -460,25 +458,33 @@ class TestSteamScraper:
 
 
 class TestParseSteamEndDate:
+    # Steam always renders times in Pacific Time (America/Los_Angeles).
+    # The fixture pins now=2026-01-01 UTC; April/May/June are PDT (UTC-7).
+    # Expected UTC = scraped Pacific time + 7 hours.
+
     def test_parses_am_time(self, freeze_steam_now):
         text = "Free to keep when you get it before 23 Apr @ 10:00am. Some limitations apply."
         result = _parse_steam_end_date(text)
-        assert result.startswith("2026-04-23T10:00:00")
+        # 10:00am PDT (UTC-7) = 17:00 UTC
+        assert result.startswith("2026-04-23T17:00:00")
 
     def test_parses_pm_time(self, freeze_steam_now):
         text = "Free to keep when you get it before 5 Jun @ 2:00pm."
         result = _parse_steam_end_date(text)
-        assert "T14:00:00" in result
+        # 14:00 PDT (UTC-7) = 21:00 UTC
+        assert "T21:00:00" in result
 
     def test_parses_noon(self, freeze_steam_now):
         text = "before 1 May @ 12:00pm"
         result = _parse_steam_end_date(text)
-        assert "T12:00:00" in result
+        # 12:00 PDT (UTC-7) = 19:00 UTC
+        assert "T19:00:00" in result
 
     def test_parses_midnight(self, freeze_steam_now):
         text = "before 1 May @ 12:00am"
         result = _parse_steam_end_date(text)
-        assert "T00:00:00" in result
+        # 00:00 PDT (UTC-7) = 07:00 UTC
+        assert "T07:00:00" in result
 
     def test_returns_empty_when_no_match(self):
         assert _parse_steam_end_date("No discount info here.") == ""
@@ -490,4 +496,5 @@ class TestParseSteamEndDate:
         """Steam HTML uses U+00A0 non-breaking spaces which look identical in logs."""
         text = "Free\u00a0to\u00a0keep\u00a0when\u00a0you\u00a0get\u00a0it\u00a0before\u00a023\u00a0Apr\u00a0@\u00a010:00am.\t\t\tSome limitations apply. (?)"
         result = _parse_steam_end_date(text)
-        assert result.startswith("2026-04-23T10:00:00")
+        # 10:00am PDT (UTC-7) = 17:00 UTC
+        assert result.startswith("2026-04-23T17:00:00")

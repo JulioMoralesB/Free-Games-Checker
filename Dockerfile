@@ -10,26 +10,42 @@ RUN npm run build
 # Stage 2: Python runtime
 FROM python:3.12-slim
 
-# Build-time locale selection (default en_US.UTF-8).
-# To use a different locale, pass --build-arg LOCALE=<your_locale> and rebuild.
-ARG LOCALE=en_US.UTF-8
-
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies, generate only the selected locale, and create a non-root user
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        locales \
-    && printf '%s UTF-8\n' "${LOCALE}" > /etc/locale.gen \
+# Install all locales supported by _REGION_PROFILES so any REGION= value works
+# at runtime without requiring a rebuild.
+RUN apt-get update && apt-get install -y --no-install-recommends locales \
+    && printf '%s\n' \
+        "en_US.UTF-8 UTF-8" \
+        "en_CA.UTF-8 UTF-8" \
+        "en_GB.UTF-8 UTF-8" \
+        "en_AU.UTF-8 UTF-8" \
+        "es_MX.UTF-8 UTF-8" \
+        "es_ES.UTF-8 UTF-8" \
+        "es_AR.UTF-8 UTF-8" \
+        "pt_BR.UTF-8 UTF-8" \
+        "pt_PT.UTF-8 UTF-8" \
+        "de_DE.UTF-8 UTF-8" \
+        "fr_FR.UTF-8 UTF-8" \
+        "it_IT.UTF-8 UTF-8" \
+        "pl_PL.UTF-8 UTF-8" \
+        "ru_RU.UTF-8 UTF-8" \
+        "tr_TR.UTF-8 UTF-8" \
+        "nl_NL.UTF-8 UTF-8" \
+        "ja_JP.UTF-8 UTF-8" \
+        "ko_KR.UTF-8 UTF-8" \
+        "zh_CN.UTF-8 UTF-8" \
+        > /etc/locale.gen \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 1000 appuser \
     && useradd --system --no-create-home --shell /bin/false --uid 1000 --gid 1000 appuser
-# Bake the selected locale into the image's default runtime environment
-ENV LOCALE=${LOCALE} \
-    LANG=${LOCALE} \
-    LANGUAGE=${LOCALE} \
-    LC_ALL=${LOCALE}
+
+# Default system locale for the container; the app's date-formatting locale is
+# set at runtime via the LOCALE env var (derived from REGION in config.py).
+ENV LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8
 
 # Copy and install Python dependencies
 COPY requirements.txt .
