@@ -1,17 +1,17 @@
 # Free Games Notifier
 
-A Python-based scheduler that monitors the Epic Games Store for free game promotions and sends Discord notifications. Runs as a Docker container with health check support, optional PostgreSQL integration, a REST API, and a built-in web dashboard.
+A Python-based scheduler that monitors the Epic Games Store and Steam for free game promotions and sends Discord notifications. Runs as a Docker container with health check support, optional PostgreSQL integration, a REST API, and a built-in web dashboard.
 
 ## Features
 
-- ✅ **Daily Monitoring**: Automatically checks Epic Games Store at a configurable time (default: 12:00 UTC) for new free games
-- 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details
+- ✅ **Multi-Store Monitoring**: Checks Epic Games Store and Steam for free games — on a daily schedule or a configurable repeating interval
+- 💬 **Discord Notifications**: Sends beautifully formatted Discord embeds with game details, original price, and user review score
 - 📊 **Persistent Storage**: Maintains game history — PostgreSQL when `DB_HOST` is set, JSON file otherwise
 - 🏥 **Health Checks**: Optional UptimeKuma/Healthchecks.io integration for monitoring
 - 🌐 **Web Dashboard**: Browse and search the full history of tracked free games at `/dashboard/`
 - 🔌 **REST API**: Built-in FastAPI endpoints for health, history, metrics, and notification management
 - 🐳 **Docker Ready**: Includes Docker and docker-compose configurations
-- 🌍 **Fully Configurable**: Timezone, locale, region, schedule time, and health check interval are all configurable via environment variables
+- 🌍 **Fully Configurable**: Set `REGION` to a single IANA timezone string and get timezone, locale, Steam language, and Steam country all at once — or configure each variable individually
 
 ## Prerequisites
 
@@ -63,10 +63,8 @@ DB_NAME=free_games
 DB_USER=postgres
 DB_PASSWORD=your_password
 
-# Optional: Timezone / locale / region
-TIMEZONE=UTC
-LOCALE=en_US.UTF-8
-EPIC_GAMES_REGION=en-US
+# Optional: Unified region (derives timezone, locale, Steam language & country automatically)
+REGION=America/New_York
 
 # Optional: Scheduler
 SCHEDULE_TIME=12:00
@@ -170,22 +168,25 @@ docker run -d \
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DISCORD_WEBHOOK_URL` | ✅ Yes | - | Discord webhook URL for sending notifications |
-| `EPIC_GAMES_API_URL` | ❌ No | Official API | Epic Games Store API endpoint |
+| `DISCORD_WEBHOOK_URL` | ✅ Yes | — | Discord webhook URL for sending notifications |
 | `ENABLED_STORES` | ❌ No | `epic` | Comma-separated list of stores to scrape. Supported: `epic`, `steam` (e.g. `epic,steam`) |
-| `STEAM_REQUEST_DELAY_MS` | ❌ No | `1500` | Milliseconds to wait between Steam HTTP requests to avoid rate limiting |
-| `STEAM_LANGUAGE` | ❌ No | `english` | Language for Steam game descriptions (e.g. `spanish`, `french`, `german`). Falls back to English if no translation exists. Full list: [Steam localization languages](https://partner.steamgames.com/doc/store/localization/languages) |
-| `HEALTHCHECK_URL` | ❌ No | - | Healthchecks.io or UptimeKuma ping URL |
+| `EPIC_GAMES_API_URL` | ❌ No | Official API | Epic Games Store API endpoint override |
+| `HEALTHCHECK_URL` | ❌ No | — | Healthchecks.io or UptimeKuma ping URL |
 | `ENABLE_HEALTHCHECK` | ❌ No | `false` | Enable health check pings (`true`/`false`) |
-| `DB_HOST` | ❌ No | - | PostgreSQL host (leave empty to use file storage) |
+| `DB_HOST` | ❌ No | — | PostgreSQL host (leave empty to use file storage) |
 | `DB_PORT` | ❌ No | `5432` | PostgreSQL port |
-| `DB_NAME` | ❌ No | - | PostgreSQL database name |
-| `DB_USER` | ❌ No | - | PostgreSQL username |
-| `DB_PASSWORD` | ❌ No | - | PostgreSQL password |
-| `TIMEZONE` | ❌ No | `UTC` | IANA timezone name (e.g. `America/New_York`, `Europe/London`) |
-| `LOCALE` | ❌ No | `en_US.UTF-8` | Locale for date formatting (e.g. `es_ES.UTF-8`, `de_DE.UTF-8`) |
-| `EPIC_GAMES_REGION` | ❌ No | `en-US` | Region code for Epic Games Store links (e.g. `es-MX`, `de-DE`) |
-| `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM`, interpreted in `TIMEZONE` |
+| `DB_NAME` | ❌ No | — | PostgreSQL database name |
+| `DB_USER` | ❌ No | — | PostgreSQL username |
+| `DB_PASSWORD` | ❌ No | — | PostgreSQL password |
+| `REGION` | ❌ No | — | **Recommended.** IANA timezone string (e.g. `America/Mexico_City`). Automatically derives `TIMEZONE`, `LOCALE`, `EPIC_GAMES_REGION`, `STEAM_LANGUAGE`, and `STEAM_COUNTRY`. Individual vars below take precedence when also set. Supported values listed in `.env.example`. |
+| `TIMEZONE` | ❌ No | `UTC` (or `REGION`) | IANA timezone for date display in notifications (e.g. `America/New_York`, `Europe/London`) |
+| `LOCALE` | ❌ No | `en_US.UTF-8` (or `REGION`) | Locale for date formatting (e.g. `es_MX.UTF-8`, `de_DE.UTF-8`). All locales supported by the built-in region profiles are pre-installed in the Docker image. |
+| `EPIC_GAMES_REGION` | ❌ No | `en-US` (or `REGION`) | Region code for Epic Games Store links (e.g. `es-MX`, `de-DE`) |
+| `STEAM_LANGUAGE` | ❌ No | `english` (or `REGION`) | Language for Steam game descriptions (e.g. `spanish`, `french`). Full list: [Steam localization languages](https://partner.steamgames.com/doc/store/localization/languages) |
+| `STEAM_COUNTRY` | ❌ No | `US` (or `REGION`) | ISO 3166-1 alpha-2 country code for Steam store requests — controls price currency (e.g. `MX` → MXN, `DE` → EUR, `GB` → GBP) |
+| `STEAM_REQUEST_DELAY_MS` | ❌ No | `1500` | Milliseconds to wait between Steam HTTP requests to avoid rate limiting |
+| `CHECK_INTERVAL_HOURS` | ❌ No | — | Run on a repeating interval (e.g. `6` = every 6 hours) instead of once daily. Minimum: `1`. Recommended when Steam is enabled. Leave empty to use `SCHEDULE_TIME`. |
+| `SCHEDULE_TIME` | ❌ No | `12:00` | Daily check time in `HH:MM`, interpreted in `TIMEZONE`. Used only when `CHECK_INTERVAL_HOURS` is not set. |
 | `HEALTHCHECK_INTERVAL` | ❌ No | `1` | Health check ping interval in minutes |
 | `DATE_FORMAT` | ❌ No | `%B %d, %Y at %I:%M %p` | strftime format for the promotion end date in Discord notifications |
 | `API_HOST` | ❌ No | `0.0.0.0` | Interface the REST API and dashboard server binds to |
@@ -196,6 +197,7 @@ docker run -d \
 
 - Free game promotions on Steam are infrequent. When only Steam is enabled (or when Steam returns no results), the scheduler will log "No free games found" more often than with Epic — this is expected.
 - Steam requests are throttled by `STEAM_REQUEST_DELAY_MS` (default 1 500 ms) to avoid hitting rate limits. Lowering this value may cause HTTP 429 errors; raising it is safe.
+- Set `CHECK_INTERVAL_HOURS` when Steam is enabled — Steam free games can appear at any time of day, unlike the predictable Epic Thursday rotation.
 
 ## Project Structure
 
@@ -260,7 +262,12 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [x] REST API for health, history, metrics, and notification management (#29)
 - [x] Web dashboard for game history (#46)
 - [x] Production end-to-end test suite (#49)
+- [x] Support for additional game stores — Steam (#56)
+- [x] Display original price and Steam country-specific pricing (#107)
+- [x] Unified `REGION` variable — one setting derives timezone, locale, and all store options (#117)
+- [ ] Show user reviews for Epic Games Store games (#106)
+- [ ] Differentiate DLCs from base games in notifications and dashboard (#109)
+- [ ] Store filter in the web dashboard (#115)
 - [ ] Add support for multiple notification channels (Discord, Slack, Telegram, etc.) (#55)
 - [ ] UI/UX Enhancements (#71)
-- [x] Support for additional game stores — Steam (#56)
 
