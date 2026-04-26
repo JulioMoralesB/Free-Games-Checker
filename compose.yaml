@@ -28,6 +28,7 @@ services:
       - ENABLED_STORES=${ENABLED_STORES:-epic}
       - STEAM_REQUEST_DELAY_MS=${STEAM_REQUEST_DELAY_MS:-1500}
       - STEAM_LANGUAGE=${STEAM_LANGUAGE:-english}
+      - STEAM_COUNTRY=${STEAM_COUNTRY:-US}
     image: free-games-notifier
     ports:
       - "${API_PORT:-8000}:${API_PORT:-8000}"
