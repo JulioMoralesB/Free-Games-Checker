@@ -265,6 +265,9 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [x] Support for additional game stores — Steam (#56)
 - [x] Display original price and Steam country-specific pricing (#107)
 - [x] Unified `REGION` variable — one setting derives timezone, locale, and all store options (#117)
+- [ ] Show user reviews for Epic Games Store games (#106)
+- [ ] Differentiate DLCs from base games in notifications and dashboard (#109)
+- [ ] Store filter in the web dashboard (#115)
 - [ ] Add support for multiple notification channels (Discord, Slack, Telegram, etc.) (#55)
 - [ ] UI/UX Enhancements (#71)
 
