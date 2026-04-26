@@ -23,9 +23,9 @@ STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com
 # Unified language / region config
 #
 # Set LANGUAGE to a BCP 47 tag (e.g. "es-MX", "de-DE", "pt-BR") and the app
-# derives LOCALE, EPIC_GAMES_REGION, STEAM_LANGUAGE, and STEAM_COUNTRY
-# automatically.  Any of those four vars can still be set individually to
-# override the derived value (individual var always wins).
+# derives LOCALE, EPIC_GAMES_REGION, STEAM_LANGUAGE, STEAM_COUNTRY, and
+# TIMEZONE automatically.  Any of those five vars can still be set
+# individually to override the derived value (individual var always wins).
 # ─────────────────────────────────────────────────────────────────────────────
 LANGUAGE = os.getenv("LANGUAGE", "")
 
@@ -89,6 +89,116 @@ def _language_to_steam_country(language: str) -> str:
     return language.split("-", 1)[1].upper()
 
 
+# ISO 3166-1 alpha-2 country code → representative IANA timezone.
+# For countries with multiple timezones the most-populated zone is used.
+_TIMEZONE_MAP: dict[str, str] = {
+    # Americas
+    "AR": "America/Argentina/Buenos_Aires",
+    "BO": "America/La_Paz",
+    "BR": "America/Sao_Paulo",
+    "CA": "America/Toronto",
+    "CL": "America/Santiago",
+    "CO": "America/Bogota",
+    "CR": "America/Costa_Rica",
+    "CU": "America/Havana",
+    "DO": "America/Santo_Domingo",
+    "EC": "America/Guayaquil",
+    "GT": "America/Guatemala",
+    "HN": "America/Tegucigalpa",
+    "MX": "America/Mexico_City",
+    "NI": "America/Managua",
+    "PA": "America/Panama",
+    "PE": "America/Lima",
+    "PR": "America/Puerto_Rico",
+    "PY": "America/Asuncion",
+    "SV": "America/El_Salvador",
+    "US": "America/New_York",
+    "UY": "America/Montevideo",
+    "VE": "America/Caracas",
+    # Europe
+    "AT": "Europe/Vienna",
+    "BE": "Europe/Brussels",
+    "BG": "Europe/Sofia",
+    "BY": "Europe/Minsk",
+    "CH": "Europe/Zurich",
+    "CZ": "Europe/Prague",
+    "DE": "Europe/Berlin",
+    "DK": "Europe/Copenhagen",
+    "EE": "Europe/Tallinn",
+    "ES": "Europe/Madrid",
+    "FI": "Europe/Helsinki",
+    "FR": "Europe/Paris",
+    "GB": "Europe/London",
+    "GR": "Europe/Athens",
+    "HR": "Europe/Zagreb",
+    "HU": "Europe/Budapest",
+    "IE": "Europe/Dublin",
+    "IT": "Europe/Rome",
+    "LT": "Europe/Vilnius",
+    "LV": "Europe/Riga",
+    "NL": "Europe/Amsterdam",
+    "NO": "Europe/Oslo",
+    "PL": "Europe/Warsaw",
+    "PT": "Europe/Lisbon",
+    "RO": "Europe/Bucharest",
+    "RS": "Europe/Belgrade",
+    "RU": "Europe/Moscow",
+    "SE": "Europe/Stockholm",
+    "SI": "Europe/Ljubljana",
+    "SK": "Europe/Bratislava",
+    "TR": "Europe/Istanbul",
+    "UA": "Europe/Kyiv",
+    # Asia / Pacific
+    "AE": "Asia/Dubai",
+    "AF": "Asia/Kabul",
+    "AU": "Australia/Sydney",
+    "CN": "Asia/Shanghai",
+    "HK": "Asia/Hong_Kong",
+    "ID": "Asia/Jakarta",
+    "IL": "Asia/Jerusalem",
+    "IN": "Asia/Kolkata",
+    "IQ": "Asia/Baghdad",
+    "IR": "Asia/Tehran",
+    "JP": "Asia/Tokyo",
+    "KR": "Asia/Seoul",
+    "KZ": "Asia/Almaty",
+    "MY": "Asia/Kuala_Lumpur",
+    "NZ": "Pacific/Auckland",
+    "PH": "Asia/Manila",
+    "PK": "Asia/Karachi",
+    "SA": "Asia/Riyadh",
+    "SG": "Asia/Singapore",
+    "TH": "Asia/Bangkok",
+    "TW": "Asia/Taipei",
+    "UA": "Europe/Kyiv",
+    "VN": "Asia/Ho_Chi_Minh",
+    # Africa
+    "DZ": "Africa/Algiers",
+    "EG": "Africa/Cairo",
+    "ET": "Africa/Addis_Ababa",
+    "GH": "Africa/Accra",
+    "KE": "Africa/Nairobi",
+    "MA": "Africa/Casablanca",
+    "NG": "Africa/Lagos",
+    "TN": "Africa/Tunis",
+    "TZ": "Africa/Dar_es_Salaam",
+    "ZA": "Africa/Johannesburg",
+}
+
+
+def _language_to_timezone(language: str) -> str:
+    """Map BCP 47 country subtag to an IANA timezone: 'es-MX' → 'America/Mexico_City'.
+
+    Returns '' when the country code is absent or not in the map.
+    For countries with multiple timezones the most-populated zone is used.
+    Use TIMEZONE directly to override with a specific zone.
+    """
+    if not language or "-" not in language:
+        return ""
+    country = language.split("-", 1)[1].upper()
+    return _TIMEZONE_MAP.get(country, "")
+
+
 def _resolve(env_var: str, language_derived: str, default: str) -> str:
     """Resolve a config value: explicit env var (non-empty) > LANGUAGE derivation > hardcoded default.
 
@@ -143,8 +253,9 @@ DB_NAME = os.getenv("DB_NAME") or None
 DB_USER = os.getenv("DB_USER") or None
 DB_PASSWORD = os.getenv("DB_PASSWORD") or None
 
-# Timezone for date display in notifications (e.g. "America/New_York", "Europe/London")
-TIMEZONE = os.getenv("TIMEZONE", "UTC")
+# Timezone for date display in notifications (e.g. "America/New_York", "Europe/London").
+# Derived from LANGUAGE when not set explicitly; falls back to "UTC".
+TIMEZONE = _resolve("TIMEZONE", _language_to_timezone(LANGUAGE), "UTC")
 
 # Locale for date formatting (e.g. "en_US.UTF-8", "es_MX.UTF-8").
 # Derived from LANGUAGE when not set explicitly; falls back to "en_US.UTF-8".

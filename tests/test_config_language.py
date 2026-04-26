@@ -6,6 +6,7 @@ from config import (
     _language_to_locale,
     _language_to_steam_language,
     _language_to_steam_country,
+    _language_to_timezone,
     _resolve,
 )
 
@@ -101,6 +102,41 @@ class TestLanguageToSteamCountry:
         assert _language_to_steam_country("es-mx") == "MX"
 
 
+class TestLanguageToTimezone:
+    def test_es_mx_to_mexico_city(self):
+        assert _language_to_timezone("es-MX") == "America/Mexico_City"
+
+    def test_en_us_to_new_york(self):
+        assert _language_to_timezone("en-US") == "America/New_York"
+
+    def test_de_de_to_berlin(self):
+        assert _language_to_timezone("de-DE") == "Europe/Berlin"
+
+    def test_pt_br_to_sao_paulo(self):
+        assert _language_to_timezone("pt-BR") == "America/Sao_Paulo"
+
+    def test_fr_fr_to_paris(self):
+        assert _language_to_timezone("fr-FR") == "Europe/Paris"
+
+    def test_ja_jp_to_tokyo(self):
+        assert _language_to_timezone("ja-JP") == "Asia/Tokyo"
+
+    def test_en_gb_to_london(self):
+        assert _language_to_timezone("en-GB") == "Europe/London"
+
+    def test_returns_empty_for_unknown_country(self):
+        assert _language_to_timezone("xx-XX") == ""
+
+    def test_returns_empty_for_lang_only_tag(self):
+        assert _language_to_timezone("es") == ""
+
+    def test_returns_empty_for_empty_string(self):
+        assert _language_to_timezone("") == ""
+
+    def test_case_insensitive_country_code(self):
+        assert _language_to_timezone("es-mx") == "America/Mexico_City"
+
+
 class TestResolve:
     def test_explicit_env_var_takes_precedence(self):
         with patch.dict("os.environ", {"MY_VAR": "explicit"}):
@@ -141,6 +177,9 @@ class TestLanguageIntegration:
 
     def test_es_mx_derives_steam_country(self):
         assert _language_to_steam_country("es-MX") == "MX"
+
+    def test_es_mx_derives_timezone(self):
+        assert _language_to_timezone("es-MX") == "America/Mexico_City"
 
     def test_individual_override_wins_over_language(self):
         """Explicit LOCALE overrides what LANGUAGE would derive."""
