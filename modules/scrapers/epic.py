@@ -55,6 +55,14 @@ class EpicGamesScraper(BaseScraper):
         for game in data["data"]["Catalog"]["searchStore"]["elements"]:
             price_info = game.get("price", {}).get("totalPrice", {})
             if price_info.get("discountPrice", 1) == 0:
+                original_price_int = price_info.get("originalPrice", 0)
+                if original_price_int > 0:
+                    fmt = price_info.get("fmtPrice", {})
+                    original_price = fmt.get("originalPrice") or None
+                    if original_price == "0":
+                        original_price = None
+                else:
+                    original_price = None
                 ## Get the game title
                 title = game["title"]
                 logger.info(f"Found free game!: {title}")
@@ -140,7 +148,7 @@ class EpicGamesScraper(BaseScraper):
                         store=self.store_name,
                         url=link,
                         image_url=thumbnail,
-                        original_price=None,
+                        original_price=original_price,
                         end_date=end_date,
                         is_permanent=False,
                         description=description,

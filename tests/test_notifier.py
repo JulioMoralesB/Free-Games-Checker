@@ -242,6 +242,60 @@ class TestSendDiscordMessage:
         _, kwargs = mock_post.call_args
         assert "¡Nuevo Juego Gratis" in kwargs["json"]["content"]
 
+    def test_embed_includes_original_price_field_when_present(self):
+        game = FreeGame(
+            title="Epic Game",
+            store="epic",
+            url="https://store.epicgames.com/p/epic-game",
+            image_url="https://example.com/img.jpg",
+            original_price="$19.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+        )
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert any(f["name"] == "💰 Original Price" and f["value"] == "$19.99" for f in fields)
+
+    def test_embed_original_price_field_translated_to_spanish(self):
+        game = FreeGame(
+            title="Epic Game",
+            store="epic",
+            url="https://store.epicgames.com/p/epic-game",
+            image_url="https://example.com/img.jpg",
+            original_price="$19.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+        )
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert any(f["name"] == "💰 Precio original" and f["value"] == "$19.99" for f in fields)
+
+    def test_embed_no_original_price_field_when_absent(self, sample_games):
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert not any("Original Price" in f.get("name", "") for f in fields)
+
     def test_embed_no_review_score_when_absent(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
              patch("modules.notifier.requests.post") as mock_post:

@@ -42,6 +42,10 @@ def epic_api_response():
                                 "totalPrice": {
                                     "discountPrice": 0,
                                     "originalPrice": 1999,
+                                    "fmtPrice": {
+                                        "originalPrice": "$19.99",
+                                        "discountPrice": "$0.00",
+                                    },
                                 }
                             },
                             "offerMappings": [{"pageSlug": "test-free-game"}],

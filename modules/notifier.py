@@ -20,6 +20,7 @@ _TRANSLATIONS = {
         "permanently_free": "Permanently free",
         "end_date_unavailable": "End date unavailable",
         "user_reviews": "💬 User Reviews:",
+        "original_price": "💰 Original Price",
         "new_free_game": "**New Free Game on {store}! 🎮**\n",
         "new_free_games": "**New Free Games! 🎮**\n",
         "review_labels": {
@@ -40,6 +41,7 @@ _TRANSLATIONS = {
         "permanently_free": "Gratis de forma permanente",
         "end_date_unavailable": "Fecha de fin no disponible",
         "user_reviews": "💬 Opiniones de usuarios:",
+        "original_price": "💰 Precio original",
         "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
         "review_labels": {
@@ -271,6 +273,12 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                     emoji = _REVIEW_EMOJIS.get(key, "🎮")
                     label = _T["review_labels"].get(key, game.review_score)
                     embed["description"] += f"\n\n{_T['user_reviews']}\n{label} {emoji}\n\n"
+                if game.original_price:
+                    embed.setdefault("fields", []).append({
+                        "name": _T["original_price"],
+                        "value": game.original_price,
+                        "inline": True,
+                    })
                 embeds.append(embed)
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")
