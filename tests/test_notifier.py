@@ -565,7 +565,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         fields = kwargs["json"]["embeds"][0].get("fields", [])
-        assert any(f["name"] == "Precio original" for f in fields)
+        assert any(f["name"] == "💰 Precio original" for f in fields)
 
 
 class TestSendDiscordMessageWebhookOverride:
