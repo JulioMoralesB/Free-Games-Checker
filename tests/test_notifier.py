@@ -189,7 +189,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "💬 User Reviews:" in description
+        assert "💬 Steam Reviews:" in description
         assert "Very Positive" in description
         assert "⭐" in description
 
@@ -214,7 +214,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "💬 Reseñas de usuarios:" in description
+        assert "💬 Reseñas en Steam:" in description
         assert "Muy Positivo" in description
         assert "⭐" in description
 
@@ -242,7 +242,7 @@ class TestSendDiscordMessage:
         assert "📊 Metacritic:" in description
         assert "Metascore: 83" in description
         assert "⭐" in description
-        assert "User Reviews" not in description
+        assert "Steam Reviews" not in description
 
     def test_embed_shows_both_steam_and_metacritic_scores(self):
         """A Steam game with both sources renders both lines."""
@@ -266,7 +266,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "💬 User Reviews:" in description
+        assert "💬 Steam Reviews:" in description
         assert "Very Positive" in description
         assert "📊 Metacritic:" in description
         assert "Metascore: 83" in description
@@ -293,7 +293,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "User Reviews" not in description
+        assert "Steam Reviews" not in description
         assert "Metacritic" not in description
         assert "OpenCritic" not in description
 
@@ -382,7 +382,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "User Reviews" not in description
+        assert "Steam Reviews" not in description
 
     def test_content_message_uses_epic_store_name(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
