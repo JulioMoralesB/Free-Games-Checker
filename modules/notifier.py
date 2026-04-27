@@ -26,6 +26,7 @@ _TRANSLATIONS = {
         "new_free_games": "**New Free Games! 🎮**\n",
         "new_free_dlc": "**New Free DLC on {store}! 🎮**\n",
         "dlc_badge": "📦 DLC",
+        "requires_base_game": "Requires the base game",
         "review_labels": {
             "overwhelmingly positive": "Overwhelmingly Positive",
             "very positive": "Very Positive",
@@ -50,6 +51,7 @@ _TRANSLATIONS = {
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
         "new_free_dlc": "**¡Nuevo DLC Gratis en {store}! 🎮**\n",
         "dlc_badge": "📦 DLC",
+        "requires_base_game": "Requiere el juego base",
         "review_labels": {
             "overwhelmingly positive": "Extremadamente Positivo",
             "very positive": "Muy Positivo",
@@ -250,7 +252,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 if game.game_type == "dlc":
                     fields.append({
                         "name": _T["dlc_badge"],
-                        "value": "Requires the base game",
+                        "value": _T["requires_base_game"],
                         "inline": True,
                     })
                 if game.original_price:
