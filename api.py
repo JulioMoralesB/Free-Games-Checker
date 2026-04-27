@@ -295,17 +295,32 @@ def games_latest():
 def games_history(
     limit: int = Query(default=20, ge=1, le=100, description="Max number of games to return"),
     offset: int = Query(default=0, ge=0, description="Number of games to skip"),
+    sort_by: str = Query(default="end_date", pattern="^(end_date|title)$", description="Field to sort by"),
+    sort_dir: str = Query(default="desc", pattern="^(asc|desc)$", description="Sort direction"),
 ):
     """Paginated access to all past fetched games.
 
     Query parameters:
     - **limit**: Max number of games to return (1–100, default: 20)
     - **offset**: Number of games to skip (default: 0)
+    - **sort_by**: Field to sort by — ``end_date`` (default) or ``title``
+    - **sort_dir**: Sort direction — ``desc`` (default) or ``asc``
+
+    Sorting is applied to the full dataset **before** pagination so that the
+    ordering is consistent across pages.
     """
     from modules.storage import load_previous_games
 
+    def _sort_key(game):
+        if sort_by == "title":
+            v = game.title if isinstance(game, FreeGame) else game.get("title", "")
+            return v.lower()
+        # end_date — ISO-8601 strings sort correctly as plain strings
+        return game.end_date if isinstance(game, FreeGame) else game.get("end_date", "")
+
     try:
         all_games = load_previous_games()
+        all_games.sort(key=_sort_key, reverse=(sort_dir == "desc"))
         total = len(all_games)
         page = all_games[offset : offset + limit]
         return {"games": [_to_game_item_dict(g) for g in page], "total": total, "limit": limit, "offset": offset}
