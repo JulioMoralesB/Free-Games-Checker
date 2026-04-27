@@ -14,7 +14,7 @@ from config import STEAM_COUNTRY, STEAM_LANGUAGE, STEAM_REQUEST_DELAY_MS, STEAM_
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
-from modules.scrapers.review_sources import fetch_metacritic_score, fetch_opencritic_score
+from modules.scrapers.review_sources import fetch_metacritic_score
 
 from zoneinfo import ZoneInfo
 
@@ -223,9 +223,6 @@ class SteamScraper(BaseScraper):
         mc = fetch_metacritic_score(title)
         if mc:
             review_scores.append(mc)
-        oc = fetch_opencritic_score(title)
-        if oc:
-            review_scores.append(oc)
 
         logger.info(
             "Built free game: %s (appid=%s, reviews=%s, type=%s)",

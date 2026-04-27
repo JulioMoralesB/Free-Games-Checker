@@ -6,9 +6,8 @@ on the ``FreeGame`` model.
 
 Supported formats
 -----------------
-- ``"Very Positive"``       — Steam-style user-review label (passed through as-is)
-- ``"Metascore: 83"``       — Metacritic critic score (0–100)
-- ``"OpenCritic: 78"``      — OpenCritic critic score (0–100)
+- ``"Very Positive"``   — Steam-style user-review label (passed through as-is)
+- ``"Metascore: 83"``   — Metacritic critic score (0–100), scraped via JSON-LD
 """
 
 import json
@@ -104,73 +103,3 @@ def fetch_metacritic_score(title: str) -> str | None:
     return None
 
 
-# ---------------------------------------------------------------------------
-# OpenCritic
-# ---------------------------------------------------------------------------
-
-_OC_SEARCH_URL = "https://api.opencritic.com/api/game/search"
-
-# OpenCritic's public (unauthenticated) search API — no key required.
-_OC_HEADERS = {
-    "User-Agent": "FreeGamesNotifier/1.0 (github.com/JulioMoralesB/free-games-notifier)",
-    "Accept": "application/json",
-}
-
-
-def _normalise(title: str) -> str:
-    """Lowercase ASCII slug for fuzzy name matching against OpenCritic results."""
-    ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode()
-    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", ascii_title).lower()).strip()
-
-
-def fetch_opencritic_score(title: str) -> str | None:
-    """Return ``"OpenCritic: 78"`` for *title* via the OpenCritic search API, or ``None``.
-
-    Uses the public unauthenticated ``/api/game/search`` endpoint — no API key
-    is required.  Picks the result whose name best matches the query; falls back
-    to the highest-ranked result.  Any failure returns ``None`` gracefully.
-    """
-    logger.info("OpenCritic: fetching score for %r", title)
-
-    try:
-        resp = requests.get(
-            _OC_SEARCH_URL,
-            params={"criteria": title},
-            headers=_OC_HEADERS,
-            timeout=8,
-        )
-        if resp.status_code != 200:
-            logger.info(
-                "OpenCritic: HTTP %s for %r — skipping review score",
-                resp.status_code, title,
-            )
-            return None
-
-        results = resp.json()
-        if not isinstance(results, list) or not results:
-            logger.info("OpenCritic: no results for %r", title)
-            return None
-
-        # Prefer an exact name match; fall back to the first (highest-ranked) result.
-        query_norm = _normalise(title)
-        match = next(
-            (r for r in results if _normalise(r.get("name", "")) == query_norm),
-            results[0],
-        )
-
-        score = match.get("score")
-        if score is None:
-            logger.info("OpenCritic: %r matched %r but score is None", title, match.get("name"))
-            return None
-
-        try:
-            score_int = int(score)
-            logger.info("OpenCritic: %r → %d", title, score_int)
-            return f"OpenCritic: {score_int}"
-        except (ValueError, TypeError):
-            return None
-
-    except Exception as exc:
-        logger.warning("OpenCritic: failed to fetch score for %r: %s", title, exc)
-
-    return None

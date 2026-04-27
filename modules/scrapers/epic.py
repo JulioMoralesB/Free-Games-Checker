@@ -6,7 +6,7 @@ from config import EPIC_GAMES_API_URL, EPIC_GAMES_REGION
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
-from modules.scrapers.review_sources import fetch_metacritic_score, fetch_opencritic_score
+from modules.scrapers.review_sources import fetch_metacritic_score
 
 logger = logging.getLogger(__name__)
 
@@ -148,9 +148,6 @@ class EpicGamesScraper(BaseScraper):
                 mc = fetch_metacritic_score(title)
                 if mc:
                     review_scores.append(mc)
-                oc = fetch_opencritic_score(title)
-                if oc:
-                    review_scores.append(oc)
                 logger.info("Review scores for %r: %s", title, review_scores)
 
                 games.append(

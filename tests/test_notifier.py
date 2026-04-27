@@ -244,34 +244,8 @@ class TestSendDiscordMessage:
         assert "⭐" in description
         assert "User Reviews" not in description
 
-    def test_embed_shows_opencritic_score(self):
-        game = FreeGame(
-            title="Epic Game",
-            store="epic",
-            url="https://store.epicgames.com/p/epic-game",
-            image_url="https://example.com/img.jpg",
-            original_price="$19.99",
-            end_date="2024-01-31T15:00:00.000Z",
-            is_permanent=False,
-            description="",
-            review_scores=["OpenCritic: 78"],
-        )
-        en_t = notifier._TRANSLATIONS["en"]
-        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
-             patch("modules.notifier._T", en_t), \
-             patch("modules.notifier.requests.post") as mock_post:
-            mock_post.return_value = self._make_response(204)
-            notifier.send_discord_message([game])
-
-        _, kwargs = mock_post.call_args
-        description = kwargs["json"]["embeds"][0]["description"]
-        assert "🎯 OpenCritic:" in description
-        assert "OpenCritic: 78" in description
-        assert "⭐" in description  # 78 ≥ 75 → ⭐
-        assert "User Reviews" not in description
-
-    def test_embed_shows_all_three_scores_for_steam_game(self):
-        """A Steam game with all three sources renders all three lines."""
+    def test_embed_shows_both_steam_and_metacritic_scores(self):
+        """A Steam game with both sources renders both lines."""
         game = FreeGame(
             title="Steam Game",
             store="steam",
@@ -281,7 +255,7 @@ class TestSendDiscordMessage:
             end_date="2024-01-31T15:00:00.000Z",
             is_permanent=False,
             description="",
-            review_scores=["Very Positive", "Metascore: 83", "OpenCritic: 78"],
+            review_scores=["Very Positive", "Metascore: 83"],
         )
         en_t = notifier._TRANSLATIONS["en"]
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -296,8 +270,6 @@ class TestSendDiscordMessage:
         assert "Very Positive" in description
         assert "📊 Metacritic:" in description
         assert "Metascore: 83" in description
-        assert "🎯 OpenCritic:" in description
-        assert "OpenCritic: 78" in description
 
     def test_embed_no_review_section_when_review_scores_empty(self):
         """When review_scores is [], no review section is appended."""

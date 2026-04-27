@@ -158,9 +158,8 @@ class TestSteamScraper:
 
     @pytest.fixture(autouse=True)
     def no_review_sources(self):
-        """Suppress external Metacritic/OpenCritic requests in all Steam scraper tests."""
-        with patch("modules.scrapers.steam.fetch_metacritic_score", return_value=None), \
-             patch("modules.scrapers.steam.fetch_opencritic_score", return_value=None):
+        """Suppress external Metacritic requests in all Steam scraper tests."""
+        with patch("modules.scrapers.steam.fetch_metacritic_score", return_value=None):
             yield
 
     def test_store_name(self):

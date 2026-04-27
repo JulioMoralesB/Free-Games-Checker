@@ -22,7 +22,6 @@ _TRANSLATIONS = {
         "original_price": "💰 Original Price",
         "user_reviews": "💬 User Reviews:",
         "metacritic_reviews": "📊 Metacritic:",
-        "opencritic_reviews": "🎯 OpenCritic:",
         "new_free_game": "**New Free Game on {store}! 🎮**\n",
         "new_free_games": "**New Free Games! 🎮**\n",
         "new_free_dlc": "**New Free DLC on {store}! 🎮**\n",
@@ -47,7 +46,6 @@ _TRANSLATIONS = {
         "original_price": "💰 Precio original",
         "user_reviews": "💬 Opiniones de usuarios:",
         "metacritic_reviews": "📊 Metacritic:",
-        "opencritic_reviews": "🎯 OpenCritic:",
         "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
         "new_free_dlc": "**¡Nuevo DLC Gratis en {store}! 🎮**\n",
@@ -311,14 +309,6 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                                 )
                             except (ValueError, IndexError):
                                 score_lines.append(f"{_T['metacritic_reviews']} {score_str}")
-                        elif score_str.startswith("OpenCritic: "):
-                            try:
-                                val = int(score_str.split(": ", 1)[1])
-                                score_lines.append(
-                                    f"{_T['opencritic_reviews']} {score_str} {_critic_emoji(val)}"
-                                )
-                            except (ValueError, IndexError):
-                                score_lines.append(f"{_T['opencritic_reviews']} {score_str}")
                         else:
                             # Steam-style user review label
                             key = score_str.lower()
