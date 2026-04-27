@@ -1,7 +1,12 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from modules.scrapers.epic import EpicGamesScraper, make_metacritic_slug
+from modules.scrapers.epic import EpicGamesScraper
+from modules.scrapers.review_sources import (
+    make_metacritic_slug,
+    fetch_metacritic_score,
+    fetch_opencritic_score,
+)
 from modules.models import FreeGame
 from config import EPIC_GAMES_REGION
 
@@ -88,9 +93,10 @@ def _mock_response(status_code=200, json_data=None):
 
 class TestFetchFreeGames:
     @pytest.fixture(autouse=True)
-    def no_metacritic(self):
-        """Suppress real Metacritic requests for tests that don't care about review scores."""
-        with patch.object(EpicGamesScraper, "_fetch_metacritic_score", return_value=None):
+    def no_review_sources(self):
+        """Suppress all external review-source requests in tests that don't need them."""
+        with patch("modules.scrapers.epic.fetch_metacritic_score", return_value=None), \
+             patch("modules.scrapers.epic.fetch_opencritic_score", return_value=None):
             yield
 
     def test_returns_free_game(self, epic_api_response):
@@ -265,9 +271,10 @@ class TestFreeGameModel:
     """Unit tests for the FreeGame dataclass and its from_dict factory."""
 
     @pytest.fixture(autouse=True)
-    def no_metacritic(self):
-        """Suppress real Metacritic requests for tests that don't care about review scores."""
-        with patch.object(EpicGamesScraper, "_fetch_metacritic_score", return_value=None):
+    def no_review_sources(self):
+        """Suppress all external review-source requests in tests that don't need them."""
+        with patch("modules.scrapers.epic.fetch_metacritic_score", return_value=None), \
+             patch("modules.scrapers.epic.fetch_opencritic_score", return_value=None):
             yield
 
     def _base_dict(self, **overrides):
@@ -298,6 +305,35 @@ class TestFreeGameModel:
         )
         assert g.game_type == "game"
 
+    def test_review_scores_defaults_to_empty_list(self):
+        """FreeGame.review_scores defaults to [] when not specified."""
+        g = FreeGame(
+            title="X",
+            store="epic",
+            url="https://store.epicgames.com/p/x",
+            image_url="",
+            original_price=None,
+            end_date="",
+            is_permanent=False,
+            description="",
+        )
+        assert g.review_scores == []
+
+    def test_review_scores_can_hold_multiple_sources(self):
+        """FreeGame.review_scores accepts a list of score strings from multiple sources."""
+        g = FreeGame(
+            title="X",
+            store="steam",
+            url="https://store.steampowered.com/app/1/",
+            image_url="",
+            original_price=None,
+            end_date="",
+            is_permanent=False,
+            description="",
+            review_scores=["Very Positive", "Metascore: 83", "OpenCritic: 78"],
+        )
+        assert g.review_scores == ["Very Positive", "Metascore: 83", "OpenCritic: 78"]
+
     def test_game_type_can_be_set_to_dlc(self):
         """FreeGame.game_type can be explicitly set to 'dlc'."""
         g = FreeGame(
@@ -312,6 +348,24 @@ class TestFreeGameModel:
             game_type="dlc",
         )
         assert g.game_type == "dlc"
+
+    def test_from_dict_reads_review_scores_list(self):
+        """from_dict reads a review_scores list directly."""
+        data = self._base_dict(review_scores=["Very Positive", "Metascore: 83"])
+        g = FreeGame.from_dict(data)
+        assert g.review_scores == ["Very Positive", "Metascore: 83"]
+
+    def test_from_dict_migrates_legacy_review_score_string(self):
+        """from_dict wraps a legacy review_score string in a list."""
+        data = self._base_dict(review_score="Very Positive")
+        g = FreeGame.from_dict(data)
+        assert g.review_scores == ["Very Positive"]
+
+    def test_from_dict_defaults_review_scores_to_empty_list_when_absent(self):
+        """from_dict returns [] when neither review_scores nor review_score is set."""
+        data = self._base_dict()  # no review fields
+        g = FreeGame.from_dict(data)
+        assert g.review_scores == []
 
     def test_from_dict_preserves_game_type_game(self):
         """from_dict reads game_type='game' from the dict."""
@@ -366,24 +420,24 @@ def _mc_resp(status_code=200, score=83):
 
 
 class TestMetacriticReviewScore:
-    """Unit tests for EpicGamesScraper._fetch_metacritic_score."""
+    """Unit tests for fetch_metacritic_score."""
 
     def test_returns_metascore_string(self):
-        with patch("modules.scrapers.epic.requests.get", return_value=_mc_resp(score=83)):
-            result = EpicGamesScraper()._fetch_metacritic_score("Celeste")
+        with patch("modules.scrapers.review_sources.requests.get", return_value=_mc_resp(score=83)):
+            result = fetch_metacritic_score("Celeste")
         assert result == "Metascore: 83"
 
     def test_returns_none_on_404(self):
-        with patch("modules.scrapers.epic.requests.get", return_value=_mc_resp(status_code=404)):
-            result = EpicGamesScraper()._fetch_metacritic_score("Unknown Game XYZ")
+        with patch("modules.scrapers.review_sources.requests.get", return_value=_mc_resp(status_code=404)):
+            result = fetch_metacritic_score("Unknown Game XYZ")
         assert result is None
 
     def test_returns_none_when_no_json_ld(self):
         mock = MagicMock()
         mock.status_code = 200
         mock.text = "<html><body><p>No structured data here.</p></body></html>"
-        with patch("modules.scrapers.epic.requests.get", return_value=mock):
-            result = EpicGamesScraper()._fetch_metacritic_score("Some Game")
+        with patch("modules.scrapers.review_sources.requests.get", return_value=mock):
+            result = fetch_metacritic_score("Some Game")
         assert result is None
 
     def test_returns_none_when_aggregate_rating_absent(self):
@@ -394,52 +448,122 @@ class TestMetacriticReviewScore:
             '{"@type":"VideoGame","name":"Some Game"}'
             "</script></body></html>"
         )
-        with patch("modules.scrapers.epic.requests.get", return_value=mock):
-            result = EpicGamesScraper()._fetch_metacritic_score("Some Game")
+        with patch("modules.scrapers.review_sources.requests.get", return_value=mock):
+            result = fetch_metacritic_score("Some Game")
         assert result is None
 
     def test_returns_none_on_network_exception(self):
         import requests as req
         with patch(
-            "modules.scrapers.epic.requests.get",
+            "modules.scrapers.review_sources.requests.get",
             side_effect=req.exceptions.ConnectionError(),
         ):
-            result = EpicGamesScraper()._fetch_metacritic_score("Celeste")
+            result = fetch_metacritic_score("Celeste")
         assert result is None
 
-    def test_full_pipeline_sets_review_score_from_metacritic(self):
-        """fetch_free_games propagates the Metascore onto the returned FreeGame."""
+    def test_full_pipeline_sets_review_scores_from_metacritic(self):
+        """fetch_free_games propagates the Metascore into review_scores."""
         element = _make_element(discount_price=0, offer_slug="celeste", title="Celeste")
         api_resp = _mock_response(200, _make_api_response([element]))
-        mc_resp = _mc_resp(score=94)
+        mc_resp_obj = _mc_resp(score=94)
 
-        def side_effect(url, **kwargs):
-            if "metacritic" in url:
-                return mc_resp
-            return api_resp
-
-        with patch("modules.scrapers.epic.requests.get", side_effect=side_effect):
+        with patch("modules.scrapers.epic.fetch_metacritic_score", return_value="Metascore: 94"), \
+             patch("modules.scrapers.epic.fetch_opencritic_score", return_value=None), \
+             patch("modules.scrapers.epic.requests.get", return_value=api_resp):
             games = EpicGamesScraper().fetch_free_games()
 
         assert len(games) == 1
-        assert games[0].review_score == "Metascore: 94"
+        assert "Metascore: 94" in games[0].review_scores
 
-    def test_full_pipeline_review_score_is_none_when_metacritic_returns_404(self):
-        """fetch_free_games sets review_score=None when Metacritic page is not found."""
+    def test_full_pipeline_review_scores_empty_when_all_sources_unavailable(self):
+        """fetch_free_games leaves review_scores=[] when no sources return data."""
         element = _make_element(discount_price=0, offer_slug="obscure-game", title="Obscure Game")
         api_resp = _mock_response(200, _make_api_response([element]))
-        not_found = _mc_resp(status_code=404)
 
-        def side_effect(url, **kwargs):
-            if "metacritic" in url:
-                return not_found
-            return api_resp
-
-        with patch("modules.scrapers.epic.requests.get", side_effect=side_effect):
+        with patch("modules.scrapers.epic.fetch_metacritic_score", return_value=None), \
+             patch("modules.scrapers.epic.fetch_opencritic_score", return_value=None), \
+             patch("modules.scrapers.epic.requests.get", return_value=api_resp):
             games = EpicGamesScraper().fetch_free_games()
 
         assert len(games) == 1
-        assert games[0].review_score is None
+        assert games[0].review_scores == []
+
+    def test_full_pipeline_aggregates_all_available_scores(self):
+        """fetch_free_games collects scores from every source that responds."""
+        element = _make_element(discount_price=0, offer_slug="celeste", title="Celeste")
+        api_resp = _mock_response(200, _make_api_response([element]))
+
+        with patch("modules.scrapers.epic.fetch_metacritic_score", return_value="Metascore: 94"), \
+             patch("modules.scrapers.epic.fetch_opencritic_score", return_value="OpenCritic: 91"), \
+             patch("modules.scrapers.epic.requests.get", return_value=api_resp):
+            games = EpicGamesScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].review_scores == ["Metascore: 94", "OpenCritic: 91"]
+
+
+# ---------------------------------------------------------------------------
+# OpenCritic review score tests
+# ---------------------------------------------------------------------------
+
+def _oc_resp(status_code=200, results=None):
+    """Return a mock requests.Response for an OpenCritic search."""
+    mock = MagicMock()
+    mock.status_code = status_code
+    mock.json.return_value = results if results is not None else []
+    return mock
+
+
+def _oc_result(name, score=83):
+    """Build a minimal OpenCritic game result dict."""
+    return {"id": 1, "name": name, "score": score, "percentRecommended": 85, "tier": "Strong"}
+
+
+class TestOpenCriticReviewScore:
+    """Unit tests for fetch_opencritic_score."""
+
+    def test_returns_opencritic_string(self):
+        resp = _oc_resp(results=[_oc_result("Celeste", score=94)])
+        with patch("modules.scrapers.review_sources.requests.get", return_value=resp):
+            result = fetch_opencritic_score("Celeste")
+        assert result == "OpenCritic: 94"
+
+    def test_returns_none_on_404(self):
+        resp = _oc_resp(status_code=404)
+        with patch("modules.scrapers.review_sources.requests.get", return_value=resp):
+            result = fetch_opencritic_score("Unknown Game XYZ")
+        assert result is None
+
+    def test_returns_none_when_no_results(self):
+        resp = _oc_resp(results=[])
+        with patch("modules.scrapers.review_sources.requests.get", return_value=resp):
+            result = fetch_opencritic_score("Unknown Game XYZ")
+        assert result is None
+
+    def test_returns_none_when_score_is_none(self):
+        result_no_score = {"id": 1, "name": "Some Game", "score": None}
+        resp = _oc_resp(results=[result_no_score])
+        with patch("modules.scrapers.review_sources.requests.get", return_value=resp):
+            result = fetch_opencritic_score("Some Game")
+        assert result is None
+
+    def test_returns_none_on_network_exception(self):
+        import requests as req
+        with patch(
+            "modules.scrapers.review_sources.requests.get",
+            side_effect=req.exceptions.ConnectionError(),
+        ):
+            result = fetch_opencritic_score("Celeste")
+        assert result is None
+
+    def test_prefers_exact_name_match(self):
+        """Picks the result whose name matches the query over the first result."""
+        wrong = _oc_result("Celeste 2 Extended", score=50)
+        right = _oc_result("Celeste", score=94)
+        resp = _oc_resp(results=[wrong, right])
+        with patch("modules.scrapers.review_sources.requests.get", return_value=resp):
+            result = fetch_opencritic_score("Celeste")
+        assert result == "OpenCritic: 94"
 
 
 # ---------------------------------------------------------------------------

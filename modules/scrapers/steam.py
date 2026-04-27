@@ -14,6 +14,7 @@ from config import STEAM_COUNTRY, STEAM_LANGUAGE, STEAM_REQUEST_DELAY_MS, STEAM_
 from modules.models import FreeGame
 from modules.retry import with_retry
 from modules.scrapers.base import BaseScraper
+from modules.scrapers.review_sources import fetch_metacritic_score, fetch_opencritic_score
 
 from zoneinfo import ZoneInfo
 
@@ -197,10 +198,10 @@ class SteamScraper(BaseScraper):
         return candidates
 
     def _build_game(self, candidate: dict) -> FreeGame:
-        """Enrich a candidate with app details and review score, then return a FreeGame."""
+        """Enrich a candidate with app details and review scores, then return a FreeGame."""
         appid = candidate["appid"]
+        title = candidate["title"]
         details = self._fetch_appdetails(appid)
-        review_score = self._fetch_review_score(appid)
 
         image_url = details.get("header_image") or (
             f"https://shared.akamai.steamstatic.com/store_item_assets"
@@ -213,9 +214,25 @@ class SteamScraper(BaseScraper):
         game_type = details.get("type", "game")
         if game_type not in ("game", "dlc"):
             game_type = "game"
-        logger.info("Built free game: %s (appid=%s, review=%s, type=%s)", candidate["title"], appid, review_score, game_type)
+
+        # Collect review scores from all available sources.
+        review_scores: list[str] = []
+        steam_score = self._fetch_review_score(appid)
+        if steam_score:
+            review_scores.append(steam_score)
+        mc = fetch_metacritic_score(title)
+        if mc:
+            review_scores.append(mc)
+        oc = fetch_opencritic_score(title)
+        if oc:
+            review_scores.append(oc)
+
+        logger.info(
+            "Built free game: %s (appid=%s, reviews=%s, type=%s)",
+            title, appid, review_scores, game_type,
+        )
         return FreeGame(
-            title=candidate["title"],
+            title=title,
             store=self.store_name,
             url=candidate["url"],
             image_url=image_url,
@@ -223,7 +240,7 @@ class SteamScraper(BaseScraper):
             end_date=end_date,
             is_permanent=False,
             description=html.unescape(details.get("short_description", "")),
-            review_score=review_score,
+            review_scores=review_scores,
             game_type=game_type,
         )
 

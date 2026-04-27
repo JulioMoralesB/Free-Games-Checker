@@ -49,6 +49,7 @@ class GameItem(BaseModel):
     description: str = Field(..., description="Short description of the game")
     thumbnail: str = Field(..., description="URL to the game's thumbnail image")
     game_type: str = Field("game", description="Content type: 'game' or 'dlc'", examples=["game", "dlc"])
+    review_scores: List[str] = Field(default_factory=list, description="Review scores from available sources", examples=[["Very Positive", "Metascore: 83", "OpenCritic: 78"]])
 
 
 class HealthResponse(BaseModel):
@@ -168,6 +169,7 @@ def _to_game_item_dict(game) -> dict:
             "description": game.description,
             "thumbnail": game.image_url,
             "game_type": game.game_type,
+            "review_scores": game.review_scores,
         }
     # Legacy dict format – ensure store key is present with a safe default.
     if isinstance(game, dict) and "store" not in game:
