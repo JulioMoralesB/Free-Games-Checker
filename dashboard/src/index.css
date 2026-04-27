@@ -331,7 +331,7 @@ a:hover {
 .card-dlc-badge {
   position: absolute;
   top: 0.5rem;
-  left: 0.5rem;
+  right: 0.5rem;
   z-index: 1;
   background: var(--accent);
   border: 1px solid var(--accent-light);
