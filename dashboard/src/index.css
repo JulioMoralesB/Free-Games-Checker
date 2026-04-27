@@ -333,15 +333,17 @@ a:hover {
   top: 0.5rem;
   left: 0.5rem;
   z-index: 1;
-  background: #5c6bc0;
+  background: var(--accent);
+  border: 1px solid var(--accent-light);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 0.2rem 0.5rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 4px;
   pointer-events: none;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
 }
 
 .card-image-fallback {
