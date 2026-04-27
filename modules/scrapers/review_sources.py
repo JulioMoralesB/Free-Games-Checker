@@ -10,6 +10,8 @@ Supported formats
 - ``"Metascore: 83"``   — Metacritic critic score (0–100), scraped via JSON-LD
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
