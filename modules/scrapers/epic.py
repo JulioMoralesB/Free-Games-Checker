@@ -1,5 +1,8 @@
 """Epic Games Store scraper implementation."""
 
+import json
+import re
+import unicodedata
 import requests
 import logging
 from config import EPIC_GAMES_API_URL, EPIC_GAMES_REGION
@@ -13,6 +16,40 @@ _RETRYABLE_ERRORS = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
 )
+
+_METACRITIC_BASE = "https://www.metacritic.com/game"
+
+# Mimic a browser so Metacritic serves the full HTML page with JSON-LD structured data.
+_MC_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+
+def make_metacritic_slug(title: str) -> str:
+    """Convert a game title to a Metacritic URL slug.
+
+    Examples
+    --------
+    >>> make_metacritic_slug("The Witcher 3: Wild Hunt")
+    'the-witcher-3-wild-hunt'
+    >>> make_metacritic_slug("Baldur's Gate 3")
+    'baldurs-gate-3'
+    """
+    # Strip accents → ASCII
+    ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode()
+    slug = ascii_title.lower()
+    # Remove characters that are not word chars, spaces, or hyphens
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    # Replace whitespace / underscores with a single hyphen
+    slug = re.sub(r"[\s_]+", "-", slug).strip("-")
+    # Collapse consecutive hyphens
+    slug = re.sub(r"-+", "-", slug)
+    return slug
 
 
 class EpicGamesScraper(BaseScraper):
@@ -142,6 +179,8 @@ class EpicGamesScraper(BaseScraper):
                     thumbnail = "https://static-assets-prod.epicgames.com/epic-store/static/webpack/25c285e020572b4f76b770d6cca272ec.png"
                 logger.info(f"Thumbnail to be used: {thumbnail}")
 
+                review_score = self._fetch_metacritic_score(title)
+
                 games.append(
                     FreeGame(
                         title=title,
@@ -153,8 +192,59 @@ class EpicGamesScraper(BaseScraper):
                         is_permanent=False,
                         description=description,
                         game_type="game",
+                        review_score=review_score,
                     )
                 )
         logger.info(f"Returning {len(games)} games")
         logger.debug(f"Returning game titles: {[game.title for game in games]}")
         return games
+
+    def _fetch_metacritic_score(self, title: str) -> str | None:
+        """Return a Metascore string like ``"Metascore: 83"`` for *title*, or None.
+
+        Metacritic embeds critic-score data as JSON-LD structured data
+        (``<script type="application/ld+json">``) on each game page, so no API
+        key is required.  Any network or parsing failure is logged as a warning
+        and returns None so a single game's lookup never blocks the whole scrape.
+        """
+        slug = make_metacritic_slug(title)
+        url = f"{_METACRITIC_BASE}/{slug}/"
+        logger.info("Metacritic: fetching score for %r → %s", title, url)
+
+        try:
+            resp = requests.get(url, headers=_MC_HEADERS, timeout=10)
+            if resp.status_code != 200:
+                logger.info(
+                    "Metacritic: HTTP %s for %r — skipping review score",
+                    resp.status_code, title,
+                )
+                return None
+
+            # Extract every JSON-LD block from the page HTML
+            blocks = re.findall(
+                r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>',
+                resp.text,
+                re.DOTALL,
+            )
+            for raw_block in blocks:
+                try:
+                    data = json.loads(raw_block)
+                except json.JSONDecodeError:
+                    continue
+
+                agg = data.get("aggregateRating") or {}
+                value = agg.get("ratingValue")
+                if value is not None:
+                    try:
+                        score = int(value)
+                        logger.info("Metacritic: %r → Metascore %d", title, score)
+                        return f"Metascore: {score}"
+                    except (ValueError, TypeError):
+                        continue
+
+            logger.info("Metacritic: no aggregateRating found for %r", title)
+
+        except Exception as exc:
+            logger.warning("Metacritic: failed to fetch score for %r: %s", title, exc)
+
+        return None

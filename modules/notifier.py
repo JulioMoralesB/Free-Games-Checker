@@ -21,6 +21,7 @@ _TRANSLATIONS = {
         "end_date_unavailable": "End date unavailable",
         "original_price": "💰 Original Price",
         "user_reviews": "💬 User Reviews:",
+        "metacritic_reviews": "📊 Metacritic:",
         "new_free_game": "**New Free Game on {store}! 🎮**\n",
         "new_free_games": "**New Free Games! 🎮**\n",
         "new_free_dlc": "**New Free DLC on {store}! 🎮**\n",
@@ -44,6 +45,7 @@ _TRANSLATIONS = {
         "end_date_unavailable": "Fecha de fin no disponible",
         "original_price": "💰 Precio original",
         "user_reviews": "💬 Opiniones de usuarios:",
+        "metacritic_reviews": "📊 Metacritic:",
         "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
         "new_free_dlc": "**¡Nuevo DLC Gratis en {store}! 🎮**\n",
@@ -289,10 +291,33 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                         "very negative": "⛔",
                         "overwhelmingly negative": "💀",
                     }
-                    key = game.review_score.lower()
-                    emoji = _REVIEW_EMOJIS.get(key, "🎮")
-                    label = _T["review_labels"].get(key, game.review_score)
-                    embed["description"] += f"\n\n{_T['user_reviews']}\n{label} {emoji}\n\n"
+                    if game.review_score.startswith("Metascore: "):
+                        # Critic score from Metacritic — show as "Metascore: 83 ⭐"
+                        try:
+                            score_val = int(game.review_score.split(": ", 1)[1])
+                        except (ValueError, IndexError):
+                            score_val = None
+                        if score_val is not None:
+                            if score_val >= 90:
+                                mc_emoji = "🏆"
+                            elif score_val >= 75:
+                                mc_emoji = "⭐"
+                            elif score_val >= 61:
+                                mc_emoji = "👍"
+                            elif score_val >= 40:
+                                mc_emoji = "⚖️"
+                            else:
+                                mc_emoji = "👎"
+                        else:
+                            mc_emoji = "🎮"
+                        embed["description"] += (
+                            f"\n\n{_T['metacritic_reviews']}\n{game.review_score} {mc_emoji}\n\n"
+                        )
+                    else:
+                        key = game.review_score.lower()
+                        emoji = _REVIEW_EMOJIS.get(key, "🎮")
+                        label = _T["review_labels"].get(key, game.review_score)
+                        embed["description"] += f"\n\n{_T['user_reviews']}\n{label} {emoji}\n\n"
                 embeds.append(embed)
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")

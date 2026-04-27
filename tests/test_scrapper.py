@@ -1,6 +1,7 @@
+import pytest
 from unittest.mock import patch, MagicMock
 
-from modules.scrapers.epic import EpicGamesScraper
+from modules.scrapers.epic import EpicGamesScraper, make_metacritic_slug
 from modules.models import FreeGame
 from config import EPIC_GAMES_REGION
 
@@ -86,6 +87,12 @@ def _mock_response(status_code=200, json_data=None):
 # ---------------------------------------------------------------------------
 
 class TestFetchFreeGames:
+    @pytest.fixture(autouse=True)
+    def no_metacritic(self):
+        """Suppress real Metacritic requests for tests that don't care about review scores."""
+        with patch.object(EpicGamesScraper, "_fetch_metacritic_score", return_value=None):
+            yield
+
     def test_returns_free_game(self, epic_api_response):
         with patch("modules.scrapers.epic.requests.get") as mock_get:
             mock_get.return_value = _mock_response(200, epic_api_response)
@@ -257,6 +264,12 @@ class TestFetchFreeGames:
 class TestFreeGameModel:
     """Unit tests for the FreeGame dataclass and its from_dict factory."""
 
+    @pytest.fixture(autouse=True)
+    def no_metacritic(self):
+        """Suppress real Metacritic requests for tests that don't care about review scores."""
+        with patch.object(EpicGamesScraper, "_fetch_metacritic_score", return_value=None):
+            yield
+
     def _base_dict(self, **overrides):
         data = {
             "title": "Sample Game",
@@ -327,3 +340,130 @@ class TestFreeGameModel:
 
         assert len(games) == 1
         assert games[0].game_type == "game"
+
+
+# ---------------------------------------------------------------------------
+# Metacritic review score tests
+# ---------------------------------------------------------------------------
+
+def _mc_html(score: int) -> str:
+    """Build a minimal Metacritic page that contains a JSON-LD block with *score*."""
+    return (
+        "<html><body>"
+        '<script type="application/ld+json">'
+        '{"@type":"VideoGame","aggregateRating":{"@type":"AggregateRating",'
+        f'"name":"Metascore","ratingValue":{score},"bestRating":100,"worstRating":0}}}}'
+        "</script></body></html>"
+    )
+
+
+def _mc_resp(status_code=200, score=83):
+    """Return a mock requests.Response for a Metacritic page."""
+    mock = MagicMock()
+    mock.status_code = status_code
+    mock.text = _mc_html(score) if status_code == 200 else ""
+    return mock
+
+
+class TestMetacriticReviewScore:
+    """Unit tests for EpicGamesScraper._fetch_metacritic_score."""
+
+    def test_returns_metascore_string(self):
+        with patch("modules.scrapers.epic.requests.get", return_value=_mc_resp(score=83)):
+            result = EpicGamesScraper()._fetch_metacritic_score("Celeste")
+        assert result == "Metascore: 83"
+
+    def test_returns_none_on_404(self):
+        with patch("modules.scrapers.epic.requests.get", return_value=_mc_resp(status_code=404)):
+            result = EpicGamesScraper()._fetch_metacritic_score("Unknown Game XYZ")
+        assert result is None
+
+    def test_returns_none_when_no_json_ld(self):
+        mock = MagicMock()
+        mock.status_code = 200
+        mock.text = "<html><body><p>No structured data here.</p></body></html>"
+        with patch("modules.scrapers.epic.requests.get", return_value=mock):
+            result = EpicGamesScraper()._fetch_metacritic_score("Some Game")
+        assert result is None
+
+    def test_returns_none_when_aggregate_rating_absent(self):
+        mock = MagicMock()
+        mock.status_code = 200
+        mock.text = (
+            '<html><body><script type="application/ld+json">'
+            '{"@type":"VideoGame","name":"Some Game"}'
+            "</script></body></html>"
+        )
+        with patch("modules.scrapers.epic.requests.get", return_value=mock):
+            result = EpicGamesScraper()._fetch_metacritic_score("Some Game")
+        assert result is None
+
+    def test_returns_none_on_network_exception(self):
+        import requests as req
+        with patch(
+            "modules.scrapers.epic.requests.get",
+            side_effect=req.exceptions.ConnectionError(),
+        ):
+            result = EpicGamesScraper()._fetch_metacritic_score("Celeste")
+        assert result is None
+
+    def test_full_pipeline_sets_review_score_from_metacritic(self):
+        """fetch_free_games propagates the Metascore onto the returned FreeGame."""
+        element = _make_element(discount_price=0, offer_slug="celeste", title="Celeste")
+        api_resp = _mock_response(200, _make_api_response([element]))
+        mc_resp = _mc_resp(score=94)
+
+        def side_effect(url, **kwargs):
+            if "metacritic" in url:
+                return mc_resp
+            return api_resp
+
+        with patch("modules.scrapers.epic.requests.get", side_effect=side_effect):
+            games = EpicGamesScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].review_score == "Metascore: 94"
+
+    def test_full_pipeline_review_score_is_none_when_metacritic_returns_404(self):
+        """fetch_free_games sets review_score=None when Metacritic page is not found."""
+        element = _make_element(discount_price=0, offer_slug="obscure-game", title="Obscure Game")
+        api_resp = _mock_response(200, _make_api_response([element]))
+        not_found = _mc_resp(status_code=404)
+
+        def side_effect(url, **kwargs):
+            if "metacritic" in url:
+                return not_found
+            return api_resp
+
+        with patch("modules.scrapers.epic.requests.get", side_effect=side_effect):
+            games = EpicGamesScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].review_score is None
+
+
+# ---------------------------------------------------------------------------
+# make_metacritic_slug helper tests
+# ---------------------------------------------------------------------------
+
+class TestMakeMetacriticSlug:
+    """Unit tests for the make_metacritic_slug helper."""
+
+    def test_lowercases(self):
+        assert make_metacritic_slug("Celeste") == "celeste"
+
+    def test_replaces_spaces_with_hyphens(self):
+        assert make_metacritic_slug("A Short Hike") == "a-short-hike"
+
+    def test_strips_punctuation(self):
+        assert make_metacritic_slug("Baldur's Gate 3") == "baldurs-gate-3"
+
+    def test_handles_colon(self):
+        assert make_metacritic_slug("The Witcher 3: Wild Hunt") == "the-witcher-3-wild-hunt"
+
+    def test_strips_accents(self):
+        assert make_metacritic_slug("Café Owner Simulator") == "cafe-owner-simulator"
+
+    def test_collapses_consecutive_hyphens(self):
+        # A title with multiple punctuation chars next to each other
+        assert make_metacritic_slug("Game -- Title") == "game-title"
