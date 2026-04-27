@@ -156,6 +156,12 @@ class TestSteamScraper:
         with patch("modules.scrapers.steam.time.sleep"):
             yield
 
+    @pytest.fixture(autouse=True)
+    def no_review_sources(self):
+        """Suppress external Metacritic requests in all Steam scraper tests."""
+        with patch("modules.scrapers.steam.fetch_metacritic_score", return_value=None):
+            yield
+
     def test_store_name(self):
         assert SteamScraper().store_name == "steam"
 
@@ -171,7 +177,7 @@ class TestSteamScraper:
         assert g.original_price == "$19.99"
         assert g.description == "A test game."
         assert g.image_url == "https://example.com/header.jpg"
-        assert g.review_score == "Mostly Positive"
+        assert "Mostly Positive" in g.review_scores
         assert g.is_permanent is False
         # "23 Apr @ 10:00am" Pacific = 10:00 PDT (UTC-7) = 17:00 UTC
         assert "2026-04-23T17:00:00" in g.end_date
@@ -270,7 +276,7 @@ class TestSteamScraper:
             games = SteamScraper().fetch_free_games()
 
         assert len(games) == 1
-        assert games[0].review_score is None
+        assert games[0].review_scores == []
 
     def test_multiple_free_games_returned(self):
         games_data = [

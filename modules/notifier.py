@@ -20,11 +20,13 @@ _TRANSLATIONS = {
         "permanently_free": "Permanently free",
         "end_date_unavailable": "End date unavailable",
         "original_price": "💰 Original Price",
-        "user_reviews": "💬 User Reviews:",
+        "user_reviews": "💬 Steam Reviews:",
+        "metacritic_reviews": "📊 Metacritic:",
         "new_free_game": "**New Free Game on {store}! 🎮**\n",
         "new_free_games": "**New Free Games! 🎮**\n",
         "new_free_dlc": "**New Free DLC on {store}! 🎮**\n",
         "dlc_badge": "📦 DLC",
+        "requires_base_game": "Requires the base game",
         "review_labels": {
             "overwhelmingly positive": "Overwhelmingly Positive",
             "very positive": "Very Positive",
@@ -43,11 +45,13 @@ _TRANSLATIONS = {
         "permanently_free": "Gratis de forma permanente",
         "end_date_unavailable": "Fecha de fin no disponible",
         "original_price": "💰 Precio original",
-        "user_reviews": "💬 Opiniones de usuarios:",
+        "user_reviews": "💬 Reseñas en Steam:",
+        "metacritic_reviews": "📊 Metacritic:",
         "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
         "new_free_dlc": "**¡Nuevo DLC Gratis en {store}! 🎮**\n",
         "dlc_badge": "📦 DLC",
+        "requires_base_game": "Requiere el juego base",
         "review_labels": {
             "overwhelmingly positive": "Extremadamente Positivo",
             "very positive": "Muy Positivo",
@@ -58,7 +62,7 @@ _TRANSLATIONS = {
             "negative": "Negativo",
             "very negative": "Muy Negativo",
             "overwhelmingly negative": "Extremadamente Negativo",
-            "no user reviews": "Sin opiniones de usuarios",
+            "no user reviews": "Sin reseñas",
         },
     },
 }
@@ -248,7 +252,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 if game.game_type == "dlc":
                     fields.append({
                         "name": _T["dlc_badge"],
-                        "value": "Requires the base game",
+                        "value": _T["requires_base_game"],
                         "inline": True,
                     })
                 if game.original_price:
@@ -277,7 +281,7 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 }
                 if fields:
                     embed["fields"] = fields
-                if game.review_score:
+                if game.review_scores:
                     _REVIEW_EMOJIS = {
                         "overwhelmingly positive": "🏆",
                         "very positive": "⭐",
@@ -289,10 +293,33 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                         "very negative": "⛔",
                         "overwhelmingly negative": "💀",
                     }
-                    key = game.review_score.lower()
-                    emoji = _REVIEW_EMOJIS.get(key, "🎮")
-                    label = _T["review_labels"].get(key, game.review_score)
-                    embed["description"] += f"\n\n{_T['user_reviews']}\n{label} {emoji}\n\n"
+
+                    def _critic_emoji(score_val: int) -> str:
+                        if score_val >= 90:   return "🏆"
+                        if score_val >= 75:   return "⭐"
+                        if score_val >= 61:   return "👍"
+                        if score_val >= 40:   return "⚖️"
+                        return "👎"
+
+                    score_lines = []
+                    for score_str in game.review_scores:
+                        if score_str.startswith("Metascore: "):
+                            try:
+                                val = int(score_str.split(": ", 1)[1])
+                                score_lines.append(
+                                    f"{_T['metacritic_reviews']} {score_str} {_critic_emoji(val)}"
+                                )
+                            except (ValueError, IndexError):
+                                score_lines.append(f"{_T['metacritic_reviews']} {score_str}")
+                        else:
+                            # Steam-style user review label
+                            key = score_str.lower()
+                            emoji = _REVIEW_EMOJIS.get(key, "🎮")
+                            label = _T["review_labels"].get(key, score_str)
+                            score_lines.append(f"{_T['user_reviews']} {label} {emoji}")
+
+                    if score_lines:
+                        embed["description"] += "\n\n" + "\n".join(score_lines) + "\n\n"
                 embeds.append(embed)
             except (AttributeError, ValueError) as e:
                 logger.error(f"Error processing game data for embed: {str(e)} | Game data: {game}")

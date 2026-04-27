@@ -168,7 +168,7 @@ class TestSendDiscordMessage:
         assert "wikimedia.org" in payload["embeds"][0]["author"]["icon_url"]
         assert "Steam_icon_logo" in payload["embeds"][0]["author"]["icon_url"]
 
-    def test_embed_includes_review_score_field_when_present(self):
+    def test_embed_includes_steam_user_review(self):
         game = FreeGame(
             title="Steam Game",
             store="steam",
@@ -178,7 +178,7 @@ class TestSendDiscordMessage:
             end_date="2024-01-31T15:00:00.000Z",
             is_permanent=False,
             description="",
-            review_score="Very Positive",
+            review_scores=["Very Positive"],
         )
         en_t = notifier._TRANSLATIONS["en"]
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -188,9 +188,8 @@ class TestSendDiscordMessage:
             notifier.send_discord_message([game])
 
         _, kwargs = mock_post.call_args
-        payload = kwargs["json"]
-        description = payload["embeds"][0]["description"]
-        assert "💬 User Reviews:" in description
+        description = kwargs["json"]["embeds"][0]["description"]
+        assert "💬 Steam Reviews:" in description
         assert "Very Positive" in description
         assert "⭐" in description
 
@@ -204,7 +203,7 @@ class TestSendDiscordMessage:
             end_date="2024-01-31T15:00:00.000Z",
             is_permanent=False,
             description="",
-            review_score="Very Positive",
+            review_scores=["Very Positive"],
         )
         es_t = notifier._TRANSLATIONS["es"]
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
@@ -215,9 +214,88 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "💬 Opiniones de usuarios:" in description
+        assert "💬 Reseñas en Steam:" in description
         assert "Muy Positivo" in description
         assert "⭐" in description
+
+    def test_embed_shows_metascore_with_metacritic_label(self):
+        game = FreeGame(
+            title="Epic Game",
+            store="epic",
+            url="https://store.epicgames.com/p/epic-game",
+            image_url="https://example.com/img.jpg",
+            original_price="$19.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+            review_scores=["Metascore: 83"],
+        )
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        description = kwargs["json"]["embeds"][0]["description"]
+        assert "📊 Metacritic:" in description
+        assert "Metascore: 83" in description
+        assert "⭐" in description
+        assert "Steam Reviews" not in description
+
+    def test_embed_shows_both_steam_and_metacritic_scores(self):
+        """A Steam game with both sources renders both lines."""
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="",
+            review_scores=["Very Positive", "Metascore: 83"],
+        )
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        description = kwargs["json"]["embeds"][0]["description"]
+        assert "💬 Steam Reviews:" in description
+        assert "Very Positive" in description
+        assert "📊 Metacritic:" in description
+        assert "Metascore: 83" in description
+
+    def test_embed_no_review_section_when_review_scores_empty(self):
+        """When review_scores is [], no review section is appended."""
+        game = FreeGame(
+            title="Steam Game",
+            store="steam",
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$9.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="A game.",
+            review_scores=[],
+        )
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        description = kwargs["json"]["embeds"][0]["description"]
+        assert "Steam Reviews" not in description
+        assert "Metacritic" not in description
+        assert "OpenCritic" not in description
 
     def test_footer_is_translated_when_locale_is_spanish(self, sample_games):
         es_t = notifier._TRANSLATIONS["es"]
@@ -304,7 +382,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "User Reviews" not in description
+        assert "Steam Reviews" not in description
 
     def test_content_message_uses_epic_store_name(self, sample_games):
         with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \

@@ -76,7 +76,7 @@ class FreeGamesDatabase:
                     cursor.execute("SET search_path TO free_games")
                     cursor.execute(
                         "SELECT title, link, description, thumbnail, "
-                        "promotion_end_date, review_score, store, game_type FROM games"
+                        "promotion_end_date, review_scores, store, game_type FROM games"
                     )
                     rows = cursor.fetchall()
                     games = [
@@ -89,10 +89,14 @@ class FreeGamesDatabase:
                             end_date=end_date or "",
                             is_permanent=False,
                             description=description or "",
-                            review_score=review_score,
+                            review_scores=(
+                                json.loads(review_scores)
+                                if review_scores
+                                else []
+                            ),
                             game_type=game_type or "game",
                         )
-                        for title, link, description, thumbnail, end_date, review_score, store, game_type in rows
+                        for title, link, description, thumbnail, end_date, review_scores, store, game_type in rows
                     ]
                     logger.debug(f"Retrieved {len(games)} games from database.")
                     return games
@@ -123,7 +127,7 @@ class FreeGamesDatabase:
                         cursor.execute(
                             """
                             INSERT INTO games (game_id, title, link, description, thumbnail,
-                                               promotion_end_date, review_score, store, game_type)
+                                               promotion_end_date, review_scores, store, game_type)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                             ON CONFLICT (game_id) DO UPDATE SET
                                 title = EXCLUDED.title,
@@ -131,7 +135,7 @@ class FreeGamesDatabase:
                                 description = EXCLUDED.description,
                                 thumbnail = EXCLUDED.thumbnail,
                                 promotion_end_date = EXCLUDED.promotion_end_date,
-                                review_score = EXCLUDED.review_score,
+                                review_scores = EXCLUDED.review_scores,
                                 store = EXCLUDED.store,
                                 game_type = EXCLUDED.game_type
                             """,
@@ -142,7 +146,7 @@ class FreeGamesDatabase:
                                 game.description,
                                 game.image_url,
                                 game.end_date or None,
-                                game.review_score,
+                                json.dumps(game.review_scores),
                                 game.store,
                                 game.game_type,
                             ),
