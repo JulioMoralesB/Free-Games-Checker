@@ -24,7 +24,7 @@ export default function App() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/games/history?limit=${PAGE_SIZE}&offset=${offset}`)
+      const res = await fetch(`/games/history?limit=${PAGE_SIZE}&offset=${offset}&sort_by=${sortBy}&sort_dir=${sortDir}`)
       if (!res.ok) throw new Error(`Server responded with ${res.status}`)
       const data: GamesHistoryResponse = await res.json()
       setGames(data.games)
@@ -34,7 +34,7 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [offset])
+  }, [offset, sortBy, sortDir])
 
   useEffect(() => {
     fetchGames()
@@ -53,25 +53,18 @@ export default function App() {
       setSortBy(field)
       setSortDir('desc')
     }
+    setPage(1)
   }
 
-  // Client-side filter + sort on the current page
-  const filtered = games
-    .filter(g => {
-      if (!search) return true
-      const q = search.toLowerCase()
-      return (
-        g.title.toLowerCase().includes(q) ||
-        g.description.toLowerCase().includes(q)
-      )
-    })
-    .sort((a, b) => {
-      const mul = sortDir === 'asc' ? 1 : -1
-      if (sortBy === 'title') return a.title.localeCompare(b.title) * mul
-      return (
-        (new Date(a.end_date).getTime() - new Date(b.end_date).getTime()) * mul
-      )
-    })
+  // Client-side filter only — sorting is done server-side before pagination
+  const filtered = games.filter(g => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      g.title.toLowerCase().includes(q) ||
+      g.description.toLowerCase().includes(q)
+    )
+  })
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
