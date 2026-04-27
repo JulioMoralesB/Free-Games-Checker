@@ -1,6 +1,7 @@
 from unittest.mock import patch, MagicMock
 
 from modules.scrapers.epic import EpicGamesScraper
+from modules.models import FreeGame
 from config import EPIC_GAMES_REGION
 
 
@@ -247,3 +248,82 @@ class TestFetchFreeGames:
         titles = [g.title for g in games]
         assert "Game One" in titles
         assert "Game Two" in titles
+
+
+# ---------------------------------------------------------------------------
+# FreeGame model tests
+# ---------------------------------------------------------------------------
+
+class TestFreeGameModel:
+    """Unit tests for the FreeGame dataclass and its from_dict factory."""
+
+    def _base_dict(self, **overrides):
+        data = {
+            "title": "Sample Game",
+            "store": "epic",
+            "url": "https://store.epicgames.com/p/sample",
+            "image_url": "https://example.com/img.jpg",
+            "original_price": "$9.99",
+            "end_date": "2024-01-31T15:00:00.000Z",
+            "is_permanent": False,
+            "description": "A game.",
+        }
+        data.update(overrides)
+        return data
+
+    def test_game_type_defaults_to_game(self):
+        """FreeGame.game_type defaults to 'game' when not specified."""
+        g = FreeGame(
+            title="X",
+            store="epic",
+            url="https://store.epicgames.com/p/x",
+            image_url="",
+            original_price=None,
+            end_date="",
+            is_permanent=False,
+            description="",
+        )
+        assert g.game_type == "game"
+
+    def test_game_type_can_be_set_to_dlc(self):
+        """FreeGame.game_type can be explicitly set to 'dlc'."""
+        g = FreeGame(
+            title="X DLC",
+            store="steam",
+            url="https://store.steampowered.com/app/1/",
+            image_url="",
+            original_price=None,
+            end_date="",
+            is_permanent=False,
+            description="",
+            game_type="dlc",
+        )
+        assert g.game_type == "dlc"
+
+    def test_from_dict_preserves_game_type_game(self):
+        """from_dict reads game_type='game' from the dict."""
+        data = self._base_dict(game_type="game")
+        g = FreeGame.from_dict(data)
+        assert g.game_type == "game"
+
+    def test_from_dict_preserves_game_type_dlc(self):
+        """from_dict reads game_type='dlc' from the dict."""
+        data = self._base_dict(game_type="dlc")
+        g = FreeGame.from_dict(data)
+        assert g.game_type == "dlc"
+
+    def test_from_dict_defaults_game_type_to_game_when_absent(self):
+        """from_dict falls back to 'game' when game_type key is missing."""
+        data = self._base_dict()  # no game_type key
+        g = FreeGame.from_dict(data)
+        assert g.game_type == "game"
+
+    def test_epic_scraper_returns_game_type_game(self):
+        """EpicGamesScraper always sets game_type='game' on returned FreeGame objects."""
+        element = _make_element(discount_price=0, offer_slug="test")
+        with patch("modules.scrapers.epic.requests.get") as mock_get:
+            mock_get.return_value = _mock_response(200, _make_api_response([element]))
+            games = EpicGamesScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].game_type == "game"

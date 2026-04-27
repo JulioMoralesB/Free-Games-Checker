@@ -19,6 +19,8 @@ class FreeGame:
     end_date        : ISO-8601 UTC string for when the promotion ends.
     is_permanent    : Whether the promotion is permanent, as a boolean.
     description     : A short description of the game.
+    review_score    : Human-readable review sentiment, e.g. "Very Positive", or ``None``.
+    game_type       : Content type — ``"game"`` (default) or ``"dlc"``.
     """
 
     title: str
@@ -30,6 +32,7 @@ class FreeGame:
     is_permanent: bool
     description: str = ""
     review_score: Optional[str] = None
+    game_type: str = "game"
 
     def to_dict(self) -> dict:
         """Return a plain dict representation of this FreeGame."""
@@ -48,5 +51,6 @@ class FreeGame:
             is_permanent=data.get("is_permanent", False),
             description=data.get("description", ""),
             review_score=data.get("review_score"),
+            game_type=data.get("game_type", "game"),
         )
  

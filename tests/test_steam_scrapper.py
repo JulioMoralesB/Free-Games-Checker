@@ -523,3 +523,85 @@ class TestParseSteamEndDate:
         result = _parse_steam_end_date(text)
         # 10:00am PDT (UTC-7) = 17:00 UTC
         assert result.startswith("2026-04-23T17:00:00")
+
+
+# ---------------------------------------------------------------------------
+# DLC detection tests
+# ---------------------------------------------------------------------------
+
+def _make_dlc_search_html(appid="123456", title="Test DLC"):
+    """Build a Steam search HTML row that carries the DLC CSS class."""
+    return f"""<html><body>
+    <div id="search_resultsRows">
+        <a class="search_result_row search_result_row_ds_dlc"
+           href="https://store.steampowered.com/app/{appid}/DLC_Title/?snr=1"
+           data-ds-appid="{appid}">
+          <span class="title">{title}</span>
+          <div class="search_price_discount_combined responsive_secondrow"
+               data-price-final="0">
+            <div class="discount_block" data-discount="100" data-price-final="0">
+              <div class="discount_pct">-100%</div>
+              <div class="discount_prices">
+                <div class="discount_original_price">$9.99</div>
+                <div class="discount_final_price">Free</div>
+              </div>
+            </div>
+          </div>
+        </a>
+    </div>
+    </body></html>"""
+
+
+class TestDlcDetection:
+    """Tests that DLC rows in Steam search results are detected and tagged correctly."""
+
+    @pytest.fixture(autouse=True)
+    def no_sleep(self):
+        with patch("modules.scrapers.steam.time.sleep"):
+            yield
+
+    def test_parse_search_page_tags_dlc_row(self):
+        """A row with search_result_row_ds_dlc CSS class gets game_type='dlc'."""
+        html = _make_dlc_search_html(appid="123456", title="Test DLC")
+        candidates = SteamScraper()._parse_search_page(html)
+
+        assert len(candidates) == 1
+        assert candidates[0]["game_type"] == "dlc"
+
+    def test_parse_search_page_tags_regular_row_as_game(self):
+        """A regular search row (no DLC class) gets game_type='game'."""
+        html = _make_search_html()  # standard row without DLC class
+        candidates = SteamScraper()._parse_search_page(html)
+
+        assert len(candidates) == 1
+        assert candidates[0]["game_type"] == "game"
+
+    def test_fetch_free_games_returns_dlc_with_correct_type(self, freeze_steam_now):
+        """Full pipeline: a DLC search row produces a FreeGame with game_type='dlc'."""
+        appid = "123456"
+
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                return _mock_response(200, text=_make_dlc_search_html(appid=appid))
+            if "appdetails" in url:
+                return _mock_response(200, json_data=_make_appdetails_response(appid))
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            if "store.steampowered.com/app/" in url:
+                return _mock_response(200, text=_STORE_PAGE_HTML)
+            return _mock_response(404)
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].game_type == "dlc"
+        assert games[0].title == "Test DLC"
+
+    def test_fetch_free_games_returns_game_with_correct_type(self, freeze_steam_now):
+        """Full pipeline: a regular search row produces a FreeGame with game_type='game'."""
+        with patch("modules.scrapers.steam.requests.get", side_effect=_multi_url_mock()):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].game_type == "game"

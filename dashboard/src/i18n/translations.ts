@@ -24,6 +24,7 @@ export interface Translations {
   wasFreeUntil: string
   freeUntil: string
   viewOnStore: (storeName: string) => string
+  dlcBadge: string
 
   // Pagination
   paginationNavAriaLabel: string
@@ -62,6 +63,7 @@ const en: Translations = {
   wasFreeUntil: 'Was free until',
   freeUntil: 'Free until',
   viewOnStore: (storeName) => `View on ${storeName} →`,
+  dlcBadge: 'DLC',
 
   // Pagination
   paginationNavAriaLabel: 'Pagination',
@@ -100,6 +102,7 @@ const es: Translations = {
   wasFreeUntil: 'Estuvo gratis hasta el',
   freeUntil: 'Gratis hasta el',
   viewOnStore: (storeName) => `Ver en ${storeName} →`,
+  dlcBadge: 'DLC',
 
   // Pagination
   paginationNavAriaLabel: 'Paginación',
