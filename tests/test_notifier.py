@@ -214,7 +214,7 @@ class TestSendDiscordMessage:
 
         _, kwargs = mock_post.call_args
         description = kwargs["json"]["embeds"][0]["description"]
-        assert "💬 Opiniones de usuarios:" in description
+        assert "💬 Reseñas de usuarios:" in description
         assert "Muy Positivo" in description
         assert "⭐" in description
 

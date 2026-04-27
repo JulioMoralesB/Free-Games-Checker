@@ -44,7 +44,7 @@ _TRANSLATIONS = {
         "permanently_free": "Gratis de forma permanente",
         "end_date_unavailable": "Fecha de fin no disponible",
         "original_price": "💰 Precio original",
-        "user_reviews": "💬 Opiniones de usuarios:",
+        "user_reviews": "💬 Reseñas de usuarios:",
         "metacritic_reviews": "📊 Metacritic:",
         "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
@@ -60,7 +60,7 @@ _TRANSLATIONS = {
             "negative": "Negativo",
             "very negative": "Muy Negativo",
             "overwhelmingly negative": "Extremadamente Negativo",
-            "no user reviews": "Sin opiniones de usuarios",
+            "no user reviews": "Sin reseñas",
         },
     },
 }
