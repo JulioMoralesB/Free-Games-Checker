@@ -185,14 +185,13 @@ class SteamScraper(BaseScraper):
                 continue
 
             title_el = row.select_one(".title")
-            # Steam marks DLC rows with the CSS class "search_result_row_ds_dlc".
-            is_dlc = "search_result_row_ds_dlc" in row.get("class", [])
+            title_str = title_el.text.strip() if title_el else ""
+            logger.info("Free candidate detected: %r | appid=%s", title_str, appid)
             candidates.append({
                 "appid": appid,
-                "title": title_el.text.strip() if title_el else "",
+                "title": title_str,
                 "url": row.get("href", "").split("?")[0],
                 "original_price": original_el.text.strip(),
-                "game_type": "dlc" if is_dlc else "game",
             })
 
         return candidates
@@ -209,7 +208,11 @@ class SteamScraper(BaseScraper):
         )
         end_date = self._fetch_end_date(candidate["url"])
 
-        game_type = candidate.get("game_type", "game")
+        # The appdetails API returns a "type" field: "game", "dlc", "music", etc.
+        # This is more reliable than inferring from search-result CSS classes.
+        game_type = details.get("type", "game")
+        if game_type not in ("game", "dlc"):
+            game_type = "game"
         logger.info("Built free game: %s (appid=%s, review=%s, type=%s)", candidate["title"], appid, review_score, game_type)
         return FreeGame(
             title=candidate["title"],
