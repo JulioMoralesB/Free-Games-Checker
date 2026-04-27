@@ -58,7 +58,7 @@ def downgrade() -> None:
         UPDATE free_games.games
         SET review_score = CASE
             WHEN review_scores IS NOT NULL AND review_scores <> '[]'
-                THEN (review_scores::json->0)::text
+                THEN review_scores::json->>0
             ELSE NULL
         END
     """)
