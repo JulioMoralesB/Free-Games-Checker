@@ -637,3 +637,105 @@ class TestSendDiscordMessageWebhookOverride:
 
         args, _ = mock_post.call_args
         assert args[0] == alt_host_url
+
+
+# ---------------------------------------------------------------------------
+# DLC embed / content tests
+# ---------------------------------------------------------------------------
+
+class TestDlcEmbed:
+    """Tests that DLC games produce the correct embed fields and content header."""
+
+    def _make_response(self, status_code=204):
+        mock_resp = MagicMock()
+        mock_resp.status_code = status_code
+        mock_resp.text = ""
+        mock_resp.raise_for_status = MagicMock()
+        return mock_resp
+
+    def _make_dlc_game(self, store="steam"):
+        return FreeGame(
+            title="Test DLC",
+            store=store,
+            url="https://store.steampowered.com/app/123/",
+            image_url="https://example.com/img.jpg",
+            original_price="$4.99",
+            end_date="2024-01-31T15:00:00.000Z",
+            is_permanent=False,
+            description="A DLC for the base game.",
+            game_type="dlc",
+        )
+
+    def test_embed_includes_dlc_badge_field_for_dlc_game(self):
+        """A DLC game's embed must contain a field whose name matches the dlc_badge translation."""
+        game = self._make_dlc_game()
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert any(f["name"] == en_t["dlc_badge"] for f in fields)
+
+    def test_embed_dlc_badge_field_absent_for_regular_game(self, sample_games):
+        """A regular game's embed must NOT contain the DLC badge field."""
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message(sample_games)
+
+        _, kwargs = mock_post.call_args
+        fields = kwargs["json"]["embeds"][0].get("fields", [])
+        assert not any(f["name"] == en_t["dlc_badge"] for f in fields)
+
+    def test_content_uses_new_free_dlc_when_all_dlcs(self):
+        """When all games in the batch are DLCs, content uses the new_free_dlc template."""
+        game = self._make_dlc_game(store="steam")
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        content = kwargs["json"]["content"]
+        assert "DLC" in content
+        assert "Steam" in content
+
+    def test_content_uses_new_free_game_when_mixed_with_games(self, sample_game):
+        """When the batch mixes DLCs and games, the standard game header is used."""
+        import dataclasses
+        dlc_game = dataclasses.replace(sample_game, game_type="dlc", title="Some DLC")
+        en_t = notifier._TRANSLATIONS["en"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", en_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([sample_game, dlc_game])
+
+        _, kwargs = mock_post.call_args
+        content = kwargs["json"]["content"]
+        # Generic multi-store header — no store name, no DLC label
+        assert "DLC" not in content
+
+    def test_content_dlc_header_translated_to_spanish(self):
+        """When the locale is Spanish and all items are DLCs, the Spanish DLC template is used."""
+        game = self._make_dlc_game(store="steam")
+        es_t = notifier._TRANSLATIONS["es"]
+        with patch("modules.notifier.DISCORD_WEBHOOK_URL", VALID_WEBHOOK), \
+             patch("modules.notifier._T", es_t), \
+             patch("modules.notifier.requests.post") as mock_post:
+            mock_post.return_value = self._make_response(204)
+            notifier.send_discord_message([game])
+
+        _, kwargs = mock_post.call_args
+        content = kwargs["json"]["content"]
+        assert "DLC" in content
+        assert "Steam" in content
+        assert "Gratis" in content

@@ -5,6 +5,8 @@ export interface GameItem {
   description: string;
   thumbnail: string;
   store: string;
+  /** 'game' (default) or 'dlc' */
+  game_type?: string;
 }
 
 export interface GamesHistoryResponse {

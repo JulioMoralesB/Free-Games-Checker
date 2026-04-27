@@ -152,6 +152,7 @@ class EpicGamesScraper(BaseScraper):
                         end_date=end_date,
                         is_permanent=False,
                         description=description,
+                        game_type="game",
                     )
                 )
         logger.info(f"Returning {len(games)} games")

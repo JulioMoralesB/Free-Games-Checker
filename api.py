@@ -48,6 +48,7 @@ class GameItem(BaseModel):
     end_date: str = Field(..., description="ISO-8601 timestamp when the free promotion ends", examples=["2024-01-31T15:00:00.000Z"])
     description: str = Field(..., description="Short description of the game")
     thumbnail: str = Field(..., description="URL to the game's thumbnail image")
+    game_type: str = Field("game", description="Content type: 'game' or 'dlc'", examples=["game", "dlc"])
 
 
 class HealthResponse(BaseModel):
@@ -166,6 +167,7 @@ def _to_game_item_dict(game) -> dict:
             "end_date": game.end_date,
             "description": game.description,
             "thumbnail": game.image_url,
+            "game_type": game.game_type,
         }
     # Legacy dict format – ensure store key is present with a safe default.
     if isinstance(game, dict) and "store" not in game:

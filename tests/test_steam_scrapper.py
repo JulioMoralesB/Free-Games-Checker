@@ -83,11 +83,12 @@ def _make_search_html(games=None):
     </body></html>"""
 
 
-def _make_appdetails_response(appid, short_description="A test game.", header_image="https://example.com/header.jpg"):
+def _make_appdetails_response(appid, short_description="A test game.", header_image="https://example.com/header.jpg", app_type="game"):
     return {
         appid: {
             "success": True,
             "data": {
+                "type": app_type,
                 "short_description": short_description,
                 "header_image": header_image,
             },
@@ -523,3 +524,89 @@ class TestParseSteamEndDate:
         result = _parse_steam_end_date(text)
         # 10:00am PDT (UTC-7) = 17:00 UTC
         assert result.startswith("2026-04-23T17:00:00")
+
+
+# ---------------------------------------------------------------------------
+# DLC detection tests
+# ---------------------------------------------------------------------------
+
+class TestDlcDetection:
+    """Tests that game_type is read from the appdetails API 'type' field."""
+
+    @pytest.fixture(autouse=True)
+    def no_sleep(self):
+        with patch("modules.scrapers.steam.time.sleep"):
+            yield
+
+    def test_fetch_free_games_returns_dlc_when_appdetails_type_is_dlc(self, freeze_steam_now):
+        """Full pipeline: appdetails type='dlc' produces a FreeGame with game_type='dlc'."""
+        appid = "978520"
+
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appdetails" in url:
+                return _mock_response(200, json_data=_make_appdetails_response(appid, app_type="dlc"))
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            if "store.steampowered.com/app/" in url:
+                return _mock_response(200, text=_STORE_PAGE_HTML)
+            return _mock_response(404)
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].game_type == "dlc"
+
+    def test_fetch_free_games_returns_game_when_appdetails_type_is_game(self, freeze_steam_now):
+        """Full pipeline: appdetails type='game' produces a FreeGame with game_type='game'."""
+        with patch("modules.scrapers.steam.requests.get", side_effect=_multi_url_mock()):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].game_type == "game"
+
+    def test_fetch_free_games_defaults_to_game_when_type_absent(self, freeze_steam_now):
+        """Full pipeline: missing 'type' in appdetails defaults to game_type='game'."""
+        appid = "978520"
+
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appdetails" in url:
+                # Response without a 'type' field
+                data = {appid: {"success": True, "data": {"short_description": "A game.", "header_image": "https://example.com/img.jpg"}}}
+                return _mock_response(200, json_data=data)
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            if "store.steampowered.com/app/" in url:
+                return _mock_response(200, text=_STORE_PAGE_HTML)
+            return _mock_response(404)
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].game_type == "game"
+
+    def test_fetch_free_games_normalises_unknown_type_to_game(self, freeze_steam_now):
+        """Unexpected 'type' values (e.g. 'music') are normalised to 'game'."""
+        appid = "978520"
+
+        def side_effect(url, **kwargs):
+            if "search" in url:
+                return _mock_response(200, text=_make_search_html())
+            if "appdetails" in url:
+                return _mock_response(200, json_data=_make_appdetails_response(appid, app_type="music"))
+            if "appreviews" in url:
+                return _mock_response(200, json_data=_make_appreviews_response())
+            if "store.steampowered.com/app/" in url:
+                return _mock_response(200, text=_STORE_PAGE_HTML)
+            return _mock_response(404)
+
+        with patch("modules.scrapers.steam.requests.get", side_effect=side_effect):
+            games = SteamScraper().fetch_free_games()
+
+        assert len(games) == 1
+        assert games[0].game_type == "game"

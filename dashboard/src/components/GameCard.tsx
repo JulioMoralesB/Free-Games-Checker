@@ -38,10 +38,16 @@ export default function GameCard({ game }: Props) {
 
   const isPastPromotion = new Date(game.end_date) < new Date()
   const storeMeta = getStoreMeta(game.store)
+  const isDlc = game.game_type === 'dlc'
 
   return (
     <article className="card">
       <div className="card-image-wrapper">
+        {isDlc && (
+          <span className="card-dlc-badge" aria-label={t.dlcBadge}>
+            {t.dlcBadge}
+          </span>
+        )}
         {game.thumbnail && !imgError ? (
           <img
             className="card-image"

@@ -23,6 +23,8 @@ _TRANSLATIONS = {
         "user_reviews": "💬 User Reviews:",
         "new_free_game": "**New Free Game on {store}! 🎮**\n",
         "new_free_games": "**New Free Games! 🎮**\n",
+        "new_free_dlc": "**New Free DLC on {store}! 🎮**\n",
+        "dlc_badge": "📦 DLC",
         "review_labels": {
             "overwhelmingly positive": "Overwhelmingly Positive",
             "very positive": "Very Positive",
@@ -44,6 +46,8 @@ _TRANSLATIONS = {
         "user_reviews": "💬 Opiniones de usuarios:",
         "new_free_game": "**¡Nuevo Juego Gratis en {store}! 🎮**\n",
         "new_free_games": "**¡Nuevos Juegos Gratis! 🎮**\n",
+        "new_free_dlc": "**¡Nuevo DLC Gratis en {store}! 🎮**\n",
+        "dlc_badge": "📦 DLC",
         "review_labels": {
             "overwhelmingly positive": "Extremadamente Positivo",
             "very positive": "Muy Positivo",
@@ -241,6 +245,12 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                     footer_text = _T["end_date_unavailable"]
 
                 fields = []
+                if game.game_type == "dlc":
+                    fields.append({
+                        "name": _T["dlc_badge"],
+                        "value": "Requires the base game",
+                        "inline": True,
+                    })
                 if game.original_price:
                     fields.append({
                         "name": _T["original_price"],
@@ -289,10 +299,14 @@ def send_discord_message(new_games, webhook_url: Optional[str] = None):
                 raise
             
         stores_in_batch = {game.store for game in new_games}
+        all_dlcs = all(g.game_type == "dlc" for g in new_games)
         if len(stores_in_batch) == 1:
             store_key = next(iter(stores_in_batch))
             store_name = _STORE_META.get(store_key, _STORE_META["epic"])["name"]
-            content = _T["new_free_game"].format(store=store_name)
+            if all_dlcs:
+                content = _T["new_free_dlc"].format(store=store_name)
+            else:
+                content = _T["new_free_game"].format(store=store_name)
         else:
             content = _T["new_free_games"]
 

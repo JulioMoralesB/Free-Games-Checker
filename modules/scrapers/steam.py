@@ -185,9 +185,11 @@ class SteamScraper(BaseScraper):
                 continue
 
             title_el = row.select_one(".title")
+            title_str = title_el.text.strip() if title_el else ""
+            logger.info("Free candidate detected: %r | appid=%s", title_str, appid)
             candidates.append({
                 "appid": appid,
-                "title": title_el.text.strip() if title_el else "",
+                "title": title_str,
                 "url": row.get("href", "").split("?")[0],
                 "original_price": original_el.text.strip(),
             })
@@ -206,7 +208,12 @@ class SteamScraper(BaseScraper):
         )
         end_date = self._fetch_end_date(candidate["url"])
 
-        logger.info("Built free game: %s (appid=%s, review=%s)", candidate["title"], appid, review_score)
+        # The appdetails API returns a "type" field: "game", "dlc", "music", etc.
+        # This is more reliable than inferring from search-result CSS classes.
+        game_type = details.get("type", "game")
+        if game_type not in ("game", "dlc"):
+            game_type = "game"
+        logger.info("Built free game: %s (appid=%s, review=%s, type=%s)", candidate["title"], appid, review_score, game_type)
         return FreeGame(
             title=candidate["title"],
             store=self.store_name,
@@ -217,6 +224,7 @@ class SteamScraper(BaseScraper):
             is_permanent=False,
             description=html.unescape(details.get("short_description", "")),
             review_score=review_score,
+            game_type=game_type,
         )
 
     def _fetch_appdetails(self, appid: str) -> dict:
