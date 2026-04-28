@@ -51,7 +51,10 @@ interface TimeLeft {
 }
 
 function calcTimeLeft(endDate: string): TimeLeft | null {
-  const diff = new Date(endDate).getTime() - Date.now()
+  if (!endDate) return null
+  const ms = new Date(endDate).getTime()
+  if (isNaN(ms)) return null
+  const diff = ms - Date.now()
   if (diff <= 0) return null
   const days    = Math.floor(diff / 86_400_000)
   const hours   = Math.floor((diff % 86_400_000) / 3_600_000)
@@ -64,7 +67,10 @@ interface Props {
 }
 
 function formatDate(iso: string, locale: Locale): string {
+  if (!iso) return '—'
   try {
+    const date = new Date(iso)
+    if (isNaN(date.getTime())) return '—'
     return new Intl.DateTimeFormat(localeBcp47[locale], {
       year: 'numeric',
       month: 'short',
@@ -72,7 +78,7 @@ function formatDate(iso: string, locale: Locale): string {
       hour: '2-digit',
       minute: '2-digit',
       timeZoneName: 'short',
-    }).format(new Date(iso))
+    }).format(date)
   } catch {
     return iso
   }
@@ -83,7 +89,9 @@ export default function GameCard({ game }: Props) {
   const [imgError, setImgError] = useState(false)
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(() => calcTimeLeft(game.end_date))
 
-  const isPastPromotion = new Date(game.end_date) < new Date()
+  // Treat missing or unparseable end_date as expired
+  const endMs = game.end_date ? new Date(game.end_date).getTime() : NaN
+  const isPastPromotion = isNaN(endMs) || endMs < Date.now()
   const storeMeta = getStoreMeta(game.store)
   const isDlc = game.game_type === 'dlc'
 
