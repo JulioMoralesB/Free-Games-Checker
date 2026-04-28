@@ -55,6 +55,9 @@ export interface Translations {
 
   // Language selector
   languageLabel: string
+
+  /** Localized display text for Steam user-review labels (keyed by lowercase English label). */
+  steamReviewLabels: Record<string, string>
 }
 
 const en: Translations = {
@@ -117,6 +120,18 @@ const en: Translations = {
 
   // Language selector
   languageLabel: 'Language',
+
+  steamReviewLabels: {
+    'overwhelmingly positive': 'Overwhelmingly Positive',
+    'very positive':           'Very Positive',
+    'mostly positive':         'Mostly Positive',
+    'positive':                'Positive',
+    'mixed':                   'Mixed',
+    'mostly negative':         'Mostly Negative',
+    'negative':                'Negative',
+    'very negative':           'Very Negative',
+    'overwhelmingly negative': 'Overwhelmingly Negative',
+  },
 }
 
 const es: Translations = {
@@ -179,6 +194,18 @@ const es: Translations = {
 
   // Language selector
   languageLabel: 'Idioma',
+
+  steamReviewLabels: {
+    'overwhelmingly positive': 'Abrumadoramente Positivo',
+    'very positive':           'Muy Positivo',
+    'mostly positive':         'Mayormente Positivo',
+    'positive':                'Positivo',
+    'mixed':                   'Mixto',
+    'mostly negative':         'Mayormente Negativo',
+    'negative':                'Negativo',
+    'very negative':           'Muy Negativo',
+    'overwhelmingly negative': 'Abrumadoramente Negativo',
+  },
 }
 
 export const translations: Record<Locale, Translations> = { en, es }

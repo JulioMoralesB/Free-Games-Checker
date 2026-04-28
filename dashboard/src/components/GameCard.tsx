@@ -155,10 +155,12 @@ export default function GameCard({ game }: Props) {
                     </span>
                   )
                 }
-                const emoji = STEAM_REVIEW_EMOJIS[score.toLowerCase()] ?? '🎮'
+                const key = score.toLowerCase()
+                const emoji = STEAM_REVIEW_EMOJIS[key] ?? '🎮'
+                const label = t.steamReviewLabels[key] ?? score
                 return (
                   <span key={i} className="card-review card-review--steam">
-                    {emoji} {score}
+                    {emoji} {label}
                   </span>
                 )
               })}
