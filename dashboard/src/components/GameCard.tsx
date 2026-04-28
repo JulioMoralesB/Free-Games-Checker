@@ -26,6 +26,15 @@ const STEAM_REVIEW_EMOJIS: Record<string, string> = {
   'overwhelmingly negative': '💀',
 }
 
+/**
+ * Steam labels that indicate no meaningful score data — omitted from the UI
+ * rather than shown as an unhelpful chip.
+ */
+const STEAM_NO_DATA_LABELS = new Set([
+  'no user reviews',
+  'no reviews',
+])
+
 /** Metacritic score value → display emoji */
 function metacriticEmoji(score: number): string {
   if (score >= 90) return '🏆'
@@ -98,7 +107,7 @@ export default function GameCard({ game }: Props) {
         {isPastPromotion && (
           <div className="card-expired-overlay" aria-hidden="true">
             <span className="card-expired-label">
-              {t.wasFreeUntil}
+              {t.expiredBadge}
             </span>
           </div>
         )}
@@ -128,25 +137,31 @@ export default function GameCard({ game }: Props) {
           </p>
         )}
 
-        {/* Review scores */}
-        {game.review_scores && game.review_scores.length > 0 && (
+        {/* Review scores — skip non-informative Steam labels like "No user reviews" */}
+        {game.review_scores && game.review_scores.some(s =>
+          s.startsWith('Metascore: ') || !STEAM_NO_DATA_LABELS.has(s.toLowerCase())
+        ) && (
           <div className="card-reviews">
-            {game.review_scores.map((score, i) => {
-              if (score.startsWith('Metascore: ')) {
-                const val = parseInt(score.replace('Metascore: ', ''), 10)
+            {game.review_scores
+              .filter(score =>
+                score.startsWith('Metascore: ') || !STEAM_NO_DATA_LABELS.has(score.toLowerCase())
+              )
+              .map((score, i) => {
+                if (score.startsWith('Metascore: ')) {
+                  const val = parseInt(score.replace('Metascore: ', ''), 10)
+                  return (
+                    <span key={i} className="card-review card-review--meta">
+                      {metacriticEmoji(val)} {score}
+                    </span>
+                  )
+                }
+                const emoji = STEAM_REVIEW_EMOJIS[score.toLowerCase()] ?? '🎮'
                 return (
-                  <span key={i} className="card-review card-review--meta">
-                    {metacriticEmoji(val)} {score}
+                  <span key={i} className="card-review card-review--steam">
+                    {emoji} {score}
                   </span>
                 )
-              }
-              const emoji = STEAM_REVIEW_EMOJIS[score.toLowerCase()] ?? '🎮'
-              return (
-                <span key={i} className="card-review card-review--steam">
-                  {emoji} {score}
-                </span>
-              )
-            })}
+              })}
           </div>
         )}
 

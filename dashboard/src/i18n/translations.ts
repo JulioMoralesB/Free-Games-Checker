@@ -39,6 +39,7 @@ export interface Translations {
   freeUntil: string
   viewOnStore: (storeName: string) => string
   dlcBadge: string
+  expiredBadge: string
   originalPrice: string
   timeLeft: (days: number, hours: number, minutes: number) => string
   expiresSoon: string
@@ -95,6 +96,7 @@ const en: Translations = {
   freeUntil: 'Free until',
   viewOnStore: (storeName) => `View on ${storeName} →`,
   dlcBadge: 'DLC',
+  expiredBadge: 'Expired',
   originalPrice: 'Original price:',
   timeLeft: (days, hours, minutes) =>
     days > 0
@@ -156,6 +158,7 @@ const es: Translations = {
   freeUntil: 'Gratis hasta el',
   viewOnStore: (storeName) => `Ver en ${storeName} →`,
   dlcBadge: 'DLC',
+  expiredBadge: 'Expirado',
   originalPrice: 'Precio original:',
   timeLeft: (days, hours, minutes) =>
     days > 0
