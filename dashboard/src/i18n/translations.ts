@@ -14,17 +14,34 @@ export interface Translations {
   sortByDate: string
   sortByTitle: string
 
+  // Filter bar — status
+  statusFilterLabel: string
+  statusAll: string
+  statusActive: string
+  statusExpired: string
+
+  // Filter bar — store
+  storeFilterLabel: string
+  storeAll: string
+  storeEpic: string
+  storeSteam: string
+
   // Loading / error / empty states
   loadingGames: string
   errorRetry: string
   noGamesMatch: (query: string) => string
   noGamesYet: string
+  noActiveGames: string
+  noExpiredGames: string
 
   // GameCard
   wasFreeUntil: string
   freeUntil: string
   viewOnStore: (storeName: string) => string
   dlcBadge: string
+  originalPrice: string
+  timeLeft: (days: number, hours: number, minutes: number) => string
+  expiresSoon: string
 
   // Pagination
   paginationNavAriaLabel: string
@@ -53,17 +70,39 @@ const en: Translations = {
   sortByDate: 'Date',
   sortByTitle: 'Title',
 
+  // Filter bar — status
+  statusFilterLabel: 'Status:',
+  statusAll: 'All',
+  statusActive: 'Currently Free',
+  statusExpired: 'Previously Free',
+
+  // Filter bar — store
+  storeFilterLabel: 'Store:',
+  storeAll: 'All',
+  storeEpic: 'Epic',
+  storeSteam: 'Steam',
+
   // Loading / error / empty states
   loadingGames: 'Loading games…',
   errorRetry: 'Retry',
   noGamesMatch: (query) => `No games match "${query}"`,
   noGamesYet: 'No games in history yet.',
+  noActiveGames: 'No free games currently available.',
+  noExpiredGames: 'No previously free games found.',
 
   // GameCard
   wasFreeUntil: 'Was free until',
   freeUntil: 'Free until',
   viewOnStore: (storeName) => `View on ${storeName} →`,
   dlcBadge: 'DLC',
+  originalPrice: 'Original price:',
+  timeLeft: (days, hours, minutes) =>
+    days > 0
+      ? `⏰ ${days}d ${hours}h left`
+      : hours > 0
+        ? `⏰ ${hours}h ${minutes}m left`
+        : `⏰ ${minutes}m left`,
+  expiresSoon: '⏰ Expires soon!',
 
   // Pagination
   paginationNavAriaLabel: 'Pagination',
@@ -92,17 +131,39 @@ const es: Translations = {
   sortByDate: 'Fecha',
   sortByTitle: 'Título',
 
+  // Filter bar — status
+  statusFilterLabel: 'Estado:',
+  statusAll: 'Todos',
+  statusActive: 'Gratis Ahora',
+  statusExpired: 'Anteriores',
+
+  // Filter bar — store
+  storeFilterLabel: 'Tienda:',
+  storeAll: 'Todas',
+  storeEpic: 'Epic',
+  storeSteam: 'Steam',
+
   // Loading / error / empty states
   loadingGames: 'Cargando juegos…',
   errorRetry: 'Reintentar',
   noGamesMatch: (query) => `No se encontraron juegos para "${query}"`,
   noGamesYet: 'Aún no hay juegos en el historial.',
+  noActiveGames: 'No hay juegos gratis disponibles en este momento.',
+  noExpiredGames: 'No se encontraron juegos anteriormente gratuitos.',
 
   // GameCard
   wasFreeUntil: 'Estuvo gratis hasta el',
   freeUntil: 'Gratis hasta el',
   viewOnStore: (storeName) => `Ver en ${storeName} →`,
   dlcBadge: 'DLC',
+  originalPrice: 'Precio original:',
+  timeLeft: (days, hours, minutes) =>
+    days > 0
+      ? `⏰ Quedan ${days}d ${hours}h`
+      : hours > 0
+        ? `⏰ Quedan ${hours}h ${minutes}m`
+        : `⏰ Quedan ${minutes}m`,
+  expiresSoon: '⏰ ¡Expira pronto!',
 
   // Pagination
   paginationNavAriaLabel: 'Paginación',
