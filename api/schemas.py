@@ -142,6 +142,9 @@ class SummaryActivePromotion(BaseModel):
     """One currently-free game, as listed in SummaryResponse.active_promotions."""
 
     title: str = Field(..., description="Name of the free game", examples=["Celeste"])
+    link: str = Field(
+        ..., description="URL to the game's store page", examples=["https://store.steampowered.com/app/504230"]
+    )
     store: str = Field(
         ..., description="Store identifier where the game is free", examples=["epic", "steam"]
     )

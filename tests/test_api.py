@@ -436,6 +436,7 @@ class TestSummaryEndpoint:
         assert data["service"] == "free-games-notifier"
         assert len(data["active_promotions"]) == 1
         assert data["active_promotions"][0]["title"] == "A"
+        assert data["active_promotions"][0]["link"] == "https://store.epicgames.com/p/a"
         assert data["active_promotions"][0]["store"] == "epic"
         assert data["active_promotions"][0]["end_date"] == TestSummaryEndpoint.FUTURE
         assert data["last_check_at"] is not None
@@ -509,7 +510,7 @@ class TestSummaryEndpoint:
 
         data = resp.json()
         assert set(data.keys()) == {"service", "active_promotions", "last_check_at"}
-        assert set(data["active_promotions"][0].keys()) == {"title", "store", "end_date"}
+        assert set(data["active_promotions"][0].keys()) == {"title", "link", "store", "end_date"}
 
     @staticmethod
     def _game_active(title):
