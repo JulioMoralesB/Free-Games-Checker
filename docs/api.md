@@ -92,7 +92,7 @@ curl -H "X-API-Key: $DASHBOARD_API_KEY" http://localhost:8000/api/summary
 | Field | Type | Description |
 |---|---|---|
 | `service` | string | Always `"free-games-notifier"` — identifies the source when a poller tracks several services |
-| `active_promotions` | array | Games currently free, soonest-ending first. Games with no end date sort last |
+| `active_promotions` | array | Games currently free, soonest-ending first. Games with no known end date are omitted — this contract only lists games with an actual deadline |
 | `active_promotions[].title` | string | Game title |
 | `active_promotions[].store` | string | Store identifier, e.g. `epic`, `steam` |
 | `active_promotions[].end_date` | string | ISO-8601 timestamp when the free promotion ends |

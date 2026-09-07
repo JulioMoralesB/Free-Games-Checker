@@ -45,9 +45,10 @@ def summary():
         logger.error("Failed to load games for summary: %s", e)
         raise HTTPException(status_code=503, detail="Storage backend unavailable")
 
-    active = [g for g in games if is_still_active(g)]
-    # Soonest-ending first; games with no end_date (permanent-style) sort last.
-    active.sort(key=lambda g: (not g.end_date, g.end_date))
+    # Games with no known end_date are excluded: this contract promises "when
+    # it ends", and a poller can't act on a deadline we don't have.
+    active = [g for g in games if is_still_active(g) and g.end_date]
+    active.sort(key=lambda g: g.end_date)  # Soonest-ending first.
 
     last_check = get_last_check_completed_at()
 

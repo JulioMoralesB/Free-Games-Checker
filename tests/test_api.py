@@ -460,7 +460,8 @@ class TestSummaryEndpoint:
         titles = [g["title"] for g in resp.json()["active_promotions"]]
         assert titles == ["Sooner", "Later"]
 
-    def test_games_with_no_end_date_sort_last(self, client):
+    def test_games_with_no_end_date_are_excluded(self, client):
+        """A poller can't act on a deadline we don't have, so these are omitted entirely."""
         permanent = _game("Permanent", "")
         dated = _game("Dated", "2099-01-01T00:00:00.000Z")
         with patch("api.auth.DASHBOARD_API_KEY", "secret"), \
@@ -469,7 +470,7 @@ class TestSummaryEndpoint:
             resp = client.get("/api/summary", headers={"X-API-Key": "secret"})
 
         titles = [g["title"] for g in resp.json()["active_promotions"]]
-        assert titles == ["Dated", "Permanent"]
+        assert titles == ["Dated"]
 
     def test_last_check_at_is_null_when_no_check_has_run_yet(self, client):
         with patch("api.auth.DASHBOARD_API_KEY", "secret"), \
