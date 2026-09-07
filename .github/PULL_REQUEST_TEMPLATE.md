@@ -2,7 +2,6 @@
 Thanks for opening a PR!
 
 Reminders:
-- Target the `QA` branch, never `main` directly
 - Run `pytest tests/`, `cd dashboard && npm test`, and `ruff check .` locally before pushing
 - Include `Closes #N` below if this PR resolves an issue (the project board automation depends on it)
 - See CONTRIBUTING.md for the full contribution guide
