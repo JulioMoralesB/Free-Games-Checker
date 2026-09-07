@@ -55,7 +55,7 @@ def summary():
     return {
         "service": SERVICE_NAME,
         "active_promotions": [
-            {"title": g.title, "store": g.store, "end_date": g.end_date}
+            {"title": g.title, "link": g.url, "store": g.store, "end_date": g.end_date}
             for g in active
         ],
         "last_check_at": (

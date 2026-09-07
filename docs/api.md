@@ -83,7 +83,7 @@ curl -H "X-API-Key: $DASHBOARD_API_KEY" http://localhost:8000/api/summary
 {
   "service": "free-games-notifier",
   "active_promotions": [
-    { "title": "Celeste", "store": "epic", "end_date": "2026-09-10T16:00:00.000Z" }
+    { "title": "Celeste", "link": "https://store.epicgames.com/p/celeste", "store": "epic", "end_date": "2026-09-10T16:00:00.000Z" }
   ],
   "last_check_at": "2026-09-03T12:00:00+00:00"
 }
@@ -94,6 +94,7 @@ curl -H "X-API-Key: $DASHBOARD_API_KEY" http://localhost:8000/api/summary
 | `service` | string | Always `"free-games-notifier"` — identifies the source when a poller tracks several services |
 | `active_promotions` | array | Games currently free, soonest-ending first. Games with no known end date are omitted — this contract only lists games with an actual deadline |
 | `active_promotions[].title` | string | Game title |
+| `active_promotions[].link` | string | URL to the game's store page |
 | `active_promotions[].store` | string | Store identifier, e.g. `epic`, `steam` |
 | `active_promotions[].end_date` | string | ISO-8601 timestamp when the free promotion ends |
 | `last_check_at` | string \| null | ISO-8601 UTC timestamp of the last scheduled check that ran to completion; `null` until the first one finishes after startup |
