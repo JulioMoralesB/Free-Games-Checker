@@ -15,12 +15,11 @@ Use the issue templates that appear automatically when you click **New Issue**. 
 ## Branch model
 
 ```
-feature branch ──► QA ──► main ──► tag vX.Y.Z ──► GHCR image
+feature branch ──► main ──► tag vX.Y.Z ──► GHCR image
 ```
 
-- All PRs target the **`QA`** branch — never `main` directly. `QA` accumulates changes until they are ready for a release; `main` is the source of truth for release tags.
-- A maintainer fast-forwards `main` from `QA` and tags `vX.Y.Z` to publish a release. Pushing the tag triggers `.github/workflows/release.yml`, which builds the multi-arch Docker image and publishes it to `ghcr.io/juliomoralesb/free-games-notifier`.
-- For a hotfix on `main` (e.g. broken release workflow), branch from `main`, target `QA` in the PR, and the maintainer cherry-picks or merges through normally.
+- All PRs target `main` directly. `main` is always the source of truth and the base for release tags.
+- A maintainer tags `vX.Y.Z` on `main` to publish a release. Pushing the tag triggers `.github/workflows/release.yml`, which builds the multi-arch Docker image and publishes it to `ghcr.io/juliomoralesb/free-games-notifier`.
 
 ## Local development
 
@@ -42,7 +41,7 @@ cd dashboard && npm install && cd ..
 ## Running tests
 
 ```bash
-# Python — 345 tests across api, scrapers, storage, dedupe, etc.
+# Python — across api, scrapers, storage, dedupe, etc.
 pytest tests/ -v -m "not integration and not production"
 
 # Dashboard — Vitest + React Testing Library
@@ -106,7 +105,7 @@ A short orientation map. For the full architecture overview, read [docs/architec
 
 ## Adding a new scraper
 
-1. Create `modules/scrapers/yourstore.py` with a class that subclasses `Scraper` (in `base.py`).
+1. Create `modules/scrapers/yourstore.py` with a class that subclasses `BaseScraper` (in `base.py`).
 2. Implement `store_name` and `fetch_free_games() -> list[FreeGame]`.
 3. Register it in `modules/scrapers/__init__.py` so `get_enabled_scrapers(["yourstore"])` returns it.
 4. Update [docs/configuration.md](docs/configuration.md) and the README's roadmap.
@@ -119,10 +118,9 @@ See the [Dashboard Developer Guide](docs/dashboard.md#adding-a-new-language) —
 
 Releases are **maintainer-driven**. The flow:
 
-1. PRs are merged into `QA` and accumulate.
-2. Maintainer merges `QA → main` once a coherent set of changes is ready.
-3. Maintainer creates an annotated tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. The release workflow builds and publishes the image. Self-hosters update via `docker compose pull && docker compose up -d`.
+1. PRs are merged directly into `main`.
+2. Maintainer creates an annotated tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. The release workflow builds and publishes the image. Self-hosters update via `docker compose pull && docker compose up -d`.
 
 Pre-release tags (`vX.Y.Z-rc.1`) are supported and skip the `:latest` tag automatically — useful for testing the published image before the official release.
 

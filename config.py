@@ -28,7 +28,7 @@ STEAM_SEARCH_URL = os.getenv("STEAM_SEARCH_URL", "https://store.steampowered.com
 # value (individual var always wins).
 #
 # Supported values — use exactly as written:
-#   America/Mexico_City · America/New_York · America/Chicago
+#   America/Mexico_City · America/New_York · America/Chicago · America/Denver
 #   America/Los_Angeles · America/Toronto · America/Sao_Paulo
 #   America/Argentina/Buenos_Aires · Europe/Madrid · Europe/London
 #   Europe/Berlin · Europe/Paris · Europe/Rome · Europe/Warsaw

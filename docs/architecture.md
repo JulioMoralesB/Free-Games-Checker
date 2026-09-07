@@ -98,7 +98,7 @@ The REST API runs on a daemon thread alongside the scheduler, exposing the same 
 
 ### Single FreeGame model
 
-Every scraper returns `list[FreeGame]` from `modules/models.py`. Adding a new store means implementing `Scraper.fetch_free_games() -> list[FreeGame]` — the rest of the pipeline is store-agnostic.
+Every scraper returns `list[FreeGame]` from `modules/models.py`. Adding a new store means implementing `BaseScraper.fetch_free_games() -> list[FreeGame]` — the rest of the pipeline is store-agnostic.
 
 ### Storage
 
@@ -116,11 +116,10 @@ A game must pass all three to be considered new.
 
 ### Adding a new scraper
 
-1. Create `modules/scrapers/yourstore.py` with a class that subclasses `Scraper` (in `base.py`)
+1. Create `modules/scrapers/yourstore.py` with a class that subclasses `BaseScraper` (in `base.py`)
 2. Implement `store_name` and `fetch_free_games() -> list[FreeGame]`
-3. Register it in `modules/scrapers/__init__.py` so `get_enabled_scrapers(["yourstore"])` returns it
-4. Add an entry to the `ENABLED_STORES` validation list in `config.py`
-5. Update [`docs/configuration.md`](configuration.md) and [`README.md`](../README.md)
+3. Register it in `modules/scrapers/__init__.py` so `get_enabled_scrapers(["yourstore"])` returns it — no separate validation list to update, unknown `ENABLED_STORES` entries are just skipped with a warning
+4. Update [`docs/configuration.md`](configuration.md) and [`README.md`](../README.md)
 
 ### Adding a new dashboard language
 
